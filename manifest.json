@@ -1,0 +1,12 @@
+{
+  "name": "恩恩聲播日曆",
+  "short_name": "恩恩聲播日曆",
+  "description": "聲播主每日/每週/每月收禮目標追蹤",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#14141c",
+  "theme_color": "#14141c",
+  "icons": [
+    { "src": "icon.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}
