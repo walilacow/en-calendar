@@ -797,6 +797,18 @@
     return { doneCnt, total: tasks.length, totUnits, doneUnits, pct, scoreTotal, scoreEarned, allDone: tasks.length > 0 && doneCnt === tasks.length };
   }
 
+  // 當月金龍/城堡加總
+  function monthSpecial(ds) {
+    const ym = ds.slice(0, 7);
+    let dragon = 0, castle = 0;
+    Object.keys(store.dates).forEach(k => {
+      if (k.slice(0, 7) !== ym) return;
+      const sp = store.dates[k].special;
+      if (sp) { dragon += sp.dragon || 0; castle += sp.castle || 0; }
+    });
+    return { dragon, castle };
+  }
+
   // ---------- 月曆 ----------
   function renderCalendar() {
     $('monthTitle').textContent = `${viewYear} 年 ${viewMonth + 1} 月`;
@@ -995,6 +1007,8 @@
         }
       }
       weekLine = `・ 當週每日分數 <b>${wkEarn}/${wkTot}</b>（週一～週日）`;
+      const ms = monthSpecial(openDate);
+      weekLine += `・ 當月 🐉x<b>${ms.dragon}</b> 🏰x<b>${ms.castle}</b>`;
     }
     $('daySummary').innerHTML =
       `任務達成 <b>${r.doneCnt}/${r.total}</b> ・ 收禮進度 <b>${r.pct}%</b>（${r.doneUnits}/${r.totUnits} 個）・ 分數 <b>${r.scoreEarned}/${r.scoreTotal}</b>${weekLine} ・ ${status}<br>${notes[scope]}`;
@@ -1037,6 +1051,11 @@
       spBox.style.display = 'block';
       const sp = (store.dates[openDate] && store.dates[openDate].special) || { dragon: 0, castle: 0 };
       spBox.querySelectorAll('.sp-count').forEach(el => { el.textContent = sp[el.dataset.k] || 0; });
+      const msNow = monthSpecial(openDate);
+      const dEl = spBox.querySelector('[data-k="dragon"]').previousElementSibling;
+      const cEl = spBox.querySelector('[data-k="castle"]').previousElementSibling;
+      if (dEl) dEl.innerHTML = '🐉 金龍 <span style="font-size:11px;color:var(--muted);font-weight:400;">當月x' + msNow.dragon + '</span>';
+      if (cEl) cEl.innerHTML = '🏰 城堡 <span style="font-size:11px;color:var(--muted);font-weight:400;">當月x' + msNow.castle + '</span>';
     } else {
       $('timeBox').style.display = 'none';
       noteBox.style.display = 'none';
@@ -1661,7 +1680,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v20';
+  $('verTag').textContent = 'v21';
   renderCalendar();
 })();
 </script>
