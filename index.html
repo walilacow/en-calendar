@@ -644,7 +644,10 @@
         }
         if (data.length > 300 * 1024) { toast('圖片壓縮後仍過大，請換一張'); return; }
         avatarData = data;
-        localStorage.setItem('avatarData_v1', data);
+        try { localStorage.setItem('avatarData_v1', data); } catch (e) { /* 本機容量滿也不中斷 */ }
+        if (fbOk && currentUid) {
+          db.collection('users').doc(currentUid).set({ avatarData: data }, { merge: true }).catch(() => {});
+        }
         renderAvatarPicker();
         applyNick();
         toast('✅ 頭像已更新');
@@ -975,7 +978,7 @@
       `任務達成 <b>${r.doneCnt}/${r.total}</b> ・ 收禮進度 <b>${r.pct}%</b>（${r.doneUnits}/${r.totUnits} 個）・ 分數 <b>${r.scoreEarned}/${r.scoreTotal}</b> ・ ${status}<br>${notes[scope]}`;
 
     const labels = {
-      day: ['📋 複製前一天', '🗑 清空這天'],
+      day: ['📋 複製前一天任務', '🗑 清空這天'],
       week: ['📋 複製上一週', '🗑 清空本週'],
       month: ['📋 複製上一月', '🗑 清空本月'],
       custom: ['📋 複製區間（不支援）', '🗑 刪除這個區間']
@@ -1534,7 +1537,7 @@
         c.beginPath(); c.arc(150, 155, 72, 0, Math.PI * 2);
         c.strokeStyle = '#b794f6'; c.lineWidth = 6; c.stroke();
       }
-      finishCard(c, r);
+      finishCard(c, r, tasks);
       cb(cv);
     };
     const avImg = new Image();
@@ -1543,9 +1546,9 @@
     avImg.src = avatarURL();
   }
 
-  function finishCard(c, r) {
+  function finishCard(c, r, tasks) {
     const FONT = '\'PingFang TC\', \'Noto Sans TC\', sans-serif';
-    const W = 1080;
+    const W = 1080, H = 1350;
     c.textAlign = 'center';
     c.fillStyle = '#b794f6';
     c.font = 'bold 150px ' + FONT;
