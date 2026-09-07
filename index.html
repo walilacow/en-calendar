@@ -257,6 +257,15 @@
       使用 Google 帳號登入
     </button>
     <div class="pwd-err" id="loginErr"></div>
+    <div id="iosTip" style="margin-top:16px; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px; text-align:left; display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div style="font-size:13px; font-weight:700; color:var(--accent2);">💡 iPhone 使用建議</div>
+        <button id="iosTipClose" style="background:none; border:none; color:var(--muted); cursor:pointer; font-size:14px; padding:0 2px;">✕</button>
+      </div>
+      <div style="font-size:13px; color:var(--text); line-height:1.7; margin-top:6px;">
+        建議用 <b>Safari</b> 開啟本頁面，登入後點底部分享 ⬆️ →「<b>加入主畫面</b>」，就能像 App 一樣從桌面直接開啟，打卡提醒也比較穩定。
+      </div>
+    </div>
   </div>
 </div>
 
@@ -460,6 +469,19 @@
   } catch (err) {
     setTimeout(() => { $('loginErr').textContent = '⚠️ ' + err.message; }, 100);
   }
+
+  // iPhone 使用建議（僅 iOS、非桌面 App 模式、未關閉過才顯示）
+  try {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (isIOS && !standalone && localStorage.getItem('iosTipHide') !== '1') {
+      $('iosTip').style.display = 'block';
+    }
+  } catch (e) {}
+  $('iosTipClose').onclick = () => {
+    $('iosTip').style.display = 'none';
+    try { localStorage.setItem('iosTipHide', '1'); } catch (e) {}
+  };
 
   function scheduleCloudSave() {
     if (!fbOk || !currentUid) return;
