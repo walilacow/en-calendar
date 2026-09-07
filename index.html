@@ -53,7 +53,7 @@
   .btn-today {
     background: var(--accent); color: #14141c; border: none; border-radius: 10px;
     padding: 10px 16px; font-weight: 700; cursor: pointer; font-size: 14px;
-    white-space: nowrap;
+    white-space: nowrap; width: auto;
   }
 
   .stats { display: flex; gap: 10px; margin-bottom: 12px; }
@@ -249,7 +249,7 @@
 <!-- 登入 -->
 <div class="pwd-overlay" id="loginOverlay">
   <div class="pwd-box">
-    <h2>🔐 恩恩聲播日曆</h2>
+    <h2 id="loginTitle">🔐 聲播日曆</h2>
     <p>登入後資料自動同步雲端，換手機也看得到</p>
     <button class="btn btn-primary" id="googleLoginBtn" style="background:#fff; color:#333; display:flex; align-items:center; justify-content:center; gap:10px;">
       <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.5 6.1 29.5 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.7-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3l5.7-5.7C34.5 6.1 29.5 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C41 35.4 44 30.2 44 24c0-1.3-.1-2.7-.4-3.9z"/></svg>
@@ -261,7 +261,7 @@
 
 <div class="container" id="mainContent" style="display:none;">
   <header>
-    <h1>🎁 恩恩聲播日曆</h1>
+    <h1 id="appTitle">🎁 聲播日曆</h1>
     <div class="sub">點日期可設定「每日 / 每週 / 每月」收禮目標（每週從週一起算）・到期自動結算重置・歷史完成數保留</div>
   </header>
 
@@ -270,6 +270,7 @@
     <div class="month-title" id="monthTitle"></div>
     <button id="nextMonth" title="下個月">›</button>
     <button class="btn-today" id="todayBtn">今天</button>
+    <button class="btn-today" id="editNickBtn" title="修改暱稱" style="background: var(--card); color: var(--muted); border: 1px solid var(--border); padding: 10px 12px; font-size: 13px;">✏️</button>
     <button class="btn-today" id="logoutBtn" style="background: var(--card); color: var(--muted); border: 1px solid var(--border); padding: 10px 12px; font-size: 13px;">登出</button>
   </div>
   <div style="display:flex; gap:10px; margin-bottom:12px;">
@@ -380,6 +381,19 @@
   </div>
 </div>
 
+<!-- 暱稱/馬甲設定 -->
+<div class="overlay" id="nameOverlay" style="align-items:center; z-index:160; display:none;">
+  <div style="background:var(--card); border:1px solid var(--border); border-radius:18px; padding:24px; width:86%; max-width:320px; text-align:center;">
+    <div style="font-size:34px; margin-bottom:6px;">👋</div>
+    <div style="font-size:17px; font-weight:700; margin-bottom:14px;">第一次使用，請輸入你的主播資料</div>
+    <label style="display:block; text-align:left; font-size:12px; color:var(--muted); margin-bottom:4px;">主播暱稱（顯示在標題）</label>
+    <input id="nickInput" type="text" placeholder="例如：恩恩" maxlength="12" autocomplete="off" style="width:100%; background:var(--bg); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px; font-size:16px; text-align:center; outline:none; margin-bottom:10px;">
+    <label style="display:block; text-align:left; font-size:12px; color:var(--muted); margin-bottom:4px;">主播馬甲</label>
+    <input id="aliasInput" type="text" placeholder="例如：安安的房" maxlength="16" autocomplete="off" style="width:100%; background:var(--bg); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px; font-size:16px; text-align:center; outline:none; margin-bottom:12px;">
+    <button class="btn btn-primary" id="nickOk" style="width:100%; padding:13px; font-size:16px;">開始使用</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -450,9 +464,24 @@
           const d = snap.data();
           store = { dates: d.dates || {}, weeks: d.weeks || {}, months: d.months || {} };
           save();
+          if (d.nickname) {
+            nickname = d.nickname;
+            localStorage.setItem('nick_v1', nickname);
+            applyNick();
+          }
+          if (d.alias) {
+            alias = d.alias;
+            localStorage.setItem('alias_v1', alias);
+          }
         }
       } catch (err) {}
       renderCalendar();
+      if (!nickname || !alias) {
+        $('nickInput').value = '';
+        $('aliasInput').value = '';
+        $('nameOverlay').style.display = 'flex';
+        setTimeout(() => $('nickInput').focus(), 200);
+      }
     });
     auth.getRedirectResult().catch(() => {});
 
@@ -472,6 +501,41 @@
   }
 
   $('logoutBtn').onclick = () => { if (fbOk && auth) auth.signOut(); };
+
+  // ---------- 主播暱稱 / 馬甲 ----------
+  let nickname = localStorage.getItem('nick_v1') || '';
+  let alias = localStorage.getItem('alias_v1') || '';
+  function applyNick() {
+    const n = nickname || '聲播';
+    document.title = n + '聲播日曆';
+    $('appTitle').textContent = '🎁 ' + n + '聲播日曆';
+    $('loginTitle').textContent = '🔐 ' + n + '聲播日曆';
+  }
+  applyNick();
+
+  $('nickOk').onclick = () => {
+    const v = $('nickInput').value.trim();
+    const a = $('aliasInput').value.trim();
+    if (!v) { $('nickInput').focus(); return; }
+    if (!a) { $('aliasInput').focus(); return; }
+    nickname = v;
+    alias = a;
+    localStorage.setItem('nick_v1', v);
+    localStorage.setItem('alias_v1', a);
+    applyNick();
+    if (fbOk && currentUid) {
+      db.collection('users').doc(currentUid).set({ nickname: v, alias: a }, { merge: true }).catch(() => {});
+    }
+    $('nameOverlay').style.display = 'none';
+  };
+  $('nickInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('aliasInput').focus(); });
+  $('aliasInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('nickOk').click(); });
+  $('editNickBtn').onclick = () => {
+    $('nickInput').value = nickname;
+    $('aliasInput').value = alias;
+    $('nameOverlay').style.display = 'flex';
+    setTimeout(() => $('nickInput').focus(), 200);
+  };
 
   function load() {
     try {
@@ -881,7 +945,7 @@
     const scopeName = { day: '每日', week: '每週', month: '每月' }[scope];
     const title = $('sheetTitle').textContent.replace(/・.*/, '');
     const lines = [`【${title}・${scopeName}】${done.length}(已完成)/${undone.length}(未完成)`];
-    done.forEach(t => lines.push(`${t.name} ${t.cur}/${t.target} 💛`));
+    done.forEach(t => lines.push(`${t.name} ${t.cur}/${t.target} ${alias || '💛'}`));
     undone.forEach(t => lines.push(`${t.name} ${t.cur}/${t.target}`));
     const text = lines.join('\n');
 
