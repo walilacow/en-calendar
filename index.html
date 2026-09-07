@@ -339,6 +339,17 @@
       </select>
       <button class="btn btn-primary" id="addBtn">新增</button>
     </div>
+    <div style="display:flex; gap:18px; margin:-6px 0 14px 2px;">
+      <label style="display:flex; align-items:center; gap:5px; font-size:13px; color:var(--green); cursor:pointer; user-select:none;">
+        <input type="checkbox" id="easyChk" style="width:17px; height:17px; accent-color:var(--green); cursor:pointer;">
+        ✨ 簡
+      </label>
+      <label style="display:flex; align-items:center; gap:5px; font-size:13px; color:var(--accent2); cursor:pointer; user-select:none;">
+        <input type="checkbox" id="bonusChk" style="width:17px; height:17px; accent-color:var(--accent2); cursor:pointer;">
+        🔥 加
+      </label>
+      <span style="font-size:12px; color:var(--muted); align-self:center;">（都不勾＝普通每日）</span>
+    </div>
 
     <div class="task-list" id="taskList"></div>
     <div class="note-box" id="timeBox" style="margin-top:14px; display:none;">
@@ -370,6 +381,11 @@
       <label for="noteInput" style="display:block; font-size:13px; color:var(--muted); margin-bottom:6px;">📝 今日趣事</label>
       <textarea id="noteInput" rows="3" placeholder="記錄今天的趣事、感謝的聽眾、難忘的互動…" style="width:100%; background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px; font-size:15px; font-family:inherit; resize:vertical; outline:none; min-height:72px;"></textarea>
     </div>
+    <div id="hoursBox" style="display:none; margin-top:14px; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px 14px;">
+      <label style="font-size:13px; color:var(--muted); display:block; margin-bottom:8px;">📻 時數加分（本週開播 <b id="slotDayCount" style="color:var(--text);">0</b> 天）</label>
+      <input type="number" id="hoursBonusInput" min="0" placeholder="0" style="width:100%; background:var(--bg); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px; font-size:16px; font-weight:700; text-align:center; outline:none; font-family:inherit;">
+    </div>
+    <button class="btn btn-ghost btn-block" id="weekCopyBtn" style="display:none; border-color: var(--accent2); color: var(--accent2);">📅 複製當週分數</button>
     <button class="btn btn-ghost btn-block" id="copyListBtn">📋 複製完成 / 未完成清單</button>
     <button class="btn btn-ghost btn-block" id="cardBtn">📸 產生分享圖卡</button>
     <div class="sheet-foot">
@@ -530,6 +546,8 @@
         dates: store.dates || {},
         weeks: store.weeks || {},
         months: store.months || {},
+        ranges: store.ranges || {},
+        scoreLog: store.scoreLog || {},
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }).catch(() => {});
     }, 1500);
@@ -547,7 +565,7 @@
         const snap = await db.collection('users').doc(user.uid).get();
         if (snap.exists) {
           const d = snap.data();
-          const cloud = { dates: d.dates || {}, weeks: d.weeks || {}, months: d.months || {}, ranges: d.ranges || {} };
+          const cloud = { dates: d.dates || {}, weeks: d.weeks || {}, months: d.months || {}, ranges: d.ranges || {}, scoreLog: d.scoreLog || {} };
           // 合併保險：本機任務較多的日期保留本機版，避免空/舊雲端清掉九月資料
           try {
             const local = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
@@ -742,12 +760,12 @@
       const raw = localStorage.getItem(STORE_KEY);
       if (raw) {
         const s = JSON.parse(raw);
-        return { dates: s.dates || {}, weeks: s.weeks || {}, months: s.months || {}, ranges: s.ranges || {} };
+        return { dates: s.dates || {}, weeks: s.weeks || {}, months: s.months || {}, ranges: s.ranges || {}, scoreLog: s.scoreLog || {} };
       }
     } catch (e) {}
-    return { dates: {}, weeks: {}, months: {}, ranges: {} };
+    return { dates: {}, weeks: {}, months: {}, ranges: {}, scoreLog: {} };
   }
-  function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) {} scheduleCloudSave(); }
+  function save() { try { logTodayScores(); } catch (e) {} try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) {} scheduleCloudSave(); }
 
   function key(y, m, d) {
     return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
@@ -809,6 +827,34 @@
       if (sp) { dragon += sp.dragon || 0; castle += sp.castle || 0; }
     });
     return { dragon, castle };
+  }
+
+  // 任務類型：bonus（舊資料 bonus:true）> easy > 每日
+  function taskTypeOf(t) {
+    if (t.type === 'bonus' || t.bonus === true) return 'bonus';
+    if (t.type === 'easy') return 'easy';
+    return 'day';
+  }
+  // 依類型拆得分
+  function splitScores(tasks) {
+    const r = { day: 0, easy: 0, bonus: 0 };
+    (tasks || []).forEach(t => {
+      const s = t.cur >= t.target ? (t.score || 0) : 0;
+      r[taskTypeOf(t)] += s;
+    });
+    return r;
+  }
+  // 每天自動記錄分數快照（供週日複製當週明细）
+  function logTodayScores() {
+    const tk = todayKey();
+    if (!store.scoreLog) store.scoreLog = {};
+    const b = store.dates[tk];
+    const sp = splitScores(b && b.tasks);
+    const wk = calc(getTasks('week', tk)).scoreEarned;
+    const mo = calc(getTasks('month', tk)).scoreEarned;
+    const prev = store.scoreLog[tk] || {};
+    if (prev.day === sp.day && prev.easy === sp.easy && prev.bonus === sp.bonus && prev.week === wk && prev.month === mo) return;
+    store.scoreLog[tk] = { day: sp.day, easy: sp.easy, bonus: sp.bonus, week: wk, month: mo };
   }
 
   // ---------- 月曆 ----------
@@ -979,6 +1025,19 @@
       customBar.style.display = 'none';
     }
 
+    const isSunday = new Date(y, m - 1, d).getDay() === 0;
+    $('weekCopyBtn').style.display = (scope === 'day' && isSunday) ? 'block' : 'none';
+    $('hoursBox').style.display = (scope === 'day' && isSunday) ? 'block' : 'none';
+    if (scope === 'day' && isSunday) {
+      let sd = 0;
+      for (let i = 0; i < 7; i++) {
+        const d2 = new Date(mondayOf(y, m - 1, d)); d2.setDate(d2.getDate() + i);
+        const b2 = store.dates[key(d2.getFullYear(), d2.getMonth(), d2.getDate())];
+        if (b2 && b2.slots && b2.slots.length) sd++;
+      }
+      $('slotDayCount').textContent = sd;
+      $('hoursBonusInput').value = ((store.dates[openDate] || {}).hoursBonus) || '';
+    }
     const tasks = getTasks(scope, openDate);
     const r = calc(tasks);
     let status;
@@ -1109,6 +1168,13 @@
         nameEl.appendChild(giftImg);
       }
       nameEl.appendChild(document.createTextNode(t.name));
+      const tt = taskTypeOf(t);
+      if (tt !== 'day') {
+        const bTag = document.createElement('span');
+        bTag.textContent = tt === 'bonus' ? '🔥加碼' : '✨簡易';
+        bTag.style.cssText = 'font-size:10px; color:' + (tt === 'bonus' ? 'var(--accent2)' : 'var(--green)') + '; border:1px solid currentColor; border-radius:99px; padding:1px 7px; margin-left:8px; vertical-align:middle; white-space:nowrap;';
+        nameEl.appendChild(bTag);
+      }
       list.appendChild(div);
     });
   }
@@ -1156,16 +1222,25 @@
     const tasks = ensureBucket(scope, openDate).tasks;
     if (tasks.some(t => t.name === name)) { toast('這個項目已存在'); return; }
     const iconSel = $('iconSelect').value;
-    tasks.push({ name, target, cur: 0, score, icon: iconSel || '' });
+    const isEasy = $('easyChk').checked, isBonus = $('bonusChk').checked;
+    if (isEasy && isBonus) { toast('「簡」和「加」請擇一勾選'); return; }
+    const taskType = isBonus ? 'bonus' : (isEasy ? 'easy' : '');
+    const newTask = { name, target, cur: 0, score, icon: iconSel || '' };
+    if (taskType) newTask.type = taskType;
+    tasks.push(newTask);
     save();
     $('nameInput').value = '';
     $('qtyInput').value = '1';
     $('ptsInput').value = '0';
     $('iconSelect').value = '';
+    $('easyChk').checked = false;
+    $('bonusChk').checked = false;
     renderSheet();
     $('nameInput').focus();
     toast(`已新增「${name}」x ${target}（${score} 分）`);
   }
+  $('easyChk').addEventListener('change', () => { if ($('easyChk').checked) $('bonusChk').checked = false; });
+  $('bonusChk').addEventListener('change', () => { if ($('bonusChk').checked) $('easyChk').checked = false; });
   $('addBtn').onclick = addTasks;
   $('nameInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') addTasks(); });
   $('qtyInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') addTasks(); });
@@ -1204,6 +1279,11 @@
     b.slots.push({ start: '', end: '' });
     save(); renderSheet();
   };
+  $('hoursBonusInput').addEventListener('change', () => {
+    if (!openDate) return;
+    ensureBucket('day', openDate).hoursBonus = Math.max(0, parseInt($('hoursBonusInput').value, 10) || 0);
+    save();
+  });
   $('clearTimeBtn').onclick = () => {
     if (!openDate) return;
     const b = ensureBucket('day', openDate);
@@ -1261,7 +1341,11 @@
     const scopeName = { day: '每日', week: '每週', month: '每月' }[scope];
     const title = $('sheetTitle').textContent.replace(/・.*/, '');
     const lines = [`【${title}・${scopeName}】${done.length}(已完成)/${undone.length}(未完成)`];
-    done.forEach(t => lines.push(`${t.name} ${t.cur}/${t.target} ${alias || '💛'}`));
+    done.forEach(t => {
+      const tt = taskTypeOf(t);
+      const tag = tt === 'bonus' ? '🔥' : (tt === 'easy' ? '✨' : '');
+      lines.push(`${t.name}${tag} ${t.cur}/${t.target} ${alias || '💛'}`);
+    });
     undone.forEach(t => lines.push(`${t.name} ${t.cur}/${t.target}`));
     const text = lines.join('\n');
 
@@ -1645,6 +1729,68 @@
     c.fillText('聲播日曆', W / 2, H - 105);
   }
 
+  // ---------- 週日複製當週分數 ----------
+  $('weekCopyBtn').onclick = () => {
+    if (!openDate) return;
+    const [yy, mm, dd] = openDate.split('-').map(Number);
+    const mon = mondayOf(yy, mm - 1, dd);
+    const log = store.scoreLog || {};
+    const lines = [];
+    let grand = 0, slotDays = 0;
+    let prevW = 0, prevM = 0;
+    let sunDk = '';
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(mon); d.setDate(mon.getDate() + i);
+      const dk = key(d.getFullYear(), d.getMonth(), d.getDate());
+      if (i === 6) sunDk = dk;
+      const snap = log[dk];
+      const b = store.dates[dk];
+      let dDay = 0, dEasy = 0, dBonus = 0, wInc = 0, mInc = 0;
+      if (snap) {
+        dDay = snap.day || 0; dEasy = snap.easy || 0; dBonus = snap.bonus || 0;
+        wInc = (snap.week || 0) - prevW;
+        mInc = (snap.month || 0) - prevM;
+      } else if (b && b.tasks) {
+        const sp = splitScores(b.tasks);
+        dDay = sp.day; dEasy = sp.easy; dBonus = sp.bonus;
+        if (i === 6) { // 舊資料無快照：週/月得分記在最後一天
+          wInc = calc(getTasks('week', dk)).scoreEarned - prevW;
+          mInc = calc(getTasks('month', dk)).scoreEarned - prevM;
+        }
+      }
+      prevW = snap ? (snap.week || 0) : prevW;
+      prevM = snap ? (snap.month || 0) : prevM;
+      const parts = [];
+      if (dDay) parts.push('日+' + dDay);
+      if (dEasy) parts.push('簡+' + dEasy);
+      if (dBonus) parts.push('加碼+' + dBonus);
+      if (wInc > 0) parts.push('週+' + wInc);
+      if (mInc > 0) parts.push('月+' + mInc);
+      if (parts.length) lines.push((d.getMonth() + 1) + '/' + d.getDate() + ' ' + parts.join(' '));
+      grand += dDay + dEasy + dBonus + Math.max(0, wInc) + Math.max(0, mInc);
+      if (b && b.slots && b.slots.length) slotDays++;
+    }
+    const sunB = ((store.dates[sunDk] || {}).hoursBonus) || 0;
+    if (sunB > 0) { lines.push('時數' + slotDays + ' +' + sunB); grand += sunB; }
+    lines.push('總分' + grand);
+    copyText(lines.join('\n'));
+    toast('已複製當週分數');
+  };
+
+  function copyText(text) {
+    const fallback = () => {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); } catch (err) { alert(text); }
+      document.body.removeChild(ta);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch(fallback);
+    } else fallback();
+  }
+
   $('cardBtn').onclick = () => {
     if (!openDate) return;
     if (!getTasks(scope, openDate).length) { toast('還沒有任務，無法產生圖卡'); return; }
@@ -1678,7 +1824,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v27';
+  $('verTag').textContent = 'v32';
   renderCalendar();
 })();
 </script>
