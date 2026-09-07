@@ -322,6 +322,20 @@
       <input id="ptsInput" type="number" min="0" value="0" placeholder="分數">
       <button class="btn btn-primary" id="addBtn">新增</button>
     </div>
+    <div id="giftPickRow" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px;">
+      <button class="gift-pick" data-name="玫瑰" style="background:var(--card); border:1px solid var(--border); border-radius:99px; padding:5px 10px; font-size:13px; cursor:pointer; color:var(--text); font-family:inherit;">🌹 玫瑰</button>
+      <button class="gift-pick" data-name="火箭" style="background:var(--card); border:1px solid var(--border); border-radius:99px; padding:5px 10px; font-size:13px; cursor:pointer; color:var(--text); font-family:inherit;">🚀 火箭</button>
+      <button class="gift-pick" data-name="城堡" style="background:var(--card); border:1px solid var(--border); border-radius:99px; padding:5px 10px; font-size:13px; cursor:pointer; color:var(--text); font-family:inherit;">🏰 城堡</button>
+      <button class="gift-pick" data-name="金龍" style="background:var(--card); border:1px solid var(--border); border-radius:99px; padding:5px 10px; font-size:13px; cursor:pointer; color:var(--text); font-family:inherit;">🐉 金龍</button>
+      <button class="gift-pick" data-name="跑車" style="background:var(--card); border:1px solid var(--border); border-radius:99px; padding:5px 10px; font-size:13px; cursor:pointer; color:var(--text); font-family:inherit;">🏎️ 跑車</button>
+      <button class="gift-pick" data-name="飛機" style="background:var(--card); border:1px solid var(--border); border-radius:99px; padding:5px 10px; font-size:13px; cursor:pointer; color:var(--text); font-family:inherit;">✈️ 飛機</button>
+      <button class="gift-pick" data-name="遊艇" style="background:var(--card); border:1px solid var(--border); border-radius:99px; padding:5px 10px; font-size:13px; cursor:pointer; color:var(--text); font-family:inherit;">🛥️ 遊艇</button>
+      <button class="gift-pick" data-name="鑽戒" style="background:var(--card); border:1px solid var(--border); border-radius:99px; padding:5px 10px; font-size:13px; cursor:pointer; color:var(--text); font-family:inherit;">💍 鑽戒</button>
+      <button class="gift-pick" data-name="皇冠" style="background:var(--card); border:1px solid var(--border); border-radius:99px; padding:5px 10px; font-size:13px; cursor:pointer; color:var(--text); font-family:inherit;">👑 皇冠</button>
+      <button class="gift-pick" data-name="煙花" style="background:var(--card); border:1px solid var(--border); border-radius:99px; padding:5px 10px; font-size:13px; cursor:pointer; color:var(--text); font-family:inherit;">🎆 煙花</button>
+      <button class="gift-pick" data-name="愛心" style="background:var(--card); border:1px solid var(--border); border-radius:99px; padding:5px 10px; font-size:13px; cursor:pointer; color:var(--text); font-family:inherit;">❤️ 愛心</button>
+      <button class="gift-pick" data-name="禮物盒" style="background:var(--card); border:1px solid var(--border); border-radius:99px; padding:5px 10px; font-size:13px; cursor:pointer; color:var(--text); font-family:inherit;">🎁 禮物盒</button>
+    </div>
     <div class="task-list" id="taskList"></div>
     <div class="note-box" id="timeBox" style="margin-top:14px; display:none;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
@@ -353,6 +367,7 @@
       <textarea id="noteInput" rows="3" placeholder="記錄今天的趣事、感謝的聽眾、難忘的互動…" style="width:100%; background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px; font-size:15px; font-family:inherit; resize:vertical; outline:none; min-height:72px;"></textarea>
     </div>
     <button class="btn btn-ghost btn-block" id="copyListBtn">📋 複製完成 / 未完成清單</button>
+    <button class="btn btn-ghost btn-block" id="cardBtn">📸 產生分享圖卡</button>
     <div class="sheet-foot">
       <button class="btn btn-ghost" id="copyPrevBtn">📋 複製前一天</button>
       <button class="btn btn-ghost" id="clearDayBtn">🗑 清空這天</button>
@@ -422,6 +437,19 @@
       <button class="alias-pick" style="background:var(--bg); border:1px solid var(--border); border-radius:8px; font-size:18px; padding:6px 8px; cursor:pointer;">🌸</button>
     </div>
     <button class="btn btn-primary" id="nickOk" style="width:100%; padding:13px; font-size:16px;">開始使用</button>
+  </div>
+</div>
+
+<!-- 分享圖卡 -->
+<div class="overlay" id="cardOverlay" style="z-index:170;">
+  <div class="sheet" style="text-align:center;">
+    <div class="sheet-head"><h2>📸 分享圖卡</h2><button class="close" id="closeCard">✕</button></div>
+    <img id="cardImg" alt="分享圖卡" style="width:100%; border-radius:14px; border:1px solid var(--border); display:block; margin-bottom:14px;">
+    <div class="sheet-foot">
+      <button class="btn btn-primary" id="cardShare" style="flex:1;">⬆️ 分享</button>
+      <button class="btn btn-ghost" id="cardDownload" style="flex:1;">⬇️ 存到相簿</button>
+    </div>
+    <div class="day-summary" id="cardMsg" style="margin-top:10px;"></div>
   </div>
 </div>
 
@@ -903,7 +931,14 @@
         <div class="task-meta">目標 ${t.target} 個 ・ 已收 ${t.cur} 個（${tpct}%）・ ${t.score || 0} 分${isDone ? ' ・ ✅ 達成' : ''}</div>
         <div class="task-bar"><div class="task-fill" style="width:${tpct}%"></div></div>
       `;
-      div.querySelector('.task-name').textContent = t.name;
+      const giftImg = document.createElement('img');
+      giftImg.src = 'gifts/' + t.name + '.png';
+      giftImg.style.cssText = 'width:22px;height:22px;border-radius:50%;margin-right:8px;object-fit:cover;vertical-align:middle;flex-shrink:0;';
+      giftImg.onerror = () => { giftImg.style.display = 'none'; };
+      const nameEl = div.querySelector('.task-name');
+      nameEl.textContent = '';
+      nameEl.insertBefore(giftImg, nameEl.firstChild);
+      nameEl.appendChild(document.createTextNode(t.name));
       list.appendChild(div);
     });
   }
@@ -1328,6 +1363,128 @@
   }
   setInterval(checkReminders, 30000);
   setTimeout(checkReminders, 2000);
+
+
+  // ---------- 分享圖卡 ----------
+  let lastCardBlob = null;
+
+  function roundRect(c, x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+
+  function makeCard() {
+    const tasks = getTasks(scope, openDate);
+    const r = calc(tasks);
+    const W = 1080, H = 1350;
+    const cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    const c = cv.getContext('2d');
+    const FONT = '\'PingFang TC\', \'Noto Sans TC\', sans-serif';
+
+    const g = c.createLinearGradient(0, 0, W, H);
+    g.addColorStop(0, '#1c1c2b'); g.addColorStop(1, '#14141c');
+    c.fillStyle = g; c.fillRect(0, 0, W, H);
+
+    roundRect(c, 60, 60, W - 120, H - 120, 40);
+    c.fillStyle = '#1e1e2a'; c.fill();
+    c.strokeStyle = '#b794f6'; c.lineWidth = 4; c.stroke();
+
+    c.textAlign = 'center';
+    c.fillStyle = '#e8e8f0';
+    c.font = 'bold 56px ' + FONT;
+    c.fillText((nickname ? nickname : '') + '聲播日曆 🎁', W / 2, 175);
+
+    const py = Number(openDate.slice(0, 4)), pm = Number(openDate.slice(5, 7)), pd = Number(openDate.slice(8, 10));
+    const week = WEEK[new Date(py, pm - 1, pd).getDay()];
+    c.fillStyle = '#8b8b9e';
+    c.font = '34px ' + FONT;
+    c.fillText(py + ' 年 ' + pm + ' 月 ' + pd + ' 日（週' + week + '）', W / 2, 240);
+
+    c.fillStyle = '#b794f6';
+    c.font = 'bold 150px ' + FONT;
+    c.fillText(r.pct + '%', W / 2, 435);
+    c.fillStyle = '#8b8b9e';
+    c.font = '34px ' + FONT;
+    c.fillText('任務達成 ' + r.doneCnt + '/' + r.total + ' ・ 分數 ' + r.scoreEarned + '/' + r.scoreTotal, W / 2, 500);
+
+    const bx = 140, bw = W - 280, by = 545;
+    roundRect(c, bx, by, bw, 24, 12); c.fillStyle = '#2e2e40'; c.fill();
+    if (r.pct > 0) {
+      roundRect(c, bx, by, Math.max(24, bw * r.pct / 100), 24, 12);
+      const pg = c.createLinearGradient(bx, 0, bx + bw, 0);
+      pg.addColorStop(0, '#b794f6'); pg.addColorStop(1, '#f6ad55');
+      c.fillStyle = pg; c.fill();
+    }
+
+    let ty = 672;
+    const mark = alias || '💛';
+    tasks.slice(0, 8).forEach(t => {
+      const done = t.cur >= t.target;
+      roundRect(c, 110, ty - 52, W - 220, 78, 18);
+      c.fillStyle = done ? 'rgba(72,187,120,.13)' : 'rgba(46,46,64,.55)';
+      c.fill();
+      c.textAlign = 'left';
+      c.fillStyle = done ? '#48bb78' : '#e8e8f0';
+      c.font = 'bold 40px ' + FONT;
+      c.fillText((done ? mark + ' ' : '⬜ ') + t.name, 150, ty);
+      c.textAlign = 'right';
+      c.fillStyle = done ? '#48bb78' : '#8b8b9e';
+      c.font = 'bold 40px ' + FONT;
+      c.fillText(t.cur + '/' + t.target, W - 150, ty);
+      ty += 92;
+    });
+
+    c.textAlign = 'center';
+    c.fillStyle = '#5a5a70';
+    c.font = '28px ' + FONT;
+    c.fillText('聲播日曆', W / 2, H - 105);
+    return cv;
+  }
+
+  $('giftPickRow').addEventListener('click', (e) => {
+    const b = e.target.closest('.gift-pick');
+    if (!b) return;
+    $('nameInput').value = b.dataset.name;
+    $('qtyInput').focus();
+  });
+
+  $('cardBtn').onclick = () => {
+    if (!openDate) return;
+    if (!getTasks(scope, openDate).length) { toast('還沒有任務，無法產生圖卡'); return; }
+    const cv = makeCard();
+    cv.toBlob((blob) => {
+      if (!blob) { toast('產生圖卡失敗'); return; }
+      lastCardBlob = blob;
+      $('cardImg').src = URL.createObjectURL(blob);
+      $('cardMsg').textContent = '';
+      $('cardOverlay').classList.add('open');
+    }, 'image/png');
+  };
+  $('cardDownload').onclick = () => {
+    if (!lastCardBlob) return;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(lastCardBlob);
+    a.download = 'shengbo-card.png';
+    document.body.appendChild(a); a.click(); a.remove();
+    $('cardMsg').textContent = '已下載，到相簿查看';
+  };
+  $('cardShare').onclick = async () => {
+    if (!lastCardBlob) return;
+    const file = new File([lastCardBlob], 'shengbo-card.png', { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: '聲播日曆' }); } catch (e) {}
+    } else {
+      $('cardMsg').textContent = '此裝置不支援直接分享，請用「存到相簿」再手動發';
+    }
+  };
+  $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
+  $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
   renderCalendar();
 })();
