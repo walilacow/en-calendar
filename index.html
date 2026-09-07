@@ -1140,7 +1140,7 @@
     $('topicSummary').innerHTML =
       `中文維基百科近 10 日累計瀏覽排行（成功取得 ${got} 天資料，最新到 ${newest.getMonth() + 1}/${newest.getDate()}）・已優先篩選綜藝八卦、社會時事・<a href="https://zh.wikipedia.org/" target="_blank" rel="noopener">參考來源：維基百科</a>`;
     list.innerHTML = '';
-    [...pref, ...rest].slice(0, 5).forEach((a, i) => {
+    [...pref, ...rest].slice(0, 20).forEach((a, i) => {
       const link = 'https://zh.wikipedia.org/wiki/' + encodeURIComponent(a.article);
       const div = document.createElement('a');
       div.className = 'task';
@@ -1196,7 +1196,9 @@
     ['愛人錯過', '告五人'], ['如果可以', '韋禮安'], ['小情歌', '蘇打綠'],
     ['身騎白馬', '徐佳瑩'], ['有一種悲傷', 'A-Lin'], ['以後別做朋友', '周興哲'],
     ['光年之外', 'G.E.M. 鄧紫棋'], ['修煉愛情', '林俊傑'], ['倒帶', '蔡依林'],
-    ['突然好想你', '五月天'], ['魚仔', '盧廣仲'], ['小幸運', '田馥甄']
+    ['突然好想你', '五月天'], ['魚仔', '盧廣仲'], ['小幸運', '田馥甄'],
+    ['成全', '林宥嘉'], ['說謊', '林宥嘉'], ['晴天', '周杰倫'], ['七里香', '周杰倫'],
+    ['遇見', '孫燕姿'], ['那些你很冒險的夢', '林俊傑'], ['聽海', '張惠妹'], ['演員', '薛之謙']
   ];
   $('songBtn').onclick = async () => {
     $('songOverlay').classList.add('open');
@@ -1248,7 +1250,7 @@
       });
       const mandos = songs.filter(x => x.tag === '🎤 華語');
       const others = songs.filter(x => x.tag !== '🎤 華語');
-      render([...mandos, ...others].slice(0, 5),
+      render([...mandos, ...others].slice(0, 20),
         'iTunes 台灣即時排行・已優先列出華語歌曲・<a href="https://music.apple.com/tw/browse" target="_blank" rel="noopener">參考來源：Apple Music</a>');
       return;
     } catch (err) {}
