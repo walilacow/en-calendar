@@ -1739,27 +1739,33 @@
     let grand = 0, slotDays = 0;
     let prevW = 0, prevM = 0;
     let sunDk = '';
+    const baseMk = openDate.slice(0, 7); // 週日的月份：月增量只計同月日子
+    let monthCounted = false;
     for (let i = 0; i < 7; i++) {
       const d = new Date(mon); d.setDate(mon.getDate() + i);
       const dk = key(d.getFullYear(), d.getMonth(), d.getDate());
       if (i === 6) sunDk = dk;
       const snap = log[dk];
       const b = store.dates[dk];
+      const sameMonth = dk.slice(0, 7) === baseMk;
       let dDay = 0, dEasy = 0, dBonus = 0, wInc = 0, mInc = 0;
       if (snap) {
         dDay = snap.day || 0; dEasy = snap.easy || 0; dBonus = snap.bonus || 0;
         wInc = (snap.week || 0) - prevW;
-        mInc = (snap.month || 0) - prevM;
+        if (sameMonth) {
+          mInc = (snap.month || 0) - prevM;
+          prevM = snap.month || 0;
+          monthCounted = true;
+        }
       } else if (b && b.tasks) {
         const sp = splitScores(b.tasks);
         dDay = sp.day; dEasy = sp.easy; dBonus = sp.bonus;
         if (i === 6) { // 舊資料無快照：週/月得分記在最後一天
           wInc = calc(getTasks('week', dk)).scoreEarned - prevW;
-          mInc = calc(getTasks('month', dk)).scoreEarned - prevM;
+          mInc = sameMonth ? (calc(getTasks('month', dk)).scoreEarned - prevM) : 0;
         }
       }
       prevW = snap ? (snap.week || 0) : prevW;
-      prevM = snap ? (snap.month || 0) : prevM;
       const parts = [];
       if (dDay) parts.push('日+' + dDay);
       if (dEasy) parts.push('簡+' + dEasy);
@@ -1824,7 +1830,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v32';
+  $('verTag').textContent = 'v33';
   renderCalendar();
 })();
 </script>
