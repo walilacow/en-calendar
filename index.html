@@ -55,6 +55,7 @@
     padding: 10px 16px; font-weight: 700; cursor: pointer; font-size: 14px;
     white-space: nowrap; width: auto;
   }
+  .month-nav button.btn-today { width: auto; height: 40px; }
 
   .stats { display: flex; gap: 10px; margin-bottom: 12px; }
   .stat-box {
@@ -261,7 +262,10 @@
 
 <div class="container" id="mainContent" style="display:none;">
   <header>
-    <h1 id="appTitle">🎁 聲播日曆</h1>
+    <div style="display:flex; align-items:center; justify-content:center; gap:8px;">
+      <h1 id="appTitle">🎁 聲播日曆</h1>
+      <button id="editNickBtn" title="修改暱稱 / 馬甲" style="background:none; border:none; font-size:16px; cursor:pointer; padding:4px; opacity:.8;">✏️</button>
+    </div>
     <div class="sub">點日期可設定「每日 / 每週 / 每月」收禮目標（每週從週一起算）・到期自動結算重置・歷史完成數保留</div>
   </header>
 
@@ -270,7 +274,6 @@
     <div class="month-title" id="monthTitle"></div>
     <button id="nextMonth" title="下個月">›</button>
     <button class="btn-today" id="todayBtn">今天</button>
-    <button class="btn-today" id="editNickBtn" title="修改暱稱" style="background: var(--card); color: var(--muted); border: 1px solid var(--border); padding: 10px 12px; font-size: 13px;">✏️</button>
     <button class="btn-today" id="logoutBtn" style="background: var(--card); color: var(--muted); border: 1px solid var(--border); padding: 10px 12px; font-size: 13px;">登出</button>
   </div>
   <div style="display:flex; gap:10px; margin-bottom:12px;">
