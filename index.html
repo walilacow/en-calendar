@@ -560,24 +560,37 @@
         const snap = await db.collection('users').doc(user.uid).get();
         if (snap.exists) {
           const d = snap.data();
-          store = { dates: d.dates || {}, weeks: d.weeks || {}, months: d.months || {} };
+          const cloud = { dates: d.dates || {}, weeks: d.weeks || {}, months: d.months || {}, ranges: d.ranges || {} };
+          // 合併保險：本機任務較多的日期保留本機版，避免空/舊雲端清掉九月資料
+          try {
+            const local = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
+            ['dates', 'weeks', 'months'].forEach(function(bk) {
+              const lb = (local && local[bk]) || {};
+              Object.keys(lb).forEach(function(k) {
+                const lt = ((lb[k] || {}).tasks || []).length;
+                const ct = ((cloud[bk][k] || {}).tasks || []).length;
+                if (lt > ct) cloud[bk][k] = lb[k];
+              });
+            });
+          } catch (e) {}
+          store = cloud;
           save();
           if (d.nickname) {
             nickname = d.nickname;
-            localStorage.setItem('nick_v1', nickname);
+            lsSetRaw('nick_v1', nickname);
             applyNick();
           }
           if (d.alias) {
             alias = d.alias;
-            localStorage.setItem('alias_v1', alias);
+            lsSetRaw('alias_v1', alias);
           }
           if (d.avatar) {
             avatarKey = d.avatar;
-            localStorage.setItem('avatar_v1', avatarKey);
+            lsSetRaw('avatar_v1', avatarKey);
           }
           if (d.avatarData) {
             avatarData = d.avatarData;
-            localStorage.setItem('avatarData_v1', avatarData);
+            lsSetRaw('avatarData_v1', avatarData);
             applyNick();
           }
         }
@@ -649,7 +662,7 @@
         }
         if (data.length > 300 * 1024) { toast('圖片壓縮後仍過大，請換一張'); return; }
         avatarData = data;
-        try { localStorage.setItem('avatarData_v1', data); } catch (e) { /* 本機容量滿也不中斷 */ }
+        try { lsSetRaw('avatarData_v1', data); } catch (e) { /* 本機容量滿也不中斷 */ }
         if (fbOk && currentUid) {
           db.collection('users').doc(currentUid).set({ avatarData: data }, { merge: true }).catch(() => {});
         }
@@ -709,9 +722,9 @@
     if (!a) { $('aliasInput').focus(); return; }
     nickname = v;
     alias = a;
-    localStorage.setItem('nick_v1', v);
-    localStorage.setItem('alias_v1', a);
-    localStorage.setItem('avatar_v1', avatarKey);
+    lsSetRaw('nick_v1', v);
+    lsSetRaw('alias_v1', a);
+    lsSetRaw('avatar_v1', avatarKey);
     applyNick();
     if (fbOk && currentUid) {
       const payload = { nickname: v, alias: a, avatar: avatarKey };
@@ -735,6 +748,8 @@
     setTimeout(() => $('nickInput').focus(), 200);
   };
 
+  function lsSetRaw(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
   function load() {
     try {
       const raw = localStorage.getItem(STORE_KEY);
@@ -745,7 +760,7 @@
     } catch (e) {}
     return { dates: {}, weeks: {}, months: {}, ranges: {} };
   }
-  function save() { localStorage.setItem(STORE_KEY, JSON.stringify(store)); scheduleCloudSave(); }
+  function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) {} scheduleCloudSave(); }
 
   function key(y, m, d) {
     return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
@@ -1746,7 +1761,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v23';
+  $('verTag').textContent = 'v24';
   renderCalendar();
 })();
 </script>
