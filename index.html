@@ -306,6 +306,7 @@
     </div>
     <div class="tabs" id="tabs"></div>
     <div class="day-summary" id="daySummary"></div>
+    <div id="customBar" style="display:none; margin-bottom:12px;"></div>
     <div class="add-row">
       <input id="nameInput" type="text" placeholder="任務項目" autocomplete="off">
       <input id="qtyInput" type="number" min="1" value="1" placeholder="數量">
@@ -430,6 +431,8 @@
   let viewYear, viewMonth;
   let openDate = null;
   let scope = 'day'; // day | week | month
+  let customId = null;    // 目前選擇的自訂區間
+  let showCreateRange = false;
 
   // ---------- Firebase 登入與雲端資料庫 ----------
   // ⚠️ 請把下面 6 個 PASTE 換成你自己的 Firebase 設定值（設定教學見文件）
@@ -527,10 +530,10 @@
   let nickname = localStorage.getItem('nick_v1') || '';
   let alias = localStorage.getItem('alias_v1') || '';
   function applyNick() {
-    const n = nickname || '聲播';
-    document.title = n + '聲播日曆';
-    $('appTitle').textContent = '🎁 ' + n + '聲播日曆';
-    $('loginTitle').textContent = '🔐 ' + n + '聲播日曆';
+    const n = nickname;
+    document.title = n ? n + '聲播日曆' : '聲播日曆';
+    $('appTitle').textContent = n ? '🎁 ' + n + '聲播日曆' : '🎁 聲播日曆';
+    $('loginTitle').textContent = n ? '🔐 ' + n + '聲播日曆' : '🔐 聲播日曆';
   }
   applyNick();
 
@@ -568,10 +571,10 @@
       const raw = localStorage.getItem(STORE_KEY);
       if (raw) {
         const s = JSON.parse(raw);
-        return { dates: s.dates || {}, weeks: s.weeks || {}, months: s.months || {} };
+        return { dates: s.dates || {}, weeks: s.weeks || {}, months: s.months || {}, ranges: s.ranges || {} };
       }
     } catch (e) {}
-    return { dates: {}, weeks: {}, months: {} };
+    return { dates: {}, weeks: {}, months: {}, ranges: {} };
   }
   function save() { localStorage.setItem(STORE_KEY, JSON.stringify(store)); scheduleCloudSave(); }
 
@@ -597,11 +600,20 @@
   }
   const BUCKET = { day: 'dates', week: 'weeks', month: 'months' };
   function getTasks(sc, ds) {
+    if (sc === 'custom') {
+      const r = customId && store.ranges ? store.ranges[customId] : null;
+      return (r && r.tasks) || [];
+    }
     const k = scopeKey(sc, ds);
     const b = store[BUCKET[sc]][k];
     return (b && b.tasks) || [];
   }
   function ensureBucket(sc, ds) {
+    if (sc === 'custom') {
+      if (!store.ranges) store.ranges = {};
+      if (!store.ranges[customId]) store.ranges[customId] = { name: '', start: '', end: '', tasks: [] };
+      return store.ranges[customId];
+    }
     const k = scopeKey(sc, ds);
     if (!store[BUCKET[sc]][k]) store[BUCKET[sc]][k] = { tasks: [] };
     return store[BUCKET[sc]][k];
@@ -675,6 +687,17 @@
         else if (!wOk || !mOk) cell.classList.add(wr.doneUnits > 0 || mr.doneUnits > 0 ? 'wm-part' : '');
       }
 
+      if (store.ranges) {
+        let cDone = 0, cTot = 0;
+        Object.keys(store.ranges).forEach(id => {
+          const rg = store.ranges[id];
+          if (rg.start && rg.end && ds >= rg.start && ds <= rg.end) {
+            const rc = calc(rg.tasks || []);
+            cDone += rc.doneCnt; cTot += rc.total;
+          }
+        });
+        if (cTot) inner += `<div class="badge wm">區間 ${cDone}/${cTot}</div>`;
+      }
       cell.innerHTML = inner;
       cell.onclick = () => openDay(ds);
       grid.appendChild(cell);
@@ -705,7 +728,7 @@
   function renderTabs() {
     const tabs = $('tabs');
     tabs.innerHTML = '';
-    [['day', '每日'], ['week', '每週'], ['month', '每月']].forEach(([sc, label]) => {
+    [['day', '每日'], ['week', '每週'], ['month', '每月'], ['custom', '自訂']].forEach(([sc, label]) => {
       const r = calc(getTasks(sc, openDate));
       const b = document.createElement('button');
       b.className = 'tab' + (scope === sc ? ' active' : '');
@@ -731,6 +754,9 @@
       const rel = mine === cur ? '・本週' : (mine < cur ? '・已結算' : '・未來');
       $('sheetTitle').textContent =
         `本週 ${mon.getMonth() + 1}/${mon.getDate()}（一）– ${sun.getMonth() + 1}/${sun.getDate()}（日）${rel}`;
+    } else if (scope === 'custom') {
+      const r = customId && store.ranges ? store.ranges[customId] : null;
+      $('sheetTitle').textContent = r ? `${r.name}（${r.start}～${r.end}）` : '自訂任務區間';
     } else {
       const cur = tKey.slice(0, 7), mine = openDate.slice(0, 7);
       const rel = mine === cur ? '・本月' : (mine < cur ? '・已結算' : '・未來');
@@ -738,6 +764,37 @@
     }
 
     renderTabs();
+
+    // 自訂區間列
+    const customBar = $('customBar');
+    if (scope === 'custom') {
+      customBar.style.display = 'block';
+      if (!store.ranges) store.ranges = {};
+      const ids = Object.keys(store.ranges);
+      if (!customId || !store.ranges[customId]) customId = ids[0] || null;
+      let bar = '<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;">';
+      ids.forEach(id => {
+        const rg = store.ranges[id];
+        const rc = calc(rg.tasks || []);
+        const on = id === customId;
+        bar += `<button class="rng-chip" data-id="${id}" style="background:${on ? 'var(--accent)' : 'var(--card)'}; color:${on ? '#14141c' : 'var(--muted)'}; border:1px solid var(--border); border-radius:99px; padding:6px 12px; font-size:13px; cursor:pointer; font-family:inherit;">${rg.name}（${rg.start}～${rg.end}）${rc.doneCnt}/${rc.total}</button>`;
+      });
+      bar += '<button id="rngAdd" style="background:none; border:1px dashed var(--border); color:var(--muted); border-radius:99px; padding:6px 12px; font-size:13px; cursor:pointer; font-family:inherit;">＋ 新增區間</button></div>';
+      if (showCreateRange) {
+        bar += `<div style="background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:10px;">
+          <input id="rngName" type="text" placeholder="區間名稱（例如：中秋活動）" style="width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:var(--text); padding:10px; font-size:14px; outline:none; margin-bottom:8px; font-family:inherit;">
+          <div style="display:flex; gap:8px; margin-bottom:8px; align-items:center;">
+            <input id="rngStart" type="date" style="flex:1; min-width:0; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:var(--text); padding:10px; font-size:14px; outline:none; color-scheme:dark; font-family:inherit;">
+            <span style="color:var(--muted);">～</span>
+            <input id="rngEnd" type="date" style="flex:1; min-width:0; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:var(--text); padding:10px; font-size:14px; outline:none; color-scheme:dark; font-family:inherit;">
+          </div>
+          <button id="rngCreate" class="btn btn-primary" style="width:100%; padding:10px; font-size:14px;">建立區間</button>
+        </div>`;
+      }
+      customBar.innerHTML = bar;
+    } else {
+      customBar.style.display = 'none';
+    }
 
     const tasks = getTasks(scope, openDate);
     const r = calc(tasks);
@@ -750,7 +807,8 @@
     const notes = {
       day: '過了午夜 12 點後自動結算，新的一天從 0 重新開始。',
       week: '每週從禮拜一開始，週一自動結算上週並重新計算。',
-      month: '每月 1 號自動結算上月並重新計算。'
+      month: '每月 1 號自動結算上月並重新計算。',
+      custom: '自訂區間：進度累計到結束日，結束後保留為紀錄。'
     };
     $('daySummary').innerHTML =
       `任務達成 <b>${r.doneCnt}/${r.total}</b> ・ 收禮進度 <b>${r.pct}%</b>（${r.doneUnits}/${r.totUnits} 個）・ 分數 <b>${r.scoreEarned}/${r.scoreTotal}</b> ・ ${status}<br>${notes[scope]}`;
@@ -758,7 +816,8 @@
     const labels = {
       day: ['📋 複製前一天', '🗑 清空這天'],
       week: ['📋 複製上一週', '🗑 清空本週'],
-      month: ['📋 複製上一月', '🗑 清空本月']
+      month: ['📋 複製上一月', '🗑 清空本月'],
+      custom: ['📋 複製區間（不支援）', '🗑 刪除這個區間']
     };
     $('copyPrevBtn').textContent = labels[scope][0];
     $('clearDayBtn').textContent = labels[scope][1];
@@ -862,6 +921,7 @@
     if (!openDate) return;
     const name = $('nameInput').value.trim();
     if (!name) { $('nameInput').focus(); return; }
+    if (scope === 'custom' && !customId) { toast('請先建立或選擇區間'); return; }
     const qty = parseInt($('qtyInput').value, 10);
     const target = (isNaN(qty) || qty < 1) ? 1 : qty;
     const pts = parseInt($('ptsInput').value, 10);
@@ -936,6 +996,7 @@
   // 複製上一期
   $('copyPrevBtn').onclick = () => {
     if (!openDate) return;
+    if (scope === 'custom') { toast('自訂區間不支援複製'); return; }
     const [y, m, d] = openDate.split('-').map(Number);
     let prevKey;
     if (scope === 'day') {
@@ -992,12 +1053,38 @@
 
   $('clearDayBtn').onclick = () => {
     if (!openDate) return;
+    if (scope === 'custom') {
+      if (!customId || !store.ranges || !store.ranges[customId]) return;
+      if (confirm('確定刪除區間「' + store.ranges[customId].name + '」和所有任務？')) {
+        delete store.ranges[customId];
+        customId = null;
+        save(); renderSheet(); renderCalendar(); toast('已刪除區間');
+      }
+      return;
+    }
     const names = { day: '這天', week: '本週', month: '本月' };
     if (confirm(`確定清空${names[scope]}的所有目標與紀錄？`)) {
       delete store[BUCKET[scope]][scopeKey(scope, openDate)];
       save(); renderSheet(); toast('已清空');
     }
   };
+
+  $('customBar').addEventListener('click', (e) => {
+    const chip = e.target.closest('.rng-chip');
+    if (chip) { customId = chip.dataset.id; renderSheet(); return; }
+    if (e.target.closest('#rngAdd')) { showCreateRange = !showCreateRange; renderSheet(); return; }
+    if (e.target.closest('#rngCreate')) {
+      const name = $('rngName').value.trim();
+      const st = $('rngStart').value, en = $('rngEnd').value;
+      if (!name || !st || !en) { toast('名稱和起訖日期都要填'); return; }
+      if (en < st) { toast('結束日期不能早於開始日期'); return; }
+      const id = 'r' + Date.now();
+      store.ranges[id] = { name: name, start: st, end: en, tasks: [] };
+      customId = id; showCreateRange = false;
+      save(); renderSheet(); renderCalendar();
+      toast('已建立區間「' + name + '」');
+    }
+  });
 
   $('closeSheet').onclick = closeSheet;
   $('overlay').addEventListener('click', (e) => { if (e.target === $('overlay')) closeSheet(); });
