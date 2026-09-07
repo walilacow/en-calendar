@@ -310,12 +310,12 @@
     </div>
     <div class="task-list" id="taskList"></div>
     <div class="note-box" id="timeBox" style="margin-top:14px; display:none;">
-      <label style="display:block; font-size:13px; color:var(--muted); margin-bottom:6px;">🎙️ 開播時間（開始 ～ 結束）</label>
-      <div style="display:flex; gap:8px; align-items:center;">
-        <input type="time" id="startTimeInput" style="flex:1; min-width:0; background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px; font-size:16px; font-family:inherit; outline:none; color-scheme:dark;">
-        <span style="color:var(--muted); font-size:14px;">～</span>
-        <input type="time" id="endTimeInput" style="flex:1; min-width:0; background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px; font-size:16px; font-family:inherit; outline:none; color-scheme:dark;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <label style="font-size:13px; color:var(--muted);">🎙️ 開播時間（開始 ～ 結束）</label>
+        <button id="clearTimeBtn" style="background:none; border:none; color:var(--muted); font-size:12px; cursor:pointer; padding:2px 4px;">✕ 清除</button>
       </div>
+      <div id="slotList"></div>
+      <button id="addSlotBtn" style="width:100%; background:var(--card); border:1px dashed var(--border); color:var(--muted); border-radius:10px; padding:10px; font-size:14px; cursor:pointer; font-family:inherit;">＋ 新增時段</button>
     </div>
     <div class="note-box" id="specialBox" style="margin-top:14px; display:none;">
       <label style="display:block; font-size:13px; color:var(--muted); margin-bottom:6px;">🎰 幸運開出統計</label>
@@ -562,7 +562,10 @@
 
       let inner = `<div class="dnum">${d}</div>`;
       const stB = store.dates[ds];
-      if (stB && stB.startTime) inner += `<div class="badge">🎙️ ${stB.startTime}${stB.endTime ? '–' + stB.endTime : ''}</div>`;
+      if (stB && stB.slots && stB.slots.length) {
+        const slotTxt = stB.slots.map(sl => sl.start + (sl.end ? '–' + sl.end : '')).filter(Boolean).join(' ');
+        if (slotTxt) inner += `<div class="badge">🎙️ ${slotTxt}</div>`;
+      }
       if (tasks.length) {
         inner += `<div class="badge">${r.doneCnt}/${tasks.length} 任務・${r.doneUnits}/${r.totUnits} 個</div>
                   <div class="mini-bar"><div class="mini-fill" style="width:${r.pct}%"></div></div>`;
@@ -675,8 +678,24 @@
     const spBox = $('specialBox');
     if (scope === 'day') {
       $('timeBox').style.display = 'block';
-      $('startTimeInput').value = (store.dates[openDate] && store.dates[openDate].startTime) || '';
-      $('endTimeInput').value = (store.dates[openDate] && store.dates[openDate].endTime) || '';
+      const tb = ensureBucket('day', openDate);
+      if (!tb.slots && tb.startTime) {
+        tb.slots = [{ start: tb.startTime, end: tb.endTime || '' }];
+        delete tb.startTime; delete tb.endTime; save();
+      }
+      const slots = tb.slots || [];
+      const slotList = $('slotList');
+      slotList.innerHTML = '';
+      slots.forEach((sl, i) => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex; gap:8px; align-items:center; margin-bottom:8px;';
+        row.innerHTML = `
+          <input type="time" class="slot-start" data-slot="${i}" value="${sl.start || ''}" style="flex:1; min-width:0; background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px; font-size:16px; font-family:inherit; outline:none; color-scheme:dark;">
+          <span style="color:var(--muted); font-size:14px;">～</span>
+          <input type="time" class="slot-end" data-slot="${i}" value="${sl.end || ''}" style="flex:1; min-width:0; background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px; font-size:16px; font-family:inherit; outline:none; color-scheme:dark;">
+          <button class="slot-del" data-slot="${i}" title="刪除時段" style="background:none; border:none; color:var(--muted); font-size:15px; cursor:pointer; padding:4px 6px;">✕</button>`;
+        slotList.appendChild(row);
+      });
       noteBox.style.display = 'block';
       $('noteInput').value = (store.dates[openDate] && store.dates[openDate].note) || '';
       // 幸運開出統計
@@ -777,20 +796,41 @@
     ensureBucket('day', openDate).note = $('noteInput').value;
     save();
   });
-  $('startTimeInput').addEventListener('change', () => {
+  $('slotList').addEventListener('change', (e) => {
     if (!openDate) return;
-    ensureBucket('day', openDate).startTime = $('startTimeInput').value;
-    try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch (e) {}
+    const b = ensureBucket('day', openDate);
+    if (!b.slots) return;
+    const i = Number(e.target.dataset.slot);
+    if (!b.slots[i]) return;
+    if (e.target.classList.contains('slot-start')) b.slots[i].start = e.target.value;
+    else if (e.target.classList.contains('slot-end')) b.slots[i].end = e.target.value;
+    else return;
+    try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch (err) {}
     save();
     renderCalendar();
   });
-  $('endTimeInput').addEventListener('change', () => {
-    if (!openDate) return;
-    ensureBucket('day', openDate).endTime = $('endTimeInput').value;
-    try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch (e) {}
-    save();
-    renderCalendar();
+  $('slotList').addEventListener('click', (e) => {
+    const btn = e.target.closest('.slot-del');
+    if (!btn || !openDate) return;
+    const b = ensureBucket('day', openDate);
+    if (!b.slots) return;
+    b.slots.splice(Number(btn.dataset.slot), 1);
+    if (!b.slots.length) delete b.slots;
+    save(); renderSheet(); renderCalendar();
   });
+  $('addSlotBtn').onclick = () => {
+    if (!openDate) return;
+    const b = ensureBucket('day', openDate);
+    if (!b.slots) b.slots = [];
+    b.slots.push({ start: '', end: '' });
+    save(); renderSheet();
+  };
+  $('clearTimeBtn').onclick = () => {
+    if (!openDate) return;
+    const b = ensureBucket('day', openDate);
+    delete b.slots;
+    save(); renderSheet(); renderCalendar();
+  };
   $('specialBox').addEventListener('click', (e) => {
     const btn = e.target.closest('button');
     if (!btn || !openDate) return;
@@ -1069,18 +1109,21 @@
     const now = new Date();
     const tk = todayKey();
     const b = store.dates[tk];
-    if (!b) return;
+    if (!b || !b.slots || !b.slots.length) return;
     const cur = now.getHours() * 60 + now.getMinutes();
     const toMin = s => { const p = s.split(':'); return (+p[0]) * 60 + (+p[1]); };
-    const flags = reminded[tk] || (reminded[tk] = {});
-    if (b.startTime && !flags.start && cur >= toMin(b.startTime)) {
-      flags.start = true; saveReminded(reminded);
-      fireRemind('🎙️ 開播打卡', '開播時間到了，記得打卡！');
-    }
-    if (b.endTime && !flags.end && cur >= toMin(b.endTime) - 5) {
-      flags.end = true; saveReminded(reminded);
-      fireRemind('🎙️ 下播打卡', '再 5 分鐘下播，記得打卡！');
-    }
+    const flags = reminded[tk] || (reminded[tk] = []);
+    b.slots.forEach((sl, i) => {
+      const f = flags[i] || (flags[i] = {});
+      if (sl.start && !f.start && cur >= toMin(sl.start)) {
+        f.start = true; saveReminded(reminded);
+        fireRemind('🎙️ 開播打卡', '第 ' + (i + 1) + ' 場開播時間到了，記得打卡！');
+      }
+      if (sl.end && !f.end && cur >= toMin(sl.end) - 5) {
+        f.end = true; saveReminded(reminded);
+        fireRemind('🎙️ 下播打卡', '第 ' + (i + 1) + ' 場再 5 分鐘下播，記得打卡！');
+      }
+    });
   }
   setInterval(checkReminders, 30000);
   setTimeout(checkReminders, 2000);
