@@ -311,14 +311,14 @@
     <div class="task-list" id="taskList"></div>
     <div class="note-box" id="specialBox" style="margin-top:14px; display:none;">
       <label style="display:block; font-size:13px; color:var(--muted); margin-bottom:6px;">🎰 幸運開出統計</label>
-      <div style="display:flex; gap:10px; flex-wrap:wrap;">
-        <div style="flex:1 1 160px; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:10px 12px; display:flex; align-items:center; gap:8px;">
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div style="background:var(--card); border:1px solid var(--border); border-radius:10px; padding:10px 12px; display:flex; align-items:center; gap:8px;">
           <span style="flex:1; font-weight:600; font-size:15px;">🐉 金龍</span>
           <button class="sp-minus" data-k="dragon" style="width:32px; height:32px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--red); font-size:16px; cursor:pointer;">−</button>
           <b class="sp-count" data-k="dragon" style="min-width:28px; text-align:center; font-size:17px;">0</b>
           <button class="sp-plus" data-k="dragon" style="min-width:44px; height:32px; padding:0 10px; border-radius:8px; border:none; background:var(--accent2); color:#14141c; font-weight:700; cursor:pointer;">+1</button>
         </div>
-        <div style="flex:1 1 160px; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:10px 12px; display:flex; align-items:center; gap:8px;">
+        <div style="background:var(--card); border:1px solid var(--border); border-radius:10px; padding:10px 12px; display:flex; align-items:center; gap:8px;">
           <span style="flex:1; font-weight:600; font-size:15px;">🏰 城堡</span>
           <button class="sp-minus" data-k="castle" style="width:32px; height:32px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--red); font-size:16px; cursor:pointer;">−</button>
           <b class="sp-count" data-k="castle" style="min-width:28px; text-align:center; font-size:17px;">0</b>
@@ -397,7 +397,9 @@
     firebase.initializeApp(FB_CONFIG);
     auth = firebase.auth();
     db = firebase.firestore();
-    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {
+      setTimeout(() => { $('loginErr').textContent = '⚠️ 瀏覽器不允許保存登入狀態（可能是私密瀏覽），關掉頁面後會需要重新登入'; }, 200);
+    });
     fbOk = true;
   } catch (err) {
     setTimeout(() => { $('loginErr').textContent = '⚠️ ' + err.message; }, 100);
