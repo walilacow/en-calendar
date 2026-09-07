@@ -271,9 +271,10 @@
 
 <div class="container" id="mainContent" style="display:none;">
   <header>
-    <div style="display:flex; align-items:center; justify-content:center; gap:8px;">
+    <div style="display:flex; align-items:center; justify-content:center; gap:10px;">
+      <img id="titleAvatar" src="avatars/cat.png" alt="頭像" style="width:38px; height:38px; border-radius:50%; border:2px solid var(--accent); object-fit:cover;">
       <h1 id="appTitle">🎁 聲播日曆</h1>
-      <button id="editNickBtn" title="修改暱稱 / 馬甲" style="background:none; border:none; font-size:16px; cursor:pointer; padding:4px; opacity:.8;">✏️</button>
+      <button id="editNickBtn" title="修改暱稱 / 馬甲 / 頭像" style="background:none; border:none; font-size:16px; cursor:pointer; padding:4px; opacity:.8;">✏️</button>
     </div>
     <div class="sub">點日期可設定「每日 / 每週 / 每月」收禮目標（每週從週一起算）・到期自動結算重置・歷史完成數保留</div>
   </header>
@@ -320,6 +321,21 @@
       <input id="nameInput" type="text" placeholder="任務項目" autocomplete="off">
       <input id="qtyInput" type="number" min="1" value="1" placeholder="數量">
       <input id="ptsInput" type="number" min="0" value="0" placeholder="分數">
+      <select id="iconSelect" style="background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px 8px; font-size:14px; outline:none; font-family:inherit;">
+        <option value="">🚫 無圖示</option>
+        <option value="玫瑰">🌹 玫瑰</option>
+        <option value="火箭">🚀 火箭</option>
+        <option value="城堡">🏰 城堡</option>
+        <option value="金龍">🐉 金龍</option>
+        <option value="跑車">🏎️ 跑車</option>
+        <option value="飛機">✈️ 飛機</option>
+        <option value="遊艇">🛥️ 遊艇</option>
+        <option value="鑽戒">💍 鑽戒</option>
+        <option value="皇冠">👑 皇冠</option>
+        <option value="煙花">🎆 煙花</option>
+        <option value="愛心">❤️ 愛心</option>
+        <option value="禮物盒">🎁 禮物盒</option>
+      </select>
       <button class="btn btn-primary" id="addBtn">新增</button>
     </div>
     <div id="giftPickRow" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px;">
@@ -416,7 +432,10 @@
     <div style="font-size:17px; font-weight:700; margin-bottom:14px;">第一次使用，請輸入你的主播資料</div>
     <label style="display:block; text-align:left; font-size:12px; color:var(--muted); margin-bottom:4px;">主播暱稱（顯示在標題）</label>
     <input id="nickInput" type="text" placeholder="例如：恩恩" maxlength="12" autocomplete="off" style="width:100%; background:var(--bg); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px; font-size:16px; text-align:center; outline:none; margin-bottom:10px;">
+    <label style="display:block; text-align:left; font-size:12px; color:var(--muted); margin-bottom:4px;">虛擬頭像（分享圖卡會顯示）</label>
+    <div id="avatarPickRow" style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:10px;"></div>
     <label style="display:block; text-align:left; font-size:12px; color:var(--muted); margin-bottom:4px;">主播馬甲（圖示，會標在完成項目後面）</label>
+    <input id="avatarFile" type="file" accept="image/*" style="display:none;">
     <input id="aliasInput" type="text" placeholder="例如：💛" maxlength="8" autocomplete="off" style="width:100%; background:var(--bg); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px; font-size:18px; text-align:center; outline:none; margin-bottom:8px;">
     <div id="aliasPickRow" style="display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-bottom:12px;">
       <button class="alias-pick" style="background:var(--bg); border:1px solid var(--border); border-radius:8px; font-size:18px; padding:6px 8px; cursor:pointer;">💛</button>
@@ -547,12 +566,22 @@
             alias = d.alias;
             localStorage.setItem('alias_v1', alias);
           }
+          if (d.avatar) {
+            avatarKey = d.avatar;
+            localStorage.setItem('avatar_v1', avatarKey);
+          }
+          if (d.avatarData) {
+            avatarData = d.avatarData;
+            localStorage.setItem('avatarData_v1', avatarData);
+            applyNick();
+          }
         }
       } catch (err) {}
       renderCalendar();
       if (!nickname || !alias) {
         $('nickInput').value = '';
         $('aliasInput').value = '';
+        renderAvatarPicker();
         $('nameOverlay').style.display = 'flex';
         setTimeout(() => $('nickInput').focus(), 200);
       }
@@ -576,14 +605,92 @@
 
   $('logoutBtn').onclick = () => { if (fbOk && auth) auth.signOut(); };
 
-  // ---------- 主播暱稱 / 馬甲 ----------
+  // ---------- 主播暱稱 / 馬甲 / 頭像 ----------
+  const AVATARS = [
+    ['cat', '貓'], ['dog', '狗'], ['rabbit', '兔'], ['bear', '熊'],
+    ['fox', '狐'], ['panda', '熊貓'], ['owl', '貓頭鷹'], ['unicorn', '獨角獸']
+  ];
   let nickname = localStorage.getItem('nick_v1') || '';
   let alias = localStorage.getItem('alias_v1') || '';
+  let avatarKey = localStorage.getItem('avatar_v1') || 'cat';
+  let avatarData = localStorage.getItem('avatarData_v1') || ''; // 自訂頭像（壓縮後 base64）
+
+  // 取得目前頭像 URL（自訂優先，其次預設圖）
+  function avatarURL() {
+    return avatarData || ('avatars/' + avatarKey + '.png');
+  }
+
+  $('avatarFile').addEventListener('change', (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    if (f.size > 5 * 1024 * 1024) { toast('圖片太大（上限 5MB）'); e.target.value = ''; return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        // 壓縮到 256x256 JPEG
+        const S = 256;
+        const cv = document.createElement('canvas');
+        cv.width = S; cv.height = S;
+        const c = cv.getContext('2d');
+        const side = Math.min(img.width, img.height);
+        c.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, S, S);
+        let data = cv.toDataURL('image/jpeg', 0.85);
+        // 保險：若超過 200KB 再降品質
+        let q = 0.85;
+        while (data.length > 200 * 1024 && q > 0.4) {
+          q -= 0.15;
+          data = cv.toDataURL('image/jpeg', q);
+        }
+        if (data.length > 300 * 1024) { toast('圖片壓縮後仍過大，請換一張'); return; }
+        avatarData = data;
+        localStorage.setItem('avatarData_v1', data);
+        renderAvatarPicker();
+        applyNick();
+        toast('✅ 頭像已更新');
+      };
+      img.onerror = () => toast('無法讀取圖片');
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(f);
+    e.target.value = '';
+  });
+
+  function renderAvatarPicker() {
+    const row = $('avatarPickRow');
+    row.innerHTML = '';
+    AVATARS.forEach(([key, label]) => {
+      const b = document.createElement('button');
+      const on = key === avatarKey;
+      b.style.cssText = 'background:' + (on ? 'var(--accent)' : 'var(--bg)') + '; border:2px solid ' + (on ? 'var(--accent)' : 'var(--border)') + '; border-radius:50%; padding:3px; cursor:pointer;';
+      b.innerHTML = '<img src="avatars/' + key + '.png" style="width:52px;height:52px;border-radius:50%;display:block;">';
+      b.title = label;
+      b.onclick = () => { avatarKey = key; avatarData = ''; renderAvatarPicker(); };
+      row.appendChild(b);
+    });
+    // 上傳自訂頭像按鈕
+    const up = document.createElement('button');
+    const hasCustom = !!avatarData;
+    up.style.cssText = 'background:' + (hasCustom ? 'var(--accent)' : 'var(--bg)') + '; border:2px dashed ' + (hasCustom ? 'var(--accent)' : 'var(--border)') + '; border-radius:50%; width:58px; height:58px; cursor:pointer; color:var(--muted); font-size:22px;';
+    up.textContent = '⬆️';
+    up.title = '上傳自訂頭像';
+    up.onclick = () => $('avatarFile').click();
+    row.appendChild(up);
+    if (avatarData) {
+      const c = document.createElement('button');
+      c.style.cssText = 'background:var(--bg); border:2px solid var(--border); border-radius:50%; width:58px; height:58px; cursor:pointer; color:var(--muted); font-size:13px;';
+      c.textContent = '✕';
+      c.title = '清除自訂頭像';
+      c.onclick = () => { avatarData = ''; localStorage.removeItem('avatarData_v1'); renderAvatarPicker(); };
+      row.appendChild(c);
+    }
+  }
   function applyNick() {
     const n = nickname;
     document.title = n ? n + '聲播日曆' : '聲播日曆';
     $('appTitle').textContent = n ? '🎁 ' + n + '聲播日曆' : '🎁 聲播日曆';
     $('loginTitle').textContent = n ? '🔐 ' + n + '聲播日曆' : '🔐 聲播日曆';
+    $('titleAvatar').src = avatarURL();
   }
   applyNick();
 
@@ -596,9 +703,12 @@
     alias = a;
     localStorage.setItem('nick_v1', v);
     localStorage.setItem('alias_v1', a);
+    localStorage.setItem('avatar_v1', avatarKey);
     applyNick();
     if (fbOk && currentUid) {
-      db.collection('users').doc(currentUid).set({ nickname: v, alias: a }, { merge: true }).catch(() => {});
+      const payload = { nickname: v, alias: a, avatar: avatarKey };
+      if (avatarData) payload.avatarData = avatarData; else payload.avatarData = firebase.firestore.FieldValue.delete();
+      db.collection('users').doc(currentUid).set(payload, { merge: true }).catch(() => {});
     }
     $('nameOverlay').style.display = 'none';
   };
@@ -612,6 +722,7 @@
   $('editNickBtn').onclick = () => {
     $('nickInput').value = nickname;
     $('aliasInput').value = alias;
+    renderAvatarPicker();
     $('nameOverlay').style.display = 'flex';
     setTimeout(() => $('nickInput').focus(), 200);
   };
@@ -931,13 +1042,16 @@
         <div class="task-meta">目標 ${t.target} 個 ・ 已收 ${t.cur} 個（${tpct}%）・ ${t.score || 0} 分${isDone ? ' ・ ✅ 達成' : ''}</div>
         <div class="task-bar"><div class="task-fill" style="width:${tpct}%"></div></div>
       `;
-      const giftImg = document.createElement('img');
-      giftImg.src = 'gifts/' + t.name + '.png';
-      giftImg.style.cssText = 'width:22px;height:22px;border-radius:50%;margin-right:8px;object-fit:cover;vertical-align:middle;flex-shrink:0;';
-      giftImg.onerror = () => { giftImg.style.display = 'none'; };
       const nameEl = div.querySelector('.task-name');
       nameEl.textContent = '';
-      nameEl.insertBefore(giftImg, nameEl.firstChild);
+      const effIcon = t.icon ? (t.icon === 'none' ? '' : t.icon) : t.name;
+      if (effIcon) {
+        const giftImg = document.createElement('img');
+        giftImg.src = 'gifts/' + effIcon + '.png';
+        giftImg.style.cssText = 'width:22px;height:22px;border-radius:50%;margin-right:8px;object-fit:cover;vertical-align:middle;flex-shrink:0;';
+        giftImg.onerror = () => { giftImg.style.display = 'none'; };
+        nameEl.appendChild(giftImg);
+      }
       nameEl.appendChild(document.createTextNode(t.name));
       list.appendChild(div);
     });
@@ -985,11 +1099,13 @@
     const score = (isNaN(pts) || pts < 0) ? 0 : pts;
     const tasks = ensureBucket(scope, openDate).tasks;
     if (tasks.some(t => t.name === name)) { toast('這個項目已存在'); return; }
-    tasks.push({ name, target, cur: 0, score });
+    const iconSel = $('iconSelect').value;
+    tasks.push({ name, target, cur: 0, score, icon: iconSel || '' });
     save();
     $('nameInput').value = '';
     $('qtyInput').value = '1';
     $('ptsInput').value = '0';
+    $('iconSelect').value = '';
     renderSheet();
     $('nameInput').focus();
     toast(`已新增「${name}」x ${target}（${score} 分）`);
@@ -1378,7 +1494,7 @@
     c.closePath();
   }
 
-  function makeCard() {
+  function makeCard(cb) {
     const tasks = getTasks(scope, openDate);
     const r = calc(tasks);
     const W = 1080, H = 1350;
@@ -1406,6 +1522,31 @@
     c.font = '34px ' + FONT;
     c.fillText(py + ' 年 ' + pm + ' 月 ' + pd + ' 日（週' + week + '）', W / 2, 240);
 
+    // 虛擬頭像（左上）
+    const drawAvatar = (img) => {
+      if (img && img.width) {
+        c.save();
+        c.beginPath(); c.arc(150, 155, 70, 0, Math.PI * 2); c.closePath();
+        c.fillStyle = '#2e2e40'; c.fill();
+        c.clip();
+        c.drawImage(img, 150 - 70, 155 - 70, 140, 140);
+        c.restore();
+        c.beginPath(); c.arc(150, 155, 72, 0, Math.PI * 2);
+        c.strokeStyle = '#b794f6'; c.lineWidth = 6; c.stroke();
+      }
+      finishCard(c, r);
+      cb(cv);
+    };
+    const avImg = new Image();
+    avImg.onload = () => drawAvatar(avImg);
+    avImg.onerror = () => drawAvatar(null);
+    avImg.src = avatarURL();
+  }
+
+  function finishCard(c, r) {
+    const FONT = '\'PingFang TC\', \'Noto Sans TC\', sans-serif';
+    const W = 1080;
+    c.textAlign = 'center';
     c.fillStyle = '#b794f6';
     c.font = 'bold 150px ' + FONT;
     c.fillText(r.pct + '%', W / 2, 435);
@@ -1444,7 +1585,6 @@
     c.fillStyle = '#5a5a70';
     c.font = '28px ' + FONT;
     c.fillText('聲播日曆', W / 2, H - 105);
-    return cv;
   }
 
   $('giftPickRow').addEventListener('click', (e) => {
@@ -1457,7 +1597,7 @@
   $('cardBtn').onclick = () => {
     if (!openDate) return;
     if (!getTasks(scope, openDate).length) { toast('還沒有任務，無法產生圖卡'); return; }
-    const cv = makeCard();
+    makeCard((cv) => {
     cv.toBlob((blob) => {
       if (!blob) { toast('產生圖卡失敗'); return; }
       lastCardBlob = blob;
@@ -1465,6 +1605,7 @@
       $('cardMsg').textContent = '';
       $('cardOverlay').classList.add('open');
     }, 'image/png');
+    });
   };
   $('cardDownload').onclick = () => {
     if (!lastCardBlob) return;
