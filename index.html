@@ -1048,11 +1048,20 @@
       const nameEl = div.querySelector('.task-name');
       nameEl.textContent = '';
       const effIcon = t.icon ? (t.icon === 'none' ? '' : t.icon) : t.name;
+      const GIFT_FILE = { '玫瑰':'rose','火箭':'rocket','城堡':'castle','金龍':'dragon','跑車':'car','飛機':'plane','遊艇':'yacht','鑽戒':'ring','皇冠':'crown','煙花':'firework','愛心':'heart','禮物盒':'gift' };
+      const GIFT_EMOJI = { '玫瑰':'🌹','火箭':'🚀','城堡':'🏰','金龍':'🐉','跑車':'🏎️','飛機':'✈️','遊艇':'🛥️','鑽戒':'💍','皇冠':'👑','煙花':'🎆','愛心':'❤️','禮物盒':'🎁' };
       if (effIcon) {
         const giftImg = document.createElement('img');
-        giftImg.src = 'gifts/' + effIcon + '.png';
+        giftImg.src = 'gifts/' + (GIFT_FILE[effIcon] || '') + '.png';
         giftImg.style.cssText = 'width:22px;height:22px;border-radius:50%;margin-right:8px;object-fit:cover;vertical-align:middle;flex-shrink:0;';
-        giftImg.onerror = () => { giftImg.style.display = 'none'; };
+        giftImg.onerror = () => {
+          // 圖檔不存在時用 emoji 備援，不自動隱藏
+          giftImg.style.display = 'none';
+          const em = document.createElement('span');
+          em.textContent = (GIFT_EMOJI[effIcon] || '🎁') + ' ';
+          em.style.cssText = 'font-size:16px;margin-right:6px;vertical-align:middle;flex-shrink:0;';
+          nameEl.insertBefore(em, nameEl.firstChild);
+        };
         nameEl.appendChild(giftImg);
       }
       nameEl.appendChild(document.createTextNode(t.name));
