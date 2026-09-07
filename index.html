@@ -1206,7 +1206,7 @@
     list.innerHTML = '<div class="empty">即時抓取最新排行中…</div>';
     $('songSummary').textContent = '';
 
-    const amSearch = q => 'https://music.apple.com/tw/search?term=' + encodeURIComponent(q);
+    const ytSearch = q => 'https://www.youtube.com/results?search_query=' + encodeURIComponent(q);
     const render = (songs, srcText) => {
       $('songSummary').innerHTML = srcText;
       list.innerHTML = '';
@@ -1246,16 +1246,16 @@
         const title = (en['im:name'] && en['im:name'].label) || '';
         const artist = (en['im:artist'] && en['im:artist'].label) || '';
         const isMando = /[一-鿿]/.test(title + artist);
-        return { title, artist, url: amSearch(title + ' ' + artist), tag: isMando ? '🎤 華語' : '🌐 非華語' };
+        return { title, artist, url: ytSearch(title + ' ' + artist), tag: isMando ? '🎤 華語' : '🌐 非華語' };
       });
       const mandos = songs.filter(x => x.tag === '🎤 華語');
       const others = songs.filter(x => x.tag !== '🎤 華語');
       render([...mandos, ...others].slice(0, 20),
-        'iTunes 台灣即時排行・已優先列出華語歌曲・<a href="https://music.apple.com/tw/browse" target="_blank" rel="noopener">參考來源：Apple Music</a>');
+        'iTunes 台灣即時排行・已優先列出華語歌曲・點歌連到 YouTube・<a href="https://music.apple.com/tw/browse" target="_blank" rel="noopener">榜單來源：Apple Music</a>');
       return;
     } catch (err) {}
     // 連不上時給常備歌單，按鈕永遠有東西看
-    render(SONG_FALLBACK.map(([t, a]) => ({ title: t, artist: a, url: amSearch(t + ' ' + a), tag: '🎤 華語' })),
+    render(SONG_FALLBACK.map(([t, a]) => ({ title: t, artist: a, url: ytSearch(t + ' ' + a), tag: '🎤 華語' })),
       '暫時連不上即時排行，先給你常備歌單（稍後再按一次就會即時更新）');
   };
   $('closeSong').onclick = () => $('songOverlay').classList.remove('open');
