@@ -303,15 +303,19 @@
     <div class="tabs" id="tabs"></div>
     <div class="day-summary" id="daySummary"></div>
     <div class="add-row">
-      <input id="nameInput" type="text" placeholder="項目" autocomplete="off">
+      <input id="nameInput" type="text" placeholder="任務項目" autocomplete="off">
       <input id="qtyInput" type="number" min="1" value="1" placeholder="數量">
       <input id="ptsInput" type="number" min="0" value="0" placeholder="分數">
       <button class="btn btn-primary" id="addBtn">新增</button>
     </div>
     <div class="task-list" id="taskList"></div>
     <div class="note-box" id="timeBox" style="margin-top:14px; display:none;">
-      <label style="display:block; font-size:13px; color:var(--muted); margin-bottom:6px;">🎙️ 開播時間</label>
-      <input type="time" id="startTimeInput" style="width:100%; background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px; font-size:16px; font-family:inherit; outline:none; color-scheme:dark;">
+      <label style="display:block; font-size:13px; color:var(--muted); margin-bottom:6px;">🎙️ 開播時間（開始 ～ 結束）</label>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <input type="time" id="startTimeInput" style="flex:1; min-width:0; background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px; font-size:16px; font-family:inherit; outline:none; color-scheme:dark;">
+        <span style="color:var(--muted); font-size:14px;">～</span>
+        <input type="time" id="endTimeInput" style="flex:1; min-width:0; background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px; font-size:16px; font-family:inherit; outline:none; color-scheme:dark;">
+      </div>
     </div>
     <div class="note-box" id="specialBox" style="margin-top:14px; display:none;">
       <label style="display:block; font-size:13px; color:var(--muted); margin-bottom:6px;">🎰 幸運開出統計</label>
@@ -363,6 +367,16 @@
     </div>
     <div class="day-summary" id="songSummary"></div>
     <div class="task-list" id="songList"></div>
+  </div>
+</div>
+
+<!-- 打卡提醒 -->
+<div class="overlay" id="remindOverlay" style="align-items:center; z-index:150;">
+  <div style="background:var(--card); border:2px solid var(--accent); border-radius:18px; padding:28px 24px; text-align:center; max-width:300px; width:86%;">
+    <div style="font-size:44px; margin-bottom:6px;">⏰</div>
+    <div id="remindTitle" style="font-size:22px; font-weight:700; margin-bottom:6px;"></div>
+    <div id="remindBody" style="color:var(--muted); font-size:15px; margin-bottom:18px;"></div>
+    <button class="btn btn-primary" id="remindOk" style="width:100%; padding:14px; font-size:17px;">打卡！</button>
   </div>
 </div>
 
@@ -548,7 +562,7 @@
 
       let inner = `<div class="dnum">${d}</div>`;
       const stB = store.dates[ds];
-      if (stB && stB.startTime) inner += `<div class="badge">🎙️ ${stB.startTime}</div>`;
+      if (stB && stB.startTime) inner += `<div class="badge">🎙️ ${stB.startTime}${stB.endTime ? '–' + stB.endTime : ''}</div>`;
       if (tasks.length) {
         inner += `<div class="badge">${r.doneCnt}/${tasks.length} 任務・${r.doneUnits}/${r.totUnits} 個</div>
                   <div class="mini-bar"><div class="mini-fill" style="width:${r.pct}%"></div></div>`;
@@ -662,6 +676,7 @@
     if (scope === 'day') {
       $('timeBox').style.display = 'block';
       $('startTimeInput').value = (store.dates[openDate] && store.dates[openDate].startTime) || '';
+      $('endTimeInput').value = (store.dates[openDate] && store.dates[openDate].endTime) || '';
       noteBox.style.display = 'block';
       $('noteInput').value = (store.dates[openDate] && store.dates[openDate].note) || '';
       // 幸運開出統計
@@ -765,6 +780,14 @@
   $('startTimeInput').addEventListener('change', () => {
     if (!openDate) return;
     ensureBucket('day', openDate).startTime = $('startTimeInput').value;
+    try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch (e) {}
+    save();
+    renderCalendar();
+  });
+  $('endTimeInput').addEventListener('change', () => {
+    if (!openDate) return;
+    ensureBucket('day', openDate).endTime = $('endTimeInput').value;
+    try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch (e) {}
     save();
     renderCalendar();
   });
@@ -1021,6 +1044,46 @@
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') $('songOverlay').classList.remove('open');
   });
+
+
+  // ---------- 開播 / 下播打卡提醒 ----------
+  const REMIND_KEY = 'voiceHostRemind_v1';
+  function loadReminded() { try { return JSON.parse(localStorage.getItem(REMIND_KEY) || '{}'); } catch (e) { return {}; } }
+  function saveReminded(r) { try { localStorage.setItem(REMIND_KEY, JSON.stringify(r)); } catch (e) {} }
+  const reminded = loadReminded();
+
+  function fireRemind(title, body) {
+    $('remindTitle').textContent = title;
+    $('remindBody').textContent = body;
+    $('remindOverlay').classList.add('open');
+    try {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(title, { body });
+      }
+    } catch (e) {}
+  }
+  $('remindOk').onclick = () => $('remindOverlay').classList.remove('open');
+  $('remindOverlay').addEventListener('click', (e) => { if (e.target === $('remindOverlay')) $('remindOverlay').classList.remove('open'); });
+
+  function checkReminders() {
+    const now = new Date();
+    const tk = todayKey();
+    const b = store.dates[tk];
+    if (!b) return;
+    const cur = now.getHours() * 60 + now.getMinutes();
+    const toMin = s => { const p = s.split(':'); return (+p[0]) * 60 + (+p[1]); };
+    const flags = reminded[tk] || (reminded[tk] = {});
+    if (b.startTime && !flags.start && cur >= toMin(b.startTime)) {
+      flags.start = true; saveReminded(reminded);
+      fireRemind('🎙️ 開播打卡', '開播時間到了，記得打卡！');
+    }
+    if (b.endTime && !flags.end && cur >= toMin(b.endTime) - 5) {
+      flags.end = true; saveReminded(reminded);
+      fireRemind('🎙️ 下播打卡', '再 5 分鐘下播，記得打卡！');
+    }
+  }
+  setInterval(checkReminders, 30000);
+  setTimeout(checkReminders, 2000);
 
   renderCalendar();
 })();
