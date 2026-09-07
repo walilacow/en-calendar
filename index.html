@@ -1523,17 +1523,19 @@
     const flags = reminded[tk] || (reminded[tk] = []);
     b.slots.forEach((sl, i) => {
       const f = flags[i] || (flags[i] = {});
-      if (sl.start && !f.start && cur >= toMin(sl.start)) {
+      // 剛開播：開播後 5 分鐘內提醒（過窗不補彈）
+      if (sl.start && !f.start && cur >= toMin(sl.start) && cur < toMin(sl.start) + 5) {
         f.start = true; saveReminded(reminded);
-        fireRemind('🎙️ 開播打卡', '第 ' + (i + 1) + ' 場開播時間到了，記得打卡！');
+        fireRemind('🎙️ 開播打卡', '第 ' + (i + 1) + ' 場剛開播，記得打卡！');
       }
-      if (sl.end && !f.end && cur >= toMin(sl.end) - 5) {
+      // 下播前 5 分鐘：只在 end-5 ～ end 之間提醒（下播後不補彈）
+      if (sl.end && !f.end && cur >= toMin(sl.end) - 5 && cur < toMin(sl.end)) {
         f.end = true; saveReminded(reminded);
         fireRemind('🎙️ 下播打卡', '第 ' + (i + 1) + ' 場再 5 分鐘下播，記得打卡！');
       }
     });
   }
-  setInterval(checkReminders, 30000);
+  setInterval(checkReminders, 15000);
   setTimeout(checkReminders, 2000);
 
 
@@ -1676,7 +1678,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v25';
+  $('verTag').textContent = 'v27';
   renderCalendar();
 })();
 </script>
