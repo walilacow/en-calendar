@@ -388,8 +388,26 @@
     <div style="font-size:17px; font-weight:700; margin-bottom:14px;">第一次使用，請輸入你的主播資料</div>
     <label style="display:block; text-align:left; font-size:12px; color:var(--muted); margin-bottom:4px;">主播暱稱（顯示在標題）</label>
     <input id="nickInput" type="text" placeholder="例如：恩恩" maxlength="12" autocomplete="off" style="width:100%; background:var(--bg); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px; font-size:16px; text-align:center; outline:none; margin-bottom:10px;">
-    <label style="display:block; text-align:left; font-size:12px; color:var(--muted); margin-bottom:4px;">主播馬甲</label>
-    <input id="aliasInput" type="text" placeholder="例如：安安的房" maxlength="16" autocomplete="off" style="width:100%; background:var(--bg); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px; font-size:16px; text-align:center; outline:none; margin-bottom:12px;">
+    <label style="display:block; text-align:left; font-size:12px; color:var(--muted); margin-bottom:4px;">主播馬甲（圖示，會標在完成項目後面）</label>
+    <input id="aliasInput" type="text" placeholder="例如：💛" maxlength="8" autocomplete="off" style="width:100%; background:var(--bg); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px; font-size:18px; text-align:center; outline:none; margin-bottom:8px;">
+    <div id="aliasPickRow" style="display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-bottom:12px;">
+      <button class="alias-pick" style="background:var(--bg); border:1px solid var(--border); border-radius:8px; font-size:18px; padding:6px 8px; cursor:pointer;">💛</button>
+      <button class="alias-pick" style="background:var(--bg); border:1px solid var(--border); border-radius:8px; font-size:18px; padding:6px 8px; cursor:pointer;">❤️</button>
+      <button class="alias-pick" style="background:var(--bg); border:1px solid var(--border); border-radius:8px; font-size:18px; padding:6px 8px; cursor:pointer;">🧡</button>
+      <button class="alias-pick" style="background:var(--bg); border:1px solid var(--border); border-radius:8px; font-size:18px; padding:6px 8px; cursor:pointer;">💚</button>
+      <button class="alias-pick" style="background:var(--bg); border:1px solid var(--border); border-radius:8px; font-size:18px; padding:6px 8px; cursor:pointer;">💙</button>
+      <button class="alias-pick" style="background:var(--bg); border:1px solid var(--border); border-radius:8px; font-size:18px; padding:6px 8px; cursor:pointer;">💜</button>
+      <button class="alias-pick" style="background:var(--bg); border:1px solid var(--border); border-radius:8px; font-size:18px; padding:6px 8px; cursor:pointer;">🖤</button>
+      <button class="alias-pick" style="background:var(--bg); border:1px solid var(--border); border-radius:8px; font-size:18px; padding:6px 8px; cursor:pointer;">🤍</button>
+      <button class="alias-pick" style="background:var(--bg); border:1px solid var(--border); border-radius:8px; font-size:18px; padding:6px 8px; cursor:pointer;">💖</button>
+      <button class="alias-pick" style="background:var(--bg); border:1px solid var(--border); border-radius:8px; font-size:18px; padding:6px 8px; cursor:pointer;">⭐</button>
+      <button class="alias-pick" style="background:var(--bg); border:1px solid var(--border); border-radius:8px; font-size:18px; padding:6px 8px; cursor:pointer;">🌙</button>
+      <button class="alias-pick" style="background:var(--bg); border:1px solid var(--border); border-radius:8px; font-size:18px; padding:6px 8px; cursor:pointer;">🔥</button>
+      <button class="alias-pick" style="background:var(--bg); border:1px solid var(--border); border-radius:8px; font-size:18px; padding:6px 8px; cursor:pointer;">👑</button>
+      <button class="alias-pick" style="background:var(--bg); border:1px solid var(--border); border-radius:8px; font-size:18px; padding:6px 8px; cursor:pointer;">🎀</button>
+      <button class="alias-pick" style="background:var(--bg); border:1px solid var(--border); border-radius:8px; font-size:18px; padding:6px 8px; cursor:pointer;">🐰</button>
+      <button class="alias-pick" style="background:var(--bg); border:1px solid var(--border); border-radius:8px; font-size:18px; padding:6px 8px; cursor:pointer;">🌸</button>
+    </div>
     <button class="btn btn-primary" id="nickOk" style="width:100%; padding:13px; font-size:16px;">開始使用</button>
   </div>
 </div>
@@ -530,6 +548,11 @@
   };
   $('nickInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('aliasInput').focus(); });
   $('aliasInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('nickOk').click(); });
+  $('aliasPickRow').addEventListener('click', (e) => {
+    const b = e.target.closest('.alias-pick');
+    if (!b) return;
+    $('aliasInput').value = b.textContent.trim();
+  });
   $('editNickBtn').onclick = () => {
     $('nickInput').value = nickname;
     $('aliasInput').value = alias;
