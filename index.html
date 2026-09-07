@@ -309,6 +309,10 @@
       <button class="btn btn-primary" id="addBtn">新增</button>
     </div>
     <div class="task-list" id="taskList"></div>
+    <div class="note-box" id="timeBox" style="margin-top:14px; display:none;">
+      <label style="display:block; font-size:13px; color:var(--muted); margin-bottom:6px;">🎙️ 開播時間</label>
+      <input type="time" id="startTimeInput" style="width:100%; background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px; font-size:16px; font-family:inherit; outline:none; color-scheme:dark;">
+    </div>
     <div class="note-box" id="specialBox" style="margin-top:14px; display:none;">
       <label style="display:block; font-size:13px; color:var(--muted); margin-bottom:6px;">🎰 幸運開出統計</label>
       <div style="display:flex; flex-direction:column; gap:10px;">
@@ -543,6 +547,8 @@
       else if (r.doneUnits > 0) { cell.classList.add('partial'); statPart++; }
 
       let inner = `<div class="dnum">${d}</div>`;
+      const stB = store.dates[ds];
+      if (stB && stB.startTime) inner += `<div class="badge">🎙️ ${stB.startTime}</div>`;
       if (tasks.length) {
         inner += `<div class="badge">${r.doneCnt}/${tasks.length} 任務・${r.doneUnits}/${r.totUnits} 個</div>
                   <div class="mini-bar"><div class="mini-fill" style="width:${r.pct}%"></div></div>`;
@@ -654,6 +660,8 @@
     const noteBox = $('noteBox');
     const spBox = $('specialBox');
     if (scope === 'day') {
+      $('timeBox').style.display = 'block';
+      $('startTimeInput').value = (store.dates[openDate] && store.dates[openDate].startTime) || '';
       noteBox.style.display = 'block';
       $('noteInput').value = (store.dates[openDate] && store.dates[openDate].note) || '';
       // 幸運開出統計
@@ -661,6 +669,7 @@
       const sp = (store.dates[openDate] && store.dates[openDate].special) || { dragon: 0, castle: 0 };
       spBox.querySelectorAll('.sp-count').forEach(el => { el.textContent = sp[el.dataset.k] || 0; });
     } else {
+      $('timeBox').style.display = 'none';
       noteBox.style.display = 'none';
       spBox.style.display = 'none';
     }
@@ -752,6 +761,12 @@
     if (!openDate) return;
     ensureBucket('day', openDate).note = $('noteInput').value;
     save();
+  });
+  $('startTimeInput').addEventListener('change', () => {
+    if (!openDate) return;
+    ensureBucket('day', openDate).startTime = $('startTimeInput').value;
+    save();
+    renderCalendar();
   });
   $('specialBox').addEventListener('click', (e) => {
     const btn = e.target.closest('button');
