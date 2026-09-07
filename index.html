@@ -339,20 +339,7 @@
       </select>
       <button class="btn btn-primary" id="addBtn">新增</button>
     </div>
-    <div id="giftPickRow" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px;">
-      <button class="gift-pick" data-name="玫瑰" style="background:var(--card); border:1px solid var(--border); border-radius:99px; padding:5px 10px; font-size:13px; cursor:pointer; color:var(--text); font-family:inherit;">🌹 玫瑰</button>
-      <button class="gift-pick" data-name="火箭" style="background:var(--card); border:1px solid var(--border); border-radius:99px; padding:5px 10px; font-size:13px; cursor:pointer; color:var(--text); font-family:inherit;">🚀 火箭</button>
-      <button class="gift-pick" data-name="城堡" style="background:var(--card); border:1px solid var(--border); border-radius:99px; padding:5px 10px; font-size:13px; cursor:pointer; color:var(--text); font-family:inherit;">🏰 城堡</button>
-      <button class="gift-pick" data-name="金龍" style="background:var(--card); border:1px solid var(--border); border-radius:99px; padding:5px 10px; font-size:13px; cursor:pointer; color:var(--text); font-family:inherit;">🐉 金龍</button>
-      <button class="gift-pick" data-name="跑車" style="background:var(--card); border:1px solid var(--border); border-radius:99px; padding:5px 10px; font-size:13px; cursor:pointer; color:var(--text); font-family:inherit;">🏎️ 跑車</button>
-      <button class="gift-pick" data-name="飛機" style="background:var(--card); border:1px solid var(--border); border-radius:99px; padding:5px 10px; font-size:13px; cursor:pointer; color:var(--text); font-family:inherit;">✈️ 飛機</button>
-      <button class="gift-pick" data-name="遊艇" style="background:var(--card); border:1px solid var(--border); border-radius:99px; padding:5px 10px; font-size:13px; cursor:pointer; color:var(--text); font-family:inherit;">🛥️ 遊艇</button>
-      <button class="gift-pick" data-name="鑽戒" style="background:var(--card); border:1px solid var(--border); border-radius:99px; padding:5px 10px; font-size:13px; cursor:pointer; color:var(--text); font-family:inherit;">💍 鑽戒</button>
-      <button class="gift-pick" data-name="皇冠" style="background:var(--card); border:1px solid var(--border); border-radius:99px; padding:5px 10px; font-size:13px; cursor:pointer; color:var(--text); font-family:inherit;">👑 皇冠</button>
-      <button class="gift-pick" data-name="煙花" style="background:var(--card); border:1px solid var(--border); border-radius:99px; padding:5px 10px; font-size:13px; cursor:pointer; color:var(--text); font-family:inherit;">🎆 煙花</button>
-      <button class="gift-pick" data-name="愛心" style="background:var(--card); border:1px solid var(--border); border-radius:99px; padding:5px 10px; font-size:13px; cursor:pointer; color:var(--text); font-family:inherit;">❤️ 愛心</button>
-      <button class="gift-pick" data-name="禮物盒" style="background:var(--card); border:1px solid var(--border); border-radius:99px; padding:5px 10px; font-size:13px; cursor:pointer; color:var(--text); font-family:inherit;">🎁 禮物盒</button>
-    </div>
+
     <div class="task-list" id="taskList"></div>
     <div class="note-box" id="timeBox" style="margin-top:14px; display:none;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
@@ -1656,78 +1643,6 @@
     c.fillText('聲播日曆', W / 2, H - 105);
   }
 
-  $('giftPickRow').addEventListener('click', (e) => {
-    const b = e.target.closest('.gift-pick');
-    if (!b) return;
-    $('nameInput').value = b.dataset.name;
-    $('qtyInput').focus();
-  });
-
-  // ---------- 任務拖曳排序（跟手平移 + 即時讓位）----------
-  let dragState = null;
-
-  $('taskList').addEventListener('touchstart', (e) => {
-    const h = e.target.closest('.drag-handle');
-    if (!h || !openDate) return;
-    const tasks = getTasks(scope, openDate);
-    const rows = Array.from($('taskList').querySelectorAll('.task'));
-    const i = Number(h.dataset.idx);
-    if (!rows[i] || !tasks[i]) return;
-    dragState = {
-      origIdx: i,
-      insertIdx: i,
-      startY: e.touches[0].clientY,
-      rowH: rows[0].offsetHeight + 10,
-      listTop: $('taskList').getBoundingClientRect().top,
-      len: rows.length
-    };
-    rows.forEach(r => { r.style.transition = 'transform .16s ease'; });
-    const d = rows[i];
-    d.style.transition = 'none';
-    d.style.position = 'relative';
-    d.style.zIndex = '90';
-    d.style.boxShadow = '0 10px 28px rgba(0,0,0,.55)';
-    e.preventDefault();
-  }, { passive: false });
-
-  document.addEventListener('touchmove', (e) => {
-    if (!dragState || !openDate) return;
-    e.preventDefault();
-    const rows = Array.from($('taskList').querySelectorAll('.task'));
-    if (!rows.length) return;
-    const dy = e.touches[0].clientY - dragState.startY;
-    const dragged = rows[dragState.origIdx];
-    if (dragged) dragged.style.transform = 'translateY(' + dy + 'px) scale(1.02)';
-    // 插入位置：被拖元素「中心」落在哪一格（連續值，拉遠也能準確判定）
-    const center = dragState.listTop + dragState.origIdx * dragState.rowH + dragState.rowH / 2 + dy;
-    const ins = Math.max(0, Math.min(dragState.len - 1, Math.floor(center / dragState.rowH)));
-    dragState.insertIdx = ins;
-    // 其他列平滑讓位（不重繪、不跳格）
-    const o = dragState.origIdx;
-    rows.forEach((r, i) => {
-      if (i === o) return;
-      let shift = 0;
-      if (ins > o && i > o && i <= ins) shift = -dragState.rowH;
-      else if (ins < o && i < o && i >= ins) shift = dragState.rowH;
-      r.style.transform = shift ? 'translateY(' + shift + 'px)' : '';
-    });
-  }, { passive: false });
-
-  function endDrag() {
-    if (!dragState || !openDate) { dragState = null; return; }
-    const tasks = getTasks(scope, openDate);
-    const o = dragState.origIdx, ins = dragState.insertIdx;
-    dragState = null;
-    if (ins !== o && tasks[o]) {
-      const t = tasks.splice(o, 1)[0];
-      tasks.splice(ins, 0, t);
-      save();
-    }
-    renderSheet();
-  }
-  document.addEventListener('touchend', endDrag);
-  document.addEventListener('touchcancel', endDrag);
-
   $('cardBtn').onclick = () => {
     if (!openDate) return;
     if (!getTasks(scope, openDate).length) { toast('還沒有任務，無法產生圖卡'); return; }
@@ -1761,7 +1676,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v24';
+  $('verTag').textContent = 'v25';
   renderCalendar();
 })();
 </script>
