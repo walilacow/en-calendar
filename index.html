@@ -5,7 +5,995 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="恩恩聲播日曆">
+<meta name="theme-color" content="#14141c">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.png">
+<title>恩恩聲播日曆</title>
+<style>
+  :root {
+    --bg: #14141c;
+    --card: #1e1e2a;
+    --card-hover: #252534;
+    --accent: #b794f6;
+    --accent2: #f6ad55;
+    --green: #48bb78;
+    --blue: #63b3ed;
+    --red: #fc8181;
+    --text: #e8e8f0;
+    --muted: #8b8b9e;
+    --border: #2e2e40;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: calc(24px + env(safe-area-inset-top, 0px)) 14px calc(60px + env(safe-area-inset-bottom, 0px));
+  }
+  .container { max-width: 720px; margin: 0 auto; }
+
+  header { text-align: center; margin-bottom: 16px; }
+  header h1 { font-size: 22px; letter-spacing: 2px; }
+  header .sub { color: var(--muted); font-size: 13px; margin-top: 6px; line-height: 1.6; }
+
+  .month-nav {
+    display: flex; align-items: center; justify-content: center; gap: 14px;
+    margin-bottom: 12px;
+  }
+  .month-nav button {
+    background: var(--card); border: 1px solid var(--border); color: var(--text);
+    width: 40px; height: 40px; border-radius: 10px; font-size: 18px; cursor: pointer;
+  }
+  .month-nav button:hover { background: var(--card-hover); }
+  .month-title { font-size: 18px; font-weight: 700; min-width: 140px; text-align: center; }
+  .btn-today {
+    background: var(--accent); color: #14141c; border: none; border-radius: 10px;
+    padding: 10px 16px; font-weight: 700; cursor: pointer; font-size: 14px;
+    white-space: nowrap;
+  }
+
+  .stats { display: flex; gap: 10px; margin-bottom: 12px; }
+  .stat-box {
+    flex: 1; background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 10px 4px; text-align: center;
+  }
+  .stat-box .num { font-size: 18px; font-weight: 700; }
+  .stat-box .lab { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .stat-box.g .num { color: var(--green); }
+  .stat-box.o .num { color: var(--accent2); }
+  .stat-box.p .num { color: var(--accent); }
+  .stat-box.b .num { color: var(--blue); }
+
+  .legend {
+    display: flex; gap: 14px; justify-content: center; margin-bottom: 12px;
+    font-size: 12px; color: var(--muted); flex-wrap: wrap;
+  }
+  .legend span::before {
+    content: ''; display: inline-block; width: 10px; height: 10px;
+    border-radius: 3px; margin-right: 5px; vertical-align: middle;
+  }
+  .legend .l-done::before { background: var(--green); }
+  .legend .l-part::before { background: var(--accent2); }
+  .legend .l-today::before { background: transparent; border: 2px solid var(--accent); width: 8px; height: 8px; }
+
+  .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .cal-head { text-align: center; font-size: 12px; color: var(--muted); padding: 6px 0; }
+  .cell {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    min-height: 78px; padding: 6px; cursor: pointer; text-align: left;
+    color: var(--text); position: relative; transition: background .15s;
+    font-family: inherit;
+  }
+  .cell:hover { background: var(--card-hover); }
+  .cell.other { opacity: .3; pointer-events: none; }
+  .cell .dnum { font-size: 13px; font-weight: 600; }
+  .cell .badge { font-size: 11px; margin-top: 3px; color: var(--muted); }
+  .cell .mini-bar {
+    height: 4px; background: var(--border); border-radius: 99px;
+    margin-top: 5px; overflow: hidden;
+  }
+  .cell .mini-fill { height: 100%; border-radius: 99px; width: 0; }
+  .cell.today { border-color: var(--accent); border-width: 2px; }
+  .cell.today .dnum { color: var(--accent); }
+  .cell.all-done { border-color: rgba(72,187,120,.55); }
+  .cell.all-done > .badge { color: var(--green); }
+  .cell.all-done .mini-fill { background: var(--green); }
+  .cell.partial .mini-fill { background: var(--accent2); }
+  .cell.partial > .badge { color: var(--accent2); }
+  .cell .badge.wm { font-size: 10px; margin-top: 2px; }
+  .cell.wm-done .badge.wm { color: var(--green); }
+  .cell.wm-part .badge.wm { color: var(--accent2); }
+
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.6);
+    display: none; align-items: flex-end; justify-content: center;
+    z-index: 50;
+  }
+  .overlay.open { display: flex; }
+  .sheet {
+    background: var(--bg); border: 1px solid var(--border); border-bottom: none;
+    border-radius: 18px 18px 0 0; width: 100%; max-width: 640px;
+    max-height: 88vh; overflow-y: auto; padding: 18px 16px 30px;
+    animation: slideUp .25s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .sheet-head h2 { font-size: 18px; }
+  .sheet-head .close {
+    background: none; border: none; color: var(--muted); font-size: 22px;
+    cursor: pointer; padding: 4px 8px;
+  }
+
+  .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+  .tab {
+    flex: 1; background: var(--card); border: 1px solid var(--border);
+    color: var(--muted); border-radius: 10px; padding: 8px 4px;
+    font-size: 14px; cursor: pointer; font-weight: 700; text-align: center;
+    font-family: inherit;
+  }
+  .tab .t-sub { display: block; font-size: 11px; font-weight: 400; opacity: .85; margin-top: 2px; }
+  .tab.active { background: var(--accent); color: #14141c; border-color: transparent; }
+
+  .day-summary { font-size: 13px; color: var(--muted); margin-bottom: 14px; line-height: 1.7; }
+  .day-summary b { color: var(--text); }
+  .day-summary a { color: var(--accent); }
+  .day-summary .ok { color: var(--green); font-weight: 700; }
+  .day-summary .mid { color: var(--accent2); font-weight: 700; }
+
+  .add-row { display: flex; gap: 8px; margin-bottom: 14px; }
+  .add-row input {
+    flex: 1; background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text); padding: 12px 10px;
+    font-size: 15px; outline: none; min-width: 0;
+  }
+  .add-row input:focus { border-color: var(--accent); }
+  #qtyInput, #ptsInput { max-width: 76px; text-align: center; }
+  .btn {
+    border: none; border-radius: 10px; padding: 12px 18px;
+    font-size: 15px; cursor: pointer; font-weight: 600; font-family: inherit;
+  }
+  .btn-primary { background: var(--accent); color: #14141c; white-space: nowrap; }
+  .btn-ghost {
+    background: transparent; color: var(--muted);
+    border: 1px solid var(--border); font-weight: 400;
+  }
+  .btn-block { width: 100%; margin-top: 14px; }
+
+  .task-list { display: flex; flex-direction: column; gap: 10px; }
+  .task {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 12px 14px;
+  }
+  .task.done { border-color: rgba(72,187,120,.5); }
+  .task-top { display: flex; align-items: center; gap: 10px; }
+  .task-name { flex: 1; font-weight: 600; font-size: 15px; word-break: break-all; }
+  .task.done .task-name { color: var(--green); }
+  .qty-ctrl { display: flex; align-items: center; gap: 6px; }
+  .qty-ctrl button {
+    width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text); font-size: 17px; cursor: pointer;
+  }
+  .qty-ctrl button:hover { background: var(--card-hover); }
+  .qty-ctrl .minus { color: var(--red); }
+  .qty-ctrl .plus {
+    width: auto; min-width: 48px; padding: 0 12px;
+    background: var(--accent); color: #14141c;
+    font-weight: 700; border-color: transparent;
+  }
+  .qty-ctrl .plus:hover { background: #cba9ff; }
+  .task.done .qty-ctrl .plus { background: var(--green); color: #14141c; }
+  .qty-ctrl input {
+    width: 56px; height: 34px; text-align: center; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 8px; color: var(--text);
+    font-size: 15px; font-weight: 700; outline: none;
+  }
+  .qty-ctrl input:focus { border-color: var(--accent); }
+  .task-meta { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .task.done .task-meta { color: var(--green); }
+  .task-bar {
+    height: 6px; background: var(--border); border-radius: 99px;
+    overflow: hidden; margin-top: 8px;
+  }
+  .task-fill {
+    height: 100%; border-radius: 99px; transition: width .3s ease;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+  }
+  .task.done .task-fill { background: var(--green); }
+  .task-del {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 15px; padding: 4px;
+  }
+  .task-del:hover { color: var(--red); }
+
+  .empty { text-align: center; color: var(--muted); padding: 28px 0; font-size: 14px; line-height: 1.8; }
+  .sheet-foot { margin-top: 14px; display: flex; gap: 10px; }
+  .sheet-foot .btn { flex: 1; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 30px; transform: translateX(-50%);
+    background: var(--accent); color: #14141c; padding: 10px 20px;
+    border-radius: 99px; font-size: 14px; font-weight: 600;
+    opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 99;
+  }
+  .toast.show { opacity: 1; }
+
+  @media (max-width: 480px) {
+    .cell { min-height: 70px; }
+    .cell .badge { font-size: 10px; }
+    .stat-box .num { font-size: 15px; }
+    .add-row input { font-size: 14px; padding: 12px 8px; }
+    .btn { padding: 12px 14px; }
+  }
+  .pwd-overlay {
+    position: fixed; inset: 0; background: var(--bg); z-index: 200;
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+  }
+  .pwd-box { text-align: center; padding: 20px; max-width: 320px; width: 100%; }
+  .pwd-box h2 { font-size: 20px; margin-bottom: 8px; }
+  .pwd-box p { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .pwd-box input {
+    width: 100%; background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; color: var(--text); padding: 14px; font-size: 18px;
+    text-align: center; letter-spacing: 6px; outline: none; margin-bottom: 12px;
+  }
+  .pwd-box input:focus { border-color: var(--accent); }
+  .pwd-box .btn { width: 100%; padding: 14px; font-size: 16px; }
+  .pwd-err { color: var(--red); font-size: 13px; margin-top: 10px; min-height: 20px; }
+</style>
+</head>
+<body>
+<!-- 密碼保護 -->
+<div class="pwd-overlay" id="pwdOverlay">
+  <div class="pwd-box">
+    <h2>🔐 恩恩聲播日曆</h2>
+    <p>請輸入密碼以開啟</p>
+    <input id="pwdInput" type="password" placeholder="──────" maxlength="6" autocomplete="off" inputmode="numeric">
+    <button class="btn btn-primary" id="pwdBtn">進入</button>
+    <div class="pwd-err" id="pwdErr"></div>
+  </div>
+</div>
+
+<div class="container" id="mainContent" style="display:none;">
+  <header>
+    <h1>🎁 恩恩聲播日曆</h1>
+    <div class="sub">點日期可設定「每日 / 每週 / 每月」收禮目標（每週從週一起算）・到期自動結算重置・歷史完成數保留</div>
+  </header>
+
+  <div class="month-nav">
+    <button id="prevMonth" title="上個月">‹</button>
+    <div class="month-title" id="monthTitle"></div>
+    <button id="nextMonth" title="下個月">›</button>
+    <button class="btn-today" id="todayBtn">今天</button>
+  </div>
+  <div style="display:flex; gap:10px; margin-bottom:12px;">
+    <button class="btn-today" id="topicBtn" style="background: var(--accent2); flex:1;">🔥 熱門話題</button>
+    <button class="btn-today" id="songBtn" style="background: var(--green); flex:1;">🎵 流行歌曲</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat-box g"><div class="num" id="statFull">0</div><div class="lab">本月全達成</div></div>
+    <div class="stat-box o"><div class="num" id="statPart">0</div><div class="lab">部分達成</div></div>
+    <div class="stat-box p"><div class="num" id="statWeek">–</div><div class="lab">本週任務</div></div>
+    <div class="stat-box b"><div class="num" id="statMonth">–</div><div class="lab">本月任務</div></div>
+  </div>
+
+  <div class="legend">
+    <span class="l-done">全部達成</span>
+    <span class="l-part">部分達成</span>
+    <span class="l-today">今天</span>
+  </div>
+
+  <div class="cal" id="calGrid"></div>
+</div>
+
+<!-- 日面板 -->
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2 id="sheetTitle"></h2>
+      <button class="close" id="closeSheet">✕</button>
+    </div>
+    <div class="tabs" id="tabs"></div>
+    <div class="day-summary" id="daySummary"></div>
+    <div class="add-row">
+      <input id="nameInput" type="text" placeholder="項目" autocomplete="off">
+      <input id="qtyInput" type="number" min="1" value="1" placeholder="數量">
+      <input id="ptsInput" type="number" min="0" value="0" placeholder="分數">
+      <button class="btn btn-primary" id="addBtn">新增</button>
+    </div>
+    <div class="task-list" id="taskList"></div>
+    <div class="note-box" id="specialBox" style="margin-top:14px; display:none;">
+      <label style="display:block; font-size:13px; color:var(--muted); margin-bottom:6px;">🎰 幸運開出統計</label>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <div style="flex:1 1 160px; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:10px 12px; display:flex; align-items:center; gap:8px;">
+          <span style="flex:1; font-weight:600; font-size:15px;">🐉 金龍</span>
+          <button class="sp-minus" data-k="dragon" style="width:32px; height:32px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--red); font-size:16px; cursor:pointer;">−</button>
+          <b class="sp-count" data-k="dragon" style="min-width:28px; text-align:center; font-size:17px;">0</b>
+          <button class="sp-plus" data-k="dragon" style="min-width:44px; height:32px; padding:0 10px; border-radius:8px; border:none; background:var(--accent2); color:#14141c; font-weight:700; cursor:pointer;">+1</button>
+        </div>
+        <div style="flex:1 1 160px; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:10px 12px; display:flex; align-items:center; gap:8px;">
+          <span style="flex:1; font-weight:600; font-size:15px;">🏰 城堡</span>
+          <button class="sp-minus" data-k="castle" style="width:32px; height:32px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--red); font-size:16px; cursor:pointer;">−</button>
+          <b class="sp-count" data-k="castle" style="min-width:28px; text-align:center; font-size:17px;">0</b>
+          <button class="sp-plus" data-k="castle" style="min-width:44px; height:32px; padding:0 10px; border-radius:8px; border:none; background:var(--accent2); color:#14141c; font-weight:700; cursor:pointer;">+1</button>
+        </div>
+      </div>
+    </div>
+    <div class="note-box" id="noteBox" style="margin-top:14px; display:none;">
+      <label for="noteInput" style="display:block; font-size:13px; color:var(--muted); margin-bottom:6px;">📝 今日趣事</label>
+      <textarea id="noteInput" rows="3" placeholder="記錄今天的趣事、感謝的聽眾、難忘的互動…" style="width:100%; background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px; font-size:15px; font-family:inherit; resize:vertical; outline:none; min-height:72px;"></textarea>
+    </div>
+    <button class="btn btn-ghost btn-block" id="copyListBtn">📋 複製完成 / 未完成清單</button>
+    <div class="sheet-foot">
+      <button class="btn btn-ghost" id="copyPrevBtn">📋 複製前一天</button>
+      <button class="btn btn-ghost" id="clearDayBtn">🗑 清空這天</button>
+    </div>
+  </div>
+</div>
+
+<!-- 熱門話題 -->
+<div class="overlay" id="topicOverlay">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2>🔥 熱門話題</h2>
+      <button class="close" id="closeTopic">✕</button>
+    </div>
+    <div class="day-summary" id="topicSummary"></div>
+    <div class="task-list" id="topicList"></div>
+  </div>
+</div>
+
+<!-- 流行歌曲 -->
+<div class="overlay" id="songOverlay">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2>🎵 流行華語歌曲</h2>
+      <button class="close" id="closeSong">✕</button>
+    </div>
+    <div class="day-summary" id="songSummary"></div>
+    <div class="task-list" id="songList"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  const STORE_KEY = 'voiceHostCalendar_v1';
+  const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
+
+  // store = { dates: {'YYYY-MM-DD': {tasks}}, weeks: {'週一YYYY-MM-DD': {tasks}}, months: {'YYYY-MM': {tasks}} }
+  let store = load();
+  let viewYear, viewMonth;
+  let openDate = null;
+  let scope = 'day'; // day | week | month
+
+  // 密碼以雜湊儲存，原始碼看不到明文（GitHub 公開也翻不到密碼）
+  const PWD_SHA = '5467c5177d1fab60af14523a07f08071f59d5ece5dbdd9b70cd767f3ca50f040';
+  const PWD_FB = '13ed78c32c8595e6'; // 非 HTTPS 環境（file://）的備援簡易雜湊
+  const PWD_KEY = 'voiceHostPwd_v1';
+
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
+  async function sha256(str) {
+    try {
+      if (globalThis.crypto && crypto.subtle && globalThis.isSecureContext !== false) {
+        const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+        return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+      }
+    } catch (e) {}
+    // 備援：非安全環境（如 file:// 直接開啟）用簡易雜湊
+    let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+    for (let i = 0; i < str.length; i++) {
+      const ch = str.charCodeAt(i);
+      h1 = Math.imul(h1 ^ ch, 2654435761);
+      h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return (h2 >>> 0).toString(16).padStart(8, '0') + (h1 >>> 0).toString(16).padStart(8, '0');
+  }
+
+  function unlock() {
+    $('pwdOverlay').style.display = 'none';
+    $('mainContent').style.display = 'block';
+  }
+  function checkPwd() {
+    if (lsGet(PWD_KEY) === 'ok') { unlock(); return true; }
+    return false;
+  }
+  async function doLogin() {
+    // 全形數字自動轉半形，避免輸入法造成比對失敗
+    const val = $('pwdInput').value.trim()
+      .replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+    const h = await sha256(val);
+    if (h === PWD_SHA || h === PWD_FB) {
+      unlock();
+      lsSet(PWD_KEY, 'ok');
+      $('pwdErr').textContent = '';
+    } else {
+      $('pwdErr').textContent = '密碼錯誤，請再試一次';
+      $('pwdInput').value = '';
+      $('pwdInput').focus();
+    }
+  }
+
+  $('pwdBtn').onclick = doLogin;
+  $('pwdInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+  if (!checkPwd()) {
+    setTimeout(() => $('pwdInput').focus(), 300);
+  }
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (raw) {
+        const s = JSON.parse(raw);
+        return { dates: s.dates || {}, weeks: s.weeks || {}, months: s.months || {} };
+      }
+    } catch (e) {}
+    return { dates: {}, weeks: {}, months: {} };
+  }
+  function save() { localStorage.setItem(STORE_KEY, JSON.stringify(store)); }
+
+  function key(y, m, d) {
+    return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  }
+  function todayKey() { const n = new Date(); return key(n.getFullYear(), n.getMonth(), n.getDate()); }
+
+  // 週一為一週的開始
+  function mondayOf(y, m, d) {
+    const dt = new Date(y, m, d);
+    dt.setDate(dt.getDate() - ((dt.getDay() + 6) % 7));
+    return dt;
+  }
+  function scopeKey(sc, ds) {
+    if (sc === 'day') return ds;
+    if (sc === 'week') {
+      const [y, m, d] = ds.split('-').map(Number);
+      const mon = mondayOf(y, m - 1, d);
+      return key(mon.getFullYear(), mon.getMonth(), mon.getDate());
+    }
+    return ds.slice(0, 7); // YYYY-MM
+  }
+  const BUCKET = { day: 'dates', week: 'weeks', month: 'months' };
+  function getTasks(sc, ds) {
+    const k = scopeKey(sc, ds);
+    const b = store[BUCKET[sc]][k];
+    return (b && b.tasks) || [];
+  }
+  function ensureBucket(sc, ds) {
+    const k = scopeKey(sc, ds);
+    if (!store[BUCKET[sc]][k]) store[BUCKET[sc]][k] = { tasks: [] };
+    return store[BUCKET[sc]][k];
+  }
+  function calc(tasks) {
+    const doneCnt = tasks.filter(t => t.cur >= t.target).length;
+    const totUnits = tasks.reduce((s, t) => s + t.target, 0);
+    const doneUnits = tasks.reduce((s, t) => s + Math.min(t.cur, t.target), 0);
+    const scoreTotal = tasks.reduce((s, t) => s + (t.score || 0), 0);
+    const scoreEarned = tasks.reduce((s, t) => s + (t.cur >= t.target ? (t.score || 0) : 0), 0);
+    const pct = totUnits ? Math.round(doneUnits / totUnits * 100) : 0;
+    return { doneCnt, total: tasks.length, totUnits, doneUnits, pct, scoreTotal, scoreEarned, allDone: tasks.length > 0 && doneCnt === tasks.length };
+  }
+
+  // ---------- 月曆 ----------
+  function renderCalendar() {
+    $('monthTitle').textContent = `${viewYear} 年 ${viewMonth + 1} 月`;
+    const grid = $('calGrid');
+    grid.innerHTML = '';
+    WEEK.forEach(w => {
+      const h = document.createElement('div');
+      h.className = 'cal-head'; h.textContent = w;
+      grid.appendChild(h);
+    });
+
+    const first = new Date(viewYear, viewMonth, 1).getDay();
+    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+    const tKey = todayKey();
+
+    for (let i = 0; i < first; i++) {
+      const c = document.createElement('div');
+      c.className = 'cell other';
+      grid.appendChild(c);
+    }
+
+    let statFull = 0, statPart = 0;
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const ds = key(viewYear, viewMonth, d);
+      const tasks = getTasks('day', ds);
+      const r = calc(tasks);
+      const cell = document.createElement('button');
+      cell.className = 'cell';
+
+      if (ds === tKey) cell.classList.add('today');
+      if (r.allDone) { cell.classList.add('all-done'); statFull++; }
+      else if (r.doneUnits > 0) { cell.classList.add('partial'); statPart++; }
+
+      let inner = `<div class="dnum">${d}</div>`;
+      if (tasks.length) {
+        inner += `<div class="badge">${r.doneCnt}/${tasks.length} 任務・${r.doneUnits}/${r.totUnits} 個</div>
+                  <div class="mini-bar"><div class="mini-fill" style="width:${r.pct}%"></div></div>`;
+      }
+
+      // 週 / 月任務標示
+      const wt = getTasks('week', ds), wr = calc(wt);
+      const mt = getTasks('month', ds), mr = calc(mt);
+      if (wt.length || mt.length) {
+        const parts = [];
+        if (wt.length) parts.push(`週 ${wr.doneCnt}/${wt.length}`);
+        if (mt.length) parts.push(`月 ${mr.doneCnt}/${mt.length}`);
+        inner += `<div class="badge wm">${parts.join('・')}</div>`;
+        const wOk = !wt.length || wr.allDone;
+        const mOk = !mt.length || mr.allDone;
+        if (wt.length && mt.length ? (wr.allDone && mr.allDone) : (wr.allDone || mr.allDone)) cell.classList.add('wm-done');
+        else if (!wOk || !mOk) cell.classList.add(wr.doneUnits > 0 || mr.doneUnits > 0 ? 'wm-part' : '');
+      }
+
+      cell.innerHTML = inner;
+      cell.onclick = () => openDay(ds);
+      grid.appendChild(cell);
+    }
+
+    $('statFull').textContent = statFull;
+    $('statPart').textContent = statPart;
+    const wr = calc(getTasks('week', tKey));
+    $('statWeek').textContent = wr.total ? `${wr.doneCnt}/${wr.total}` : '–';
+    const mr = calc(getTasks('month', tKey));
+    $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
+  }
+
+  // ---------- 日面板 ----------
+  function openDay(ds) {
+    openDate = ds;
+    scope = 'day';
+    renderSheet();
+    $('overlay').classList.add('open');
+    setTimeout(() => $('nameInput').focus(), 250);
+  }
+  function closeSheet() {
+    openDate = null;
+    $('overlay').classList.remove('open');
+    renderCalendar();
+  }
+
+  function renderTabs() {
+    const tabs = $('tabs');
+    tabs.innerHTML = '';
+    [['day', '每日'], ['week', '每週'], ['month', '每月']].forEach(([sc, label]) => {
+      const r = calc(getTasks(sc, openDate));
+      const b = document.createElement('button');
+      b.className = 'tab' + (scope === sc ? ' active' : '');
+      b.innerHTML = `${label}<span class="t-sub">${r.total ? r.doneCnt + '/' + r.total + ' 任務' : '無目標'}</span>`;
+      b.onclick = () => { scope = sc; renderSheet(); };
+      tabs.appendChild(b);
+    });
+  }
+
+  function renderSheet() {
+    if (!openDate) return;
+    const [y, m, d] = openDate.split('-').map(Number);
+    const tKey = todayKey();
+
+    if (scope === 'day') {
+      const week = WEEK[new Date(y, m - 1, d).getDay()];
+      const rel = openDate === tKey ? '・今天' : (openDate < tKey ? '・已結算' : '・未來');
+      $('sheetTitle').textContent = `${m} 月 ${d} 日（週${week}）${rel}`;
+    } else if (scope === 'week') {
+      const mon = mondayOf(y, m - 1, d);
+      const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+      const cur = scopeKey('week', tKey), mine = scopeKey('week', openDate);
+      const rel = mine === cur ? '・本週' : (mine < cur ? '・已結算' : '・未來');
+      $('sheetTitle').textContent =
+        `本週 ${mon.getMonth() + 1}/${mon.getDate()}（一）– ${sun.getMonth() + 1}/${sun.getDate()}（日）${rel}`;
+    } else {
+      const cur = tKey.slice(0, 7), mine = openDate.slice(0, 7);
+      const rel = mine === cur ? '・本月' : (mine < cur ? '・已結算' : '・未來');
+      $('sheetTitle').textContent = `${y} 年 ${m} 月${rel}`;
+    }
+
+    renderTabs();
+
+    const tasks = getTasks(scope, openDate);
+    const r = calc(tasks);
+    let status;
+    if (!tasks.length) status = '尚未新增目標';
+    else if (r.allDone) status = `<span class="ok">🎉 全部達成</span>`;
+    else if (r.doneUnits > 0) status = `<span class="mid">部分達成</span>`;
+    else status = '進行中';
+
+    const notes = {
+      day: '過了午夜 12 點後自動結算，新的一天從 0 重新開始。',
+      week: '每週從禮拜一開始，週一自動結算上週並重新計算。',
+      month: '每月 1 號自動結算上月並重新計算。'
+    };
+    $('daySummary').innerHTML =
+      `任務達成 <b>${r.doneCnt}/${r.total}</b> ・ 收禮進度 <b>${r.pct}%</b>（${r.doneUnits}/${r.totUnits} 個）・ 分數 <b>${r.scoreEarned}/${r.scoreTotal}</b> ・ ${status}<br>${notes[scope]}`;
+
+    const labels = {
+      day: ['📋 複製前一天', '🗑 清空這天'],
+      week: ['📋 複製上一週', '🗑 清空本週'],
+      month: ['📋 複製上一月', '🗑 清空本月']
+    };
+    $('copyPrevBtn').textContent = labels[scope][0];
+    $('clearDayBtn').textContent = labels[scope][1];
+
+    // 每日趣事（僅每日分頁顯示）
+    const noteBox = $('noteBox');
+    const spBox = $('specialBox');
+    if (scope === 'day') {
+      noteBox.style.display = 'block';
+      $('noteInput').value = (store.dates[openDate] && store.dates[openDate].note) || '';
+      // 幸運開出統計
+      spBox.style.display = 'block';
+      const sp = (store.dates[openDate] && store.dates[openDate].special) || { dragon: 0, castle: 0 };
+      spBox.querySelectorAll('.sp-count').forEach(el => { el.textContent = sp[el.dataset.k] || 0; });
+    } else {
+      noteBox.style.display = 'none';
+      spBox.style.display = 'none';
+    }
+
+    const list = $('taskList');
+    list.innerHTML = '';
+    if (!tasks.length) {
+      list.innerHTML = '<div class="empty">還沒有目標<br>在上方輸入「項目」「數量」「分數」開始新增</div>';
+      return;
+    }
+    tasks.forEach((t, idx) => {
+      const isDone = t.cur >= t.target;
+      const tpct = Math.round(Math.min(t.cur, t.target) / t.target * 100);
+      const div = document.createElement('div');
+      div.className = 'task' + (isDone ? ' done' : '');
+      div.innerHTML = `
+        <div class="task-top">
+          <span class="task-name"></span>
+          <div class="qty-ctrl">
+            <button class="minus" data-idx="${idx}" title="少一個">−</button>
+            <input type="number" min="0" value="${t.cur}" data-idx="${idx}" aria-label="完成數量">
+            <button class="plus" data-idx="${idx}" title="收到一個，+1">+1</button>
+          </div>
+          <button class="task-del" data-idx="${idx}" title="刪除">✕</button>
+        </div>
+        <div class="task-meta">目標 ${t.target} 個 ・ 已收 ${t.cur} 個（${tpct}%）・ ${t.score || 0} 分${isDone ? ' ・ ✅ 達成' : ''}</div>
+        <div class="task-bar"><div class="task-fill" style="width:${tpct}%"></div></div>
+      `;
+      div.querySelector('.task-name').textContent = t.name;
+      list.appendChild(div);
+    });
+  }
+
+  // 任務操作（事件委派）
+  $('taskList').addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn || !openDate) return;
+    const idx = Number(btn.dataset.idx);
+    const tasks = getTasks(scope, openDate);
+    if (!tasks[idx]) return;
+    if (btn.classList.contains('plus')) {
+      tasks[idx].cur++;
+      if (tasks[idx].cur === tasks[idx].target) toast(`🎉 「${tasks[idx].name}」收滿！`);
+    } else if (btn.classList.contains('minus')) {
+      tasks[idx].cur = Math.max(0, tasks[idx].cur - 1);
+    } else if (btn.classList.contains('task-del')) {
+      if (!confirm(`刪除「${tasks[idx].name}」？`)) return;
+      tasks.splice(idx, 1);
+    } else return;
+    save(); renderSheet();
+  });
+  $('taskList').addEventListener('change', (e) => {
+    const input = e.target.closest('input[type="number"]');
+    if (!input || !openDate) return;
+    const idx = Number(input.dataset.idx);
+    const tasks = getTasks(scope, openDate);
+    if (!tasks[idx]) return;
+    let v = parseInt(input.value, 10);
+    if (isNaN(v) || v < 0) v = 0;
+    tasks[idx].cur = Math.min(v, 9999);
+    save(); renderSheet();
+  });
+
+  // 新增
+  function addTasks() {
+    if (!openDate) return;
+    const name = $('nameInput').value.trim();
+    if (!name) { $('nameInput').focus(); return; }
+    const qty = parseInt($('qtyInput').value, 10);
+    const target = (isNaN(qty) || qty < 1) ? 1 : qty;
+    const pts = parseInt($('ptsInput').value, 10);
+    const score = (isNaN(pts) || pts < 0) ? 0 : pts;
+    const tasks = ensureBucket(scope, openDate).tasks;
+    if (tasks.some(t => t.name === name)) { toast('這個項目已存在'); return; }
+    tasks.push({ name, target, cur: 0, score });
+    save();
+    $('nameInput').value = '';
+    $('qtyInput').value = '1';
+    $('ptsInput').value = '0';
+    renderSheet();
+    $('nameInput').focus();
+    toast(`已新增「${name}」x ${target}（${score} 分）`);
+  }
+  $('addBtn').onclick = addTasks;
+  $('nameInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') addTasks(); });
+  $('qtyInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') addTasks(); });
+  $('ptsInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') addTasks(); });
+  $('noteInput').addEventListener('input', () => {
+    if (!openDate) return;
+    ensureBucket('day', openDate).note = $('noteInput').value;
+    save();
+  });
+  $('specialBox').addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn || !openDate) return;
+    const k = btn.dataset.k;
+    const b = ensureBucket('day', openDate);
+    if (!b.special) b.special = { dragon: 0, castle: 0 };
+    if (btn.classList.contains('sp-plus')) b.special[k] = (b.special[k] || 0) + 1;
+    else if (btn.classList.contains('sp-minus')) b.special[k] = Math.max(0, (b.special[k] || 0) - 1);
+    else return;
+    save(); renderSheet();
+  });
+
+  // 複製上一期
+  $('copyPrevBtn').onclick = () => {
+    if (!openDate) return;
+    const [y, m, d] = openDate.split('-').map(Number);
+    let prevKey;
+    if (scope === 'day') {
+      const p = new Date(y, m - 1, d - 1);
+      prevKey = key(p.getFullYear(), p.getMonth(), p.getDate());
+    } else if (scope === 'week') {
+      const mon = mondayOf(y, m - 1, d);
+      mon.setDate(mon.getDate() - 7);
+      prevKey = key(mon.getFullYear(), mon.getMonth(), mon.getDate());
+    } else {
+      const p = new Date(y, m - 1, 1); p.setMonth(p.getMonth() - 1);
+      prevKey = `${p.getFullYear()}-${String(p.getMonth() + 1).padStart(2, '0')}`;
+    }
+    const bucket = store[BUCKET[scope]][prevKey];
+    const prevTasks = (bucket && bucket.tasks) || [];
+    if (!prevTasks.length) { toast('上一期沒有目標可以複製'); return; }
+    const tasks = ensureBucket(scope, openDate).tasks;
+    let added = 0;
+    for (const t of prevTasks) {
+      if (!tasks.some(x => x.name === t.name)) { tasks.push({ ...t, cur: 0 }); added++; }
+    }
+    save(); renderSheet();
+    toast(added > 0 ? `已複製 ${added} 個目標（進度歸零）` : '目標都已存在');
+  };
+
+  // 複製完成/未完成清單
+  $('copyListBtn').onclick = () => {
+    if (!openDate) return;
+    const tasks = getTasks(scope, openDate);
+    if (!tasks.length) { toast('還沒有目標'); return; }
+    const done = tasks.filter(t => t.cur >= t.target);
+    const undone = tasks.filter(t => t.cur < t.target);
+    const scopeName = { day: '每日', week: '每週', month: '每月' }[scope];
+    const title = $('sheetTitle').textContent.replace(/・.*/, '');
+    const lines = [`【${title}・${scopeName}】${done.length}(已完成)/${undone.length}(未完成)`];
+    done.forEach(t => lines.push(`${t.name} ${t.cur}/${t.target} 💛`));
+    undone.forEach(t => lines.push(`${t.name} ${t.cur}/${t.target}`));
+    const text = lines.join('\n');
+
+    const fallback = () => {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); toast('已複製到剪貼簿'); }
+      catch (err) { alert(text); }
+      document.body.removeChild(ta);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => toast('已複製到剪貼簿')).catch(fallback);
+    } else fallback();
+  };
+
+  $('clearDayBtn').onclick = () => {
+    if (!openDate) return;
+    const names = { day: '這天', week: '本週', month: '本月' };
+    if (confirm(`確定清空${names[scope]}的所有目標與紀錄？`)) {
+      delete store[BUCKET[scope]][scopeKey(scope, openDate)];
+      save(); renderSheet(); toast('已清空');
+    }
+  };
+
+  $('closeSheet').onclick = closeSheet;
+  $('overlay').addEventListener('click', (e) => { if (e.target === $('overlay')) closeSheet(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if ($('overlay').classList.contains('open')) closeSheet();
+    if ($('topicOverlay').classList.contains('open')) $('topicOverlay').classList.remove('open');
+  });
+
+  // ---------- 熱門話題（近 10 日累計排行）----------
+  $('topicBtn').onclick = async () => {
+    $('topicOverlay').classList.add('open');
+    const list = $('topicList');
+    list.innerHTML = '<div class="empty">搜尋近 10 日熱門話題中…約需幾秒</div>';
+    $('topicSummary').textContent = '';
+
+    // 依序抓近 10 天排行，把各條目瀏覽量加總
+    const now = new Date();
+    const agg = {};
+    let got = 0;
+    let newest = null;
+    for (let back = 0; back < 10; back++) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - back);
+      const url = 'https://wikimedia.org/api/rest_v1/metrics/pageviews/top/zh.wikipedia/all-access/'
+        + `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) continue;
+        const data = await res.json();
+        const items = (data.items && data.items[0] && data.items[0].articles) || [];
+        if (!items.length) continue;
+        got++;
+        if (!newest) newest = d;
+        for (const a of items) {
+          if (a.article.indexOf(':') !== -1) continue;
+          if (!agg[a.article]) agg[a.article] = { article: a.article, views: 0 };
+          agg[a.article].views += a.views;
+        }
+      } catch (err) {}
+    }
+    const arts = Object.keys(agg).map(k => agg[k]).sort((x, y) => y.views - x.views);
+    if (!arts.length) {
+      list.innerHTML = '<div class="empty">抓不到資料 😢<br>請確認手機有連上網路後再按一次</div>';
+      return;
+    }
+
+    // 分類：優先綜藝八卦、社會時事
+    const KW_ENT = ['綜藝', '節目', '演唱會', '歌手', '演員', '偶像', '明星', '電影', '電視劇', '戲劇', '影集', '實境', '選秀', '金鐘', '金曲', '金馬', '頒獎', '緋聞', '結婚', '婚禮', '離婚', '懷孕', '出道', '專輯', '票房', '取景', '客串', '戀情', '交往', '認愛', '閃婚', '密婚', '婚變', '劈腿', '分手', '復合', '復出', '退圈', '封殺', '解約', '整形', '整容', '私生子', '醜聞', '開撕', '對嗆', '槓上', '翻臉'];
+    const KW_SOC = ['案', '判決', '起訴', '羈押', '判賠', '裁罰', '罰款', '選舉', '公投', '罷免', '政策', '條例', '社會', '事故', '災', '地震', '颱風', '疫情', '罷工', '抗議', '遊行', '逝世', '去世', '罹難', '車禍', '火災', '爆炸', '詐騙', '貪污', '爆料', '爭議', '道歉', '聲明', '記者會', '風波', '調查', '槍擊', '起底', '逮', '被捕'];
+    const kind = t => KW_ENT.some(k => t.includes(k)) ? 'ent' : (KW_SOC.some(k => t.includes(k)) ? 'soc' : 'other');
+    const pref = arts.filter(a => kind(a.article) !== 'other');
+    const rest = arts.filter(a => kind(a.article) === 'other');
+    $('topicSummary').innerHTML =
+      `中文維基百科近 10 日累計瀏覽排行（成功取得 ${got} 天資料，最新到 ${newest.getMonth() + 1}/${newest.getDate()}）・已優先篩選綜藝八卦、社會時事・<a href="https://zh.wikipedia.org/" target="_blank" rel="noopener">參考來源：維基百科</a>`;
+    list.innerHTML = '';
+    [...pref, ...rest].slice(0, 5).forEach((a, i) => {
+      const link = 'https://zh.wikipedia.org/wiki/' + encodeURIComponent(a.article);
+      const div = document.createElement('a');
+      div.className = 'task';
+      div.href = link;
+      div.target = '_blank';
+      div.rel = 'noopener';
+      div.style.textDecoration = 'none';
+      div.style.display = 'block';
+      const name = document.createElement('span');
+      name.className = 'task-name';
+      name.textContent = `${i + 1}. ${a.article}`;
+      const k = kind(a.article);
+      const tag = document.createElement('span');
+      tag.className = 'task-meta';
+      tag.textContent = k === 'ent' ? '🎬 綜藝八卦' : (k === 'soc' ? '📰 社會時事' : '📌 其他');
+      const views = document.createElement('span');
+      views.className = 'task-meta';
+      views.textContent = `👁 ${a.views.toLocaleString()}`;
+      const row = document.createElement('div');
+      row.className = 'task-top';
+      row.appendChild(name); row.appendChild(tag); row.appendChild(views);
+      div.appendChild(row);
+      list.appendChild(div);
+    });
+  };
+  $('closeTopic').onclick = () => $('topicOverlay').classList.remove('open');
+  $('topicOverlay').addEventListener('click', (e) => { if (e.target === $('topicOverlay')) $('topicOverlay').classList.remove('open'); });
+
+  const now = new Date();
+  viewYear = now.getFullYear(); viewMonth = now.getMonth();
+  $('prevMonth').onclick = () => { viewMonth--; if (viewMonth < 0) { viewMonth = 11; viewYear--; } renderCalendar(); };
+  $('nextMonth').onclick = () => { viewMonth++; if (viewMonth > 11) { viewMonth = 0; viewYear++; } renderCalendar(); };
+  $('todayBtn').onclick = () => {
+    const n = new Date();
+    viewYear = n.getFullYear(); viewMonth = n.getMonth();
+    renderCalendar();
+    openDay(todayKey());
+  };
+
+  function $(id) { return document.getElementById(id); }
+  let toastTimer;
+  function toast(msg) {
+    const el = $('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 1800);
+  }
+
+
+  // ---------- 流行華語歌曲（iTunes 台灣即時排行，每次按都抓最新）----------
+  const SONG_FALLBACK = [
+    ['愛人錯過', '告五人'], ['如果可以', '韋禮安'], ['小情歌', '蘇打綠'],
+    ['身騎白馬', '徐佳瑩'], ['有一種悲傷', 'A-Lin'], ['以後別做朋友', '周興哲'],
+    ['光年之外', 'G.E.M. 鄧紫棋'], ['修煉愛情', '林俊傑'], ['倒帶', '蔡依林'],
+    ['突然好想你', '五月天'], ['魚仔', '盧廣仲'], ['小幸運', '田馥甄']
+  ];
+  $('songBtn').onclick = async () => {
+    $('songOverlay').classList.add('open');
+    const list = $('songList');
+    list.innerHTML = '<div class="empty">即時抓取最新排行中…</div>';
+    $('songSummary').textContent = '';
+
+    const amSearch = q => 'https://music.apple.com/tw/search?term=' + encodeURIComponent(q);
+    const render = (songs, srcText) => {
+      $('songSummary').innerHTML = srcText;
+      list.innerHTML = '';
+      songs.forEach((s, i) => {
+        const div = document.createElement('a');
+        div.className = 'task';
+        div.href = s.url;
+        div.target = '_blank';
+        div.rel = 'noopener';
+        div.style.textDecoration = 'none';
+        div.style.display = 'block';
+        const name = document.createElement('span');
+        name.className = 'task-name';
+        name.textContent = `${i + 1}. ${s.title}`;
+        const tag = document.createElement('span');
+        tag.className = 'task-meta';
+        tag.textContent = s.tag;
+        const row = document.createElement('div');
+        row.className = 'task-top';
+        row.appendChild(name); row.appendChild(tag);
+        div.appendChild(row);
+        const meta = document.createElement('div');
+        meta.className = 'task-meta';
+        meta.textContent = s.artist;
+        div.appendChild(meta);
+        list.appendChild(div);
+      });
+    };
+
+    try {
+      const res = await fetch('https://itunes.apple.com/tw/rss/topsongs/limit=25/json', { cache: 'no-store' });
+      if (!res.ok) throw new Error('http ' + res.status);
+      const data = await res.json();
+      const entries = (data.feed && data.feed.entry) || [];
+      if (!entries.length) throw new Error('empty');
+      const songs = entries.map(en => {
+        const title = (en['im:name'] && en['im:name'].label) || '';
+        const artist = (en['im:artist'] && en['im:artist'].label) || '';
+        const isMando = /[一-鿿]/.test(title + artist);
+        return { title, artist, url: amSearch(title + ' ' + artist), tag: isMando ? '🎤 華語' : '🌐 非華語' };
+      });
+      const mandos = songs.filter(x => x.tag === '🎤 華語');
+      const others = songs.filter(x => x.tag !== '🎤 華語');
+      render([...mandos, ...others].slice(0, 5),
+        'iTunes 台灣即時排行・已優先列出華語歌曲・<a href="https://music.apple.com/tw/browse" target="_blank" rel="noopener">參考來源：Apple Music</a>');
+      return;
+    } catch (err) {}
+    // 連不上時給常備歌單，按鈕永遠有東西看
+    render(SONG_FALLBACK.map(([t, a]) => ({ title: t, artist: a, url: amSearch(t + ' ' + a), tag: '🎤 華語' })),
+      '暫時連不上即時排行，先給你常備歌單（稍後再按一次就會即時更新）');
+  };
+  $('closeSong').onclick = () => $('songOverlay').classList.remove('open');
+  $('songOverlay').addEventListener('click', (e) => { if (e.target === $('songOverlay')) $('songOverlay').classList.remove('open'); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') $('songOverlay').classList.remove('open');
+  });
+
+  renderCalendar();
+})();
+</script>
+</body>
+</html>
+
 <meta name="apple-mobile-web-app-title" content="恩恩聲播日曆">
 <meta name="theme-color" content="#14141c">
 <link rel="manifest" href="manifest.json">
