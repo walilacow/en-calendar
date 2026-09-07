@@ -1081,6 +1081,7 @@
             <input type="number" min="0" value="${t.cur}" data-idx="${idx}" aria-label="完成數量">
             <button class="plus" data-idx="${idx}" title="收到一個，+1">+1</button>
           </div>
+          <button class="drag-handle" data-idx="${idx}" title="拖曳排序" style="background:none; border:none; color:var(--muted); cursor:grab; padding:8px 4px; font-size:14px; letter-spacing:1px; touch-action:none;">☰</button>
           <button class="task-del" data-idx="${idx}" title="刪除">✕</button>
         </div>
         <div class="task-meta">目標 ${t.target} 個 ・ 已收 ${t.cur} 個（${tpct}%）・ ${t.score || 0} 分${isDone ? ' ・ ✅ 達成' : ''}</div>
@@ -1647,6 +1648,59 @@
     $('qtyInput').focus();
   });
 
+  // ---------- 任務拖曳排序 ----------
+  let dragState = null;
+
+  $('taskList').addEventListener('touchstart', (e) => {
+    const h = e.target.closest('.drag-handle');
+    if (!h || !openDate) return;
+    const tasks = getTasks(scope, openDate);
+    const rows = $('taskList').querySelectorAll('.task');
+    const i = Number(h.dataset.idx);
+    if (!rows[i] || !tasks[i]) return;
+    dragState = { idx: i, startY: e.touches[0].clientY };
+    rows[i].style.zIndex = '90';
+    rows[i].style.position = 'relative';
+    rows[i].style.boxShadow = '0 8px 24px rgba(0,0,0,.5)';
+    rows[i].style.transform = 'scale(1.02)';
+    e.preventDefault();
+  }, { passive: false });
+
+  document.addEventListener('touchmove', (e) => {
+    if (!dragState || !openDate) return;
+    e.preventDefault();
+    const tasks = getTasks(scope, openDate);
+    const rows = $('taskList').querySelectorAll('.task');
+    if (!rows.length) return;
+    const row = rows[dragState.idx];
+    const touchY = e.touches[0].clientY;
+    const dy = touchY - dragState.startY;
+    if (row) row.style.transform = 'translateY(' + dy + 'px) scale(1.02)';
+    // 計算手指落在哪一行 → 即時交換
+    const rowH = rows[0].offsetHeight + 10;
+    const listTop = $('taskList').getBoundingClientRect().top;
+    const target = Math.max(0, Math.min(rows.length - 1, Math.floor((touchY - listTop) / rowH)));
+    if (target !== dragState.idx && target >= 0 && target < tasks.length) {
+      const t = tasks.splice(dragState.idx, 1)[0];
+      tasks.splice(target, 0, t);
+      dragState.idx = target;
+      dragState.startY = touchY;
+      save();
+      renderSheet();
+    }
+  }, { passive: false });
+
+  document.addEventListener('touchend', () => {
+    if (!dragState) return;
+    dragState = null;
+    renderSheet();
+  });
+  document.addEventListener('touchcancel', () => {
+    if (!dragState) return;
+    dragState = null;
+    renderSheet();
+  });
+
   $('cardBtn').onclick = () => {
     if (!openDate) return;
     if (!getTasks(scope, openDate).length) { toast('還沒有任務，無法產生圖卡'); return; }
@@ -1680,7 +1734,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v21';
+  $('verTag').textContent = 'v22';
   renderCalendar();
 })();
 </script>
