@@ -979,8 +979,25 @@
       month: '每月 1 號自動結算上月並重新計算。',
       custom: '自訂區間：進度累計到結束日，結束後保留為紀錄。'
     };
+    let weekLine = '';
+    if (scope === 'day') {
+      const [yy, mm, dd] = openDate.split('-').map(Number);
+      const mon = mondayOf(yy, mm - 1, dd);
+      const wkEnd = new Date(mon); wkEnd.setDate(mon.getDate() + 6);
+      let wkEarn = 0, wkTot = 0;
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(mon); d.setDate(mon.getDate() + i);
+        const dk = key(d.getFullYear(), d.getMonth(), d.getDate());
+        const b = store.dates[dk];
+        if (b && b.tasks) {
+          const rc = calc(b.tasks);
+          wkEarn += rc.scoreEarned; wkTot += rc.scoreTotal;
+        }
+      }
+      weekLine = `・ 當週每日分數 <b>${wkEarn}/${wkTot}</b>（週一～週日）`;
+    }
     $('daySummary').innerHTML =
-      `任務達成 <b>${r.doneCnt}/${r.total}</b> ・ 收禮進度 <b>${r.pct}%</b>（${r.doneUnits}/${r.totUnits} 個）・ 分數 <b>${r.scoreEarned}/${r.scoreTotal}</b> ・ ${status}<br>${notes[scope]}`;
+      `任務達成 <b>${r.doneCnt}/${r.total}</b> ・ 收禮進度 <b>${r.pct}%</b>（${r.doneUnits}/${r.totUnits} 個）・ 分數 <b>${r.scoreEarned}/${r.scoreTotal}</b>${weekLine} ・ ${status}<br>${notes[scope]}`;
 
     const labels = {
       day: ['📋 複製前一天任務', '🗑 清空這天'],
@@ -1644,7 +1661,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v19';
+  $('verTag').textContent = 'v20';
   renderCalendar();
 })();
 </script>
