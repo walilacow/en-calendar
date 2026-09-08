@@ -966,58 +966,81 @@
 
     let statFull = 0, statPart = 0;
 
+    let firstCalErr = '';
+    const noteCalErr = (err) => {
+      const msg = String((err && err.message) || err || '未知錯誤').replace(/\s+/g, ' ').slice(0, 80);
+      if (!firstCalErr) firstCalErr = msg;
+      console.error('renderCalendar 單日渲染失敗', err);
+    };
+
     for (let d = 1; d <= daysInMonth; d++) {
-      try {
       const ds = key(viewYear, viewMonth, d);
-      const tasks = getTasks('day', ds);
-      const r = calc(tasks);
+
+      // 先建立最基本日期格：即使後面資料壞掉，也不能讓整個月消失
       const cell = document.createElement('button');
       cell.className = 'cell';
-
-      if (ds === tKey) cell.classList.add('today');
-      if (r.allDone) { cell.classList.add('all-done'); statFull++; }
-      else if (r.doneUnits > 0) { cell.classList.add('partial'); statPart++; }
-
-      let inner = `<div class="dnum">${d}</div>`;
-      const stB = store.dates[ds];
-      if (stB && stB.slots && stB.slots.length) {
-        const slotTxt = stB.slots.map(sl => sl.start + (sl.end ? '–' + sl.end : '')).filter(Boolean).join(' ');
-        if (slotTxt) inner += `<div class="badge">🎙️ ${slotTxt}</div>`;
-      }
-      if (tasks.length) {
-        inner += `<div class="badge">${r.doneCnt}/${tasks.length} 任務・${r.doneUnits}/${r.totUnits} 個</div>
-                  <div class="mini-bar"><div class="mini-fill" style="width:${r.pct}%"></div></div>`;
-      }
-
-      // 週 / 月任務標示
-      const wt = getTasks('week', ds), wr = calc(wt);
-      const mt = getTasks('month', ds), mr = calc(mt);
-      if (wt.length || mt.length) {
-        const parts = [];
-        if (wt.length) parts.push(`週 ${wr.doneCnt}/${wt.length}`);
-        if (mt.length) parts.push(`月 ${mr.doneCnt}/${mt.length}`);
-        inner += `<div class="badge wm">${parts.join('・')}</div>`;
-        const wOk = !wt.length || wr.allDone;
-        const mOk = !mt.length || mr.allDone;
-        if (wt.length && mt.length ? (wr.allDone && mr.allDone) : (wr.allDone || mr.allDone)) cell.classList.add('wm-done');
-        else if (!wOk || !mOk) cell.classList.add(wr.doneUnits > 0 || mr.doneUnits > 0 ? 'wm-part' : '');
-      }
-
-      if (store.ranges) {
-        let cDone = 0, cTot = 0;
-        Object.keys(store.ranges).forEach(id => {
-          const rg = store.ranges[id];
-          if (rg.start && rg.end && ds >= rg.start && ds <= rg.end) {
-            const rc = calc(rg.tasks || []);
-            cDone += rc.doneCnt; cTot += rc.total;
-          }
-        });
-        if (cTot) inner += `<div class="badge wm">區間 ${cDone}/${cTot}</div>`;
-      }
-      cell.innerHTML = inner;
+      cell.innerHTML = `<div class="dnum">${d}</div>`;
       cell.onclick = () => openDay(ds);
+
+      try {
+        const tasks = getTasks('day', ds);
+        const r = calc(tasks);
+
+        if (ds === tKey) cell.classList.add('today');
+        if (r.allDone) { cell.classList.add('all-done'); statFull++; }
+        else if (r.doneUnits > 0) { cell.classList.add('partial'); statPart++; }
+
+        let inner = `<div class="dnum">${d}</div>`;
+
+        const stB = store.dates && typeof store.dates === 'object' ? store.dates[ds] : null;
+        if (stB && Array.isArray(stB.slots) && stB.slots.length) {
+          const slotTxt = stB.slots
+            .map(sl => (sl ? String(sl.start || '') + (sl.end ? '–' + String(sl.end || '') : '') : ''))
+            .filter(Boolean)
+            .join(' ');
+          if (slotTxt) inner += `<div class="badge">🎙️ ${slotTxt}</div>`;
+        }
+
+        if (tasks.length) {
+          inner += `<div class="badge">${r.doneCnt}/${tasks.length} 任務・${r.doneUnits}/${r.totUnits} 個</div>
+                    <div class="mini-bar"><div class="mini-fill" style="width:${r.pct}%"></div></div>`;
+        }
+
+        try {
+          const wt = getTasks('week', ds), wr = calc(wt);
+          const mt = getTasks('month', ds), mr = calc(mt);
+          if (wt.length || mt.length) {
+            const parts = [];
+            if (wt.length) parts.push(`週 ${wr.doneCnt}/${wt.length}`);
+            if (mt.length) parts.push(`月 ${mr.doneCnt}/${mt.length}`);
+            inner += `<div class="badge wm">${parts.join('・')}</div>`;
+            const wOk = !wt.length || wr.allDone;
+            const mOk = !mt.length || mr.allDone;
+            if (wt.length && mt.length ? (wr.allDone && mr.allDone) : (wr.allDone || mr.allDone)) cell.classList.add('wm-done');
+            else if (!wOk || !mOk) cell.classList.add(wr.doneUnits > 0 || mr.doneUnits > 0 ? 'wm-part' : '');
+          }
+        } catch (err) { noteCalErr(err); }
+
+        try {
+          if (store.ranges && typeof store.ranges === 'object') {
+            let cDone = 0, cTot = 0;
+            Object.keys(store.ranges).forEach(id => {
+              const rg = store.ranges[id];
+              if (rg && typeof rg === 'object' && rg.start && rg.end && ds >= rg.start && ds <= rg.end) {
+                const rc = calc(Array.isArray(rg.tasks) ? rg.tasks : []);
+                cDone += rc.doneCnt; cTot += rc.total;
+              }
+            });
+            if (cTot) inner += `<div class="badge wm">區間 ${cDone}/${cTot}</div>`;
+          }
+        } catch (err) { noteCalErr(err); }
+
+        cell.innerHTML = inner;
+      } catch (err) {
+        noteCalErr(err);
+      }
+
       grid.appendChild(cell);
-      } catch (err) { console.error('renderCalendar 單日渲染失敗', d, err); }
     }
 
     $('statFull').textContent = statFull;
@@ -1028,7 +1051,7 @@
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
 
     const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
-    $('verTag').textContent = dayCellCount > 0 ? 'v42' : 'v42 · 日曆異常';
+    $('verTag').textContent = dayCellCount > 0 ? ('v43' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v43 · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -1982,7 +2005,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v42';
+  $('verTag').textContent = 'v43';
   renderCalendar();
 })();
 </script>
