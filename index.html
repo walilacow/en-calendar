@@ -574,7 +574,7 @@
         const snap = await db.collection('users').doc(user.uid).get();
         if (snap.exists) {
           const d = snap.data();
-          const cloud = { dates: d.dates || {}, weeks: d.weeks || {}, months: d.months || {}, ranges: d.ranges || {}, scoreLog: d.scoreLog || {} };
+          const cloud = sanitizeStore({ dates: d.dates, weeks: d.weeks, months: d.months, ranges: d.ranges, scoreLog: d.scoreLog });
           // 合併保險：本機任務較多的日期保留本機版，避免空/舊雲端清掉九月資料
           try {
             const local = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
@@ -764,13 +764,52 @@
 
   function lsSetRaw(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 
+  // 資料消毒：雲端/本機資料可能因舊版或寫入中斷而型別異常（例如 tasks 不是陣列），
+  // 一筆壞資料會讓 renderCalendar 在迴圈中 throw、整個月空白。統一在此修正。
+  function sanitizeStore(s) {
+    const out = { dates: {}, weeks: {}, months: {}, ranges: {}, scoreLog: {} };
+    if (!s || typeof s !== 'object') return out;
+    const normTask = t => {
+      if (!t || typeof t !== 'object' || Array.isArray(t)) return null;
+      const nt = Object.assign({}, t);
+      nt.cur = Number(t.cur) || 0;
+      nt.target = Math.max(1, Number(t.target) || 1);
+      nt.score = Number(t.score) || 0;
+      return nt;
+    };
+    ['dates', 'weeks', 'months'].forEach(bk => {
+      const src = s[bk];
+      if (!src || typeof src !== 'object' || Array.isArray(src)) return;
+      Object.keys(src).forEach(k => {
+        const b = src[k];
+        if (!b || typeof b !== 'object' || Array.isArray(b)) return;
+        const nb = { tasks: (Array.isArray(b.tasks) ? b.tasks : []).map(normTask).filter(Boolean) };
+        if (b.note) nb.note = String(b.note);
+        if (Array.isArray(b.slots)) nb.slots = b.slots.filter(sl => sl && typeof sl === 'object');
+        if (b.special && typeof b.special === 'object') nb.special = { dragon: Number(b.special.dragon) || 0, castle: Number(b.special.castle) || 0 };
+        out[bk][k] = nb;
+      });
+    });
+    if (s.ranges && typeof s.ranges === 'object' && !Array.isArray(s.ranges)) {
+      Object.keys(s.ranges).forEach(id => {
+        const r = s.ranges[id];
+        if (!r || typeof r !== 'object' || Array.isArray(r)) return;
+        out.ranges[id] = {
+          name: r.name ? String(r.name) : '',
+          start: r.start ? String(r.start) : '',
+          end: r.end ? String(r.end) : '',
+          tasks: (Array.isArray(r.tasks) ? r.tasks : []).map(normTask).filter(Boolean)
+        };
+      });
+    }
+    if (s.scoreLog && typeof s.scoreLog === 'object' && !Array.isArray(s.scoreLog)) out.scoreLog = s.scoreLog;
+    return out;
+  }
+
   function load() {
     try {
       const raw = localStorage.getItem(STORE_KEY);
-      if (raw) {
-        const s = JSON.parse(raw);
-        return { dates: s.dates || {}, weeks: s.weeks || {}, months: s.months || {}, ranges: s.ranges || {}, scoreLog: s.scoreLog || {} };
-      }
+      if (raw) return sanitizeStore(JSON.parse(raw));
     } catch (e) {}
     return { dates: {}, weeks: {}, months: {}, ranges: {}, scoreLog: {} };
   }
@@ -911,6 +950,7 @@
     let statFull = 0, statPart = 0;
 
     for (let d = 1; d <= daysInMonth; d++) {
+      try {
       const ds = key(viewYear, viewMonth, d);
       const tasks = getTasks('day', ds);
       const r = calc(tasks);
@@ -960,6 +1000,7 @@
       cell.innerHTML = inner;
       cell.onclick = () => openDay(ds);
       grid.appendChild(cell);
+      } catch (err) { console.error('renderCalendar 單日渲染失敗', d, err); }
     }
 
     $('statFull').textContent = statFull;
@@ -1855,7 +1896,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v37';
+  $('verTag').textContent = 'v38';
   renderCalendar();
 })();
 </script>
