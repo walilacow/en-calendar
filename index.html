@@ -170,7 +170,7 @@
     border-radius: 12px; padding: 12px 14px;
   }
   .task.done { border-color: rgba(72,187,120,.5); }
-  .task.dragging { opacity: .55; border-color: var(--accent); box-shadow: 0 4px 14px rgba(0,0,0,.45); z-index: 5; position: relative; }
+  .task.dragging { opacity: .75; border-color: var(--accent); transform: scale(1.01); }
   .task-top { display: flex; align-items: center; gap: 10px; }
   .task-name { flex: 1; font-weight: 600; font-size: 15px; word-break: break-all; }
   .task.done .task-name { color: var(--green); }
@@ -334,7 +334,7 @@
       <input id="qtyInput" type="number" min="1" value="1" placeholder="數量">
       <input id="ptsInput" type="number" min="0" value="0" placeholder="分數">
       <select id="iconSelect" style="background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px 8px; font-size:14px; outline:none; font-family:inherit;">
-        <option value="">🚫 無圖示</option>
+        <option value="none">🚫 無圖示</option>
         <option value="玫瑰">🌹 玫瑰</option>
         <option value="火箭">🚀 火箭</option>
         <option value="城堡">🏰 城堡</option>
@@ -1218,16 +1218,21 @@
       `;
       const nameEl = div.querySelector('.task-name');
       nameEl.textContent = '';
-      const effIcon = t.icon ? (t.icon === 'none' ? '' : t.icon) : t.name;
+      const effIcon = (t.icon && t.icon !== 'none') ? t.icon : '';
+      const iconSrc = effIcon ? (GIFT_IMG[effIcon] || '') : '';
       const GIFT_FILE = { '玫瑰':'rose','火箭':'rocket','城堡':'castle','金龍':'dragon','跑車':'car','飛機':'plane','遊艇':'yacht','鑽戒':'ring','皇冠':'crown','煙花':'firework','愛心':'heart','禮物盒':'gift' };
       const GIFT_EMOJI = { '玫瑰':'🌹','火箭':'🚀','城堡':'🏰','金龍':'🐉','跑車':'🏎️','飛機':'✈️','遊艇':'🛥️','鑽戒':'💍','皇冠':'👑','煙花':'🎆','愛心':'❤️','禮物盒':'🎁' };
-      if (effIcon) {
+      if (iconSrc) {
         const giftImg = document.createElement('img');
-        giftImg.src = GIFT_IMG[effIcon] || '';
-        giftImg.style.cssText = 'width:22px;height:22px;border-radius:50%;margin-right:8px;object-fit:cover;vertical-align:middle;flex-shrink:0;';
+        giftImg.src = iconSrc;
+        giftImg.alt = '';
+        giftImg.draggable = false;
+        giftImg.style.cssText = 'width:22px;height:22px;border-radius:50%;margin-right:8px;object-fit:cover;vertical-align:middle;flex-shrink:0;pointer-events:none;-webkit-user-drag:none;user-select:none;';
+        let giftIconFailed = false;
         giftImg.onerror = () => {
-          // 圖檔不存在時用 emoji 備援，不自動隱藏
-          giftImg.style.display = 'none';
+          if (giftIconFailed) return;
+          giftIconFailed = true;
+          giftImg.remove();
           const em = document.createElement('span');
           em.textContent = (GIFT_EMOJI[effIcon] || '🎁') + ' ';
           em.style.cssText = 'font-size:16px;margin-right:6px;vertical-align:middle;flex-shrink:0;';
@@ -1289,6 +1294,13 @@
   });
   document.addEventListener('pointermove', (e) => {
     if (!dragCtx) return;
+    if (e.pointerType === 'mouse' && !(e.buttons & 1)) {
+      dragCtx.el.classList.remove('dragging');
+      document.body.style.userSelect = '';
+      dragCtx = null;
+      renderSheet();
+      return;
+    }
     if (!dragCtx.active) {
       if (Math.abs(e.clientY - dragCtx.startY) < 8 && Math.abs(e.clientX - dragCtx.startX) < 8) return;
       dragCtx.active = true;
@@ -1356,7 +1368,7 @@
     $('nameInput').value = '';
     $('qtyInput').value = '1';
     $('ptsInput').value = '0';
-    $('iconSelect').value = '';
+    $('iconSelect').value = 'none';
     $('easyChk').checked = false;
     $('bonusChk').checked = false;
     renderSheet();
