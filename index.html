@@ -929,6 +929,15 @@
 
   // ---------- 月曆 ----------
   function renderCalendar() {
+    // v42 保險：某些裝置/資料狀態下 viewYear/viewMonth 可能被污染，先轉回合法值，避免整個月不畫
+    const now0 = new Date();
+    let y0 = Number(viewYear);
+    let m0 = Number(viewMonth);
+    if (!Number.isFinite(y0) || y0 < 1900 || y0 > 2200) y0 = now0.getFullYear();
+    if (!Number.isInteger(m0) || m0 < 0 || m0 > 11) m0 = now0.getMonth();
+    viewYear = y0;
+    viewMonth = m0;
+
     $('monthTitle').textContent = `${viewYear} 年 ${viewMonth + 1} 月`;
     const grid = $('calGrid');
     grid.innerHTML = '';
@@ -938,8 +947,15 @@
       grid.appendChild(h);
     });
 
-    const first = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7; // 週一開頭
-    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+    const monthStart = new Date(viewYear, viewMonth, 1);
+    const first = Number.isNaN(monthStart.getTime()) ? 0 : (monthStart.getDay() + 6) % 7; // 週一開頭
+    let daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+    if (!Number.isFinite(daysInMonth) || daysInMonth < 28 || daysInMonth > 31) {
+      const fallbackDays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+      daysInMonth = fallbackDays[viewMonth] || 30;
+      const isLeap = ((viewYear % 4 === 0 && viewYear % 100 !== 0) || viewYear % 400 === 0);
+      if (viewMonth === 1 && isLeap) daysInMonth = 29;
+    }
     const tKey = todayKey();
 
     for (let i = 0; i < first; i++) {
@@ -1010,6 +1026,9 @@
     $('statWeek').textContent = wr.total ? `${wr.doneCnt}/${wr.total}` : '–';
     const mr = calc(getTasks('month', tKey));
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
+
+    const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
+    $('verTag').textContent = dayCellCount > 0 ? 'v42' : 'v42 · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -1963,7 +1982,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v41';
+  $('verTag').textContent = 'v42';
   renderCalendar();
 })();
 </script>
