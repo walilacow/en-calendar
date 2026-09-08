@@ -170,6 +170,7 @@
     border-radius: 12px; padding: 12px 14px;
   }
   .task.done { border-color: rgba(72,187,120,.5); }
+  .task.dragging { opacity: .55; border-color: var(--accent); box-shadow: 0 4px 14px rgba(0,0,0,.45); z-index: 5; position: relative; }
   .task-top { display: flex; align-items: center; gap: 10px; }
   .task-name { flex: 1; font-weight: 600; font-size: 15px; word-break: break-all; }
   .task.done .task-name { color: var(--green); }
@@ -1276,6 +1277,62 @@
     save(); renderSheet();
   });
 
+  // 拖曳排序（滑鼠＋觸控，透過 ☰ handle）
+  let dragCtx = null;
+  $('taskList').addEventListener('pointerdown', (e) => {
+    const handle = e.target.closest('.drag-handle');
+    if (!handle || !openDate) return;
+    const tasks = getTasks(scope, openDate);
+    const idx = Number(handle.dataset.idx);
+    if (!tasks[idx]) return;
+    dragCtx = { idx, el: handle.closest('.task'), startX: e.clientX, startY: e.clientY, active: false };
+  });
+  document.addEventListener('pointermove', (e) => {
+    if (!dragCtx) return;
+    if (!dragCtx.active) {
+      if (Math.abs(e.clientY - dragCtx.startY) < 8 && Math.abs(e.clientX - dragCtx.startX) < 8) return;
+      dragCtx.active = true;
+      dragCtx.el.classList.add('dragging');
+      document.body.style.userSelect = 'none';
+    }
+    e.preventDefault();
+    const over = document.elementFromPoint(e.clientX, e.clientY);
+    const overTask = over && over.closest ? over.closest('.task') : null;
+    const list = $('taskList');
+    if (overTask && overTask !== dragCtx.el && overTask.parentNode === list) {
+      const rect = overTask.getBoundingClientRect();
+      const before = (e.clientY - rect.top) < rect.height / 2;
+      list.insertBefore(dragCtx.el, before ? overTask : overTask.nextSibling);
+    }
+  });
+  document.addEventListener('pointerup', () => {
+    if (!dragCtx) return;
+    const ctx = dragCtx;
+    dragCtx = null;
+    document.body.style.userSelect = '';
+    if (!ctx.active) return;
+    ctx.el.classList.remove('dragging');
+    const tasks = getTasks(scope, openDate);
+    if (!tasks || !tasks.length) return;
+    const newOrder = Array.from($('taskList').children).map(el => {
+      const h = el.querySelector('.drag-handle');
+      return h ? tasks[Number(h.dataset.idx)] : null;
+    });
+    if (newOrder.length !== tasks.length || newOrder.some(t => !t)) { renderSheet(); return; }
+    if (newOrder.every((t, i) => t === tasks[i])) return;
+    tasks.splice(0, tasks.length, ...newOrder);
+    save();
+    renderSheet();
+    toast('已更新順序');
+  });
+  document.addEventListener('pointercancel', () => {
+    if (!dragCtx) return;
+    dragCtx.el.classList.remove('dragging');
+    document.body.style.userSelect = '';
+    dragCtx = null;
+    renderSheet();
+  });
+
   // 新增
   function addTasks() {
     if (!openDate) return;
@@ -1403,12 +1460,10 @@
     const scopeName = { day: '每日', week: '每週', month: '每月' }[scope];
     const title = $('sheetTitle').textContent.replace(/・.*/, '');
     const lines = [`【${title}・${scopeName}】${done.length}(已完成)/${undone.length}(未完成)`];
-    done.forEach(t => {
-      const tt = taskTypeOf(t);
-      const tag = tt === 'bonus' ? '🔥' : (tt === 'easy' ? '✨' : '');
-      lines.push(`${t.name}${tag} ${t.cur}/${t.target} ${alias || '💛'}`);
-    });
-    undone.forEach(t => lines.push(`${t.name} ${t.cur}/${t.target}`));
+    const GIFT_EMOJIS = ['🌹','🚀','🏰','🐉','🏎️','✈️','🛥️','💍','👑','🎆','❤️','🎁'];
+    const cleanName = n => { let s = String(n); GIFT_EMOJIS.forEach(e => { s = s.split(e).join(''); }); return s.trim(); };
+    done.forEach(t => lines.push(`${cleanName(t.name)} ${t.cur}/${t.target} ${alias || '💛'}`));
+    undone.forEach(t => lines.push(`${cleanName(t.name)} ${t.cur}/${t.target}`));
     const text = lines.join('\n');
 
     const fallback = () => {
@@ -1896,7 +1951,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v38';
+  $('verTag').textContent = 'v41';
   renderCalendar();
 })();
 </script>
