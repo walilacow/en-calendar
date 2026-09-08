@@ -390,8 +390,8 @@
 
     <div style="border-top:1px solid var(--border); margin:16px 0;"></div>
     <div id="hoursBox" style="display:none; margin-top:14px; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px 14px;">
-      <label style="font-size:13px; color:var(--muted); display:block; margin-bottom:8px;">📻 時數加分（本週開播 <b id="slotDayCount" style="color:var(--text);">0</b> 天）</label>
-      <input type="number" id="hoursBonusInput" min="0" placeholder="0" style="width:100%; background:var(--bg); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px; font-size:16px; font-weight:700; text-align:center; outline:none; font-family:inherit;">
+      <label style="font-size:13px; color:var(--muted); display:block; margin-bottom:6px;">📻 時數加分（每小時 +5，自動統計）</label>
+      <div id="hoursAuto" style="font-size:16px; font-weight:700; color:var(--accent2); text-align:center; padding:8px 0;">本週 0 小時 → +0 分</div>
     </div>
     <button class="btn btn-ghost btn-block" id="weekCopyBtn" style="display:none; border-color: var(--accent2); color: var(--accent2);">📅 複製當週分數</button>
     <button class="btn btn-ghost btn-block" id="copyListBtn">📋 複製完成 / 未完成清單</button>
@@ -866,6 +866,27 @@
     store.scoreLog[tk] = { day: sp.day, easy: sp.easy, bonus: sp.bonus, week: wk, month: mo };
   }
 
+  // 計算某週（由 ds 所在週）總開播分鐘
+  function weekMinutes(ds) {
+    const [y, m, d] = ds.split('-').map(Number);
+    const mon = mondayOf(y, m - 1, d);
+    let total = 0;
+    for (let i = 0; i < 7; i++) {
+      const d2 = new Date(mon); d2.setDate(mon.getDate() + i);
+      const b = store.dates[key(d2.getFullYear(), d2.getMonth(), d2.getDate())];
+      if (b && b.slots) {
+        b.slots.forEach(sl => {
+          if (!sl.start || !sl.end) return;
+          let s = sl.start.split(':'), e = sl.end.split(':');
+          let sm = (+s[0]) * 60 + (+s[1]), em = (+e[0]) * 60 + (+e[1]);
+          if (em <= sm) em += 1440; // 跨午夜
+          total += Math.max(0, em - sm);
+        });
+      }
+    }
+    return total;
+  }
+
   // ---------- 月曆 ----------
   function renderCalendar() {
     $('monthTitle').textContent = `${viewYear} 年 ${viewMonth + 1} 月`;
@@ -1038,14 +1059,10 @@
     $('weekCopyBtn').style.display = (scope === 'day' && isSunday) ? 'block' : 'none';
     $('hoursBox').style.display = (scope === 'day' && isSunday) ? 'block' : 'none';
     if (scope === 'day' && isSunday) {
-      let sd = 0;
-      for (let i = 0; i < 7; i++) {
-        const d2 = new Date(mondayOf(y, m - 1, d)); d2.setDate(d2.getDate() + i);
-        const b2 = store.dates[key(d2.getFullYear(), d2.getMonth(), d2.getDate())];
-        if (b2 && b2.slots && b2.slots.length) sd++;
-      }
-      $('slotDayCount').textContent = sd;
-      $('hoursBonusInput').value = ((store.dates[openDate] || {}).hoursBonus) || '';
+      const mins = weekMinutes(openDate);
+      const hrs = Math.round(mins / 6) / 10; // 1 位小數
+      const pts = Math.round(mins / 12);     // 每分鐘 1/12 分
+      $('hoursAuto').textContent = '本週 ' + hrs + ' 小時 → +' + pts + ' 分';
     }
     const tasks = getTasks(scope, openDate);
     const r = calc(tasks);
@@ -1288,11 +1305,6 @@
     b.slots.push({ start: '', end: '' });
     save(); renderSheet();
   };
-  $('hoursBonusInput').addEventListener('change', () => {
-    if (!openDate) return;
-    ensureBucket('day', openDate).hoursBonus = Math.max(0, parseInt($('hoursBonusInput').value, 10) || 0);
-    save();
-  });
   $('clearTimeBtn').onclick = () => {
     if (!openDate) return;
     const b = ensureBucket('day', openDate);
@@ -1745,7 +1757,7 @@
     const mon = mondayOf(yy, mm - 1, dd);
     const log = store.scoreLog || {};
     const lines = [];
-    let grand = 0, slotDays = 0;
+    let grand = 0;
     let prevW = 0, prevM = 0;
     let sunDk = '';
     const baseMk = openDate.slice(0, 7); // 週日的月份：月增量只計同月日子
@@ -1783,10 +1795,14 @@
       if (mInc > 0) parts.push('月+' + mInc);
       if (parts.length) lines.push((d.getMonth() + 1) + '/' + d.getDate() + ' ' + parts.join(' '));
       grand += dDay + dEasy + dBonus + Math.max(0, wInc) + Math.max(0, mInc);
-      if (b && b.slots && b.slots.length) slotDays++;
     }
-    const sunB = ((store.dates[sunDk] || {}).hoursBonus) || 0;
-    if (sunB > 0) { lines.push('時數' + slotDays + ' +' + sunB); grand += sunB; }
+    const wMin = weekMinutes(openDate);
+    if (wMin > 0) {
+      const wHrs = Math.round(wMin / 6) / 10;
+      const wPts = Math.round(wMin / 12);
+      lines.push('時數' + wHrs + ' +' + wPts);
+      grand += wPts;
+    }
     lines.push('總分' + grand);
     copyText(lines.join('\n'));
     toast('已複製當週分數');
@@ -1839,7 +1855,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v36';
+  $('verTag').textContent = 'v37';
   renderCalendar();
 })();
 </script>
