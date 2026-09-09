@@ -1203,6 +1203,7 @@
       month: '每月 1 號自動結算上月並重新計算。',
       custom: '自訂區間：進度累計到結束日，結束後保留為紀錄。'
     };
+    const ms = monthSpecial(openDate);
     let weekLine = '';
     if (scope === 'day') {
       const [yy, mm, dd] = openDate.split('-').map(Number);
