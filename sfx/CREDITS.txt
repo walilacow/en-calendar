@@ -1,0 +1,10 @@
+音效來源：jonjonsson/SoundMonster（GitHub）
+https://github.com/jonjonsson/SoundMonster
+
+本資料夾內音效包含 Public domain 與 Attribution license 兩類；
+個別檔案授權請參考原倉庫 README 與原目錄：
+- SoundMonster/Public domain
+- SoundMonster/Attribution license
+
+若為 CC BY 類檔案，發布時請依原授權標示作者/來源。
+本專案僅作個人直播音效庫按鈕播放使用。
