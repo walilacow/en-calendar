@@ -391,7 +391,7 @@
 
     <div style="border-top:1px solid var(--border); margin:16px 0;"></div>
     <div id="hoursBox" style="display:none; margin-top:14px; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px 14px;">
-      <label style="font-size:13px; color:var(--muted); display:block; margin-bottom:6px;">📻 時數加分（每小時 +5，自動統計）</label>
+      <label style="font-size:13px; color:var(--muted); display:block; margin-bottom:6px;">📻 前一週時數（每滿 1 小時 +5，不滿 1 小時不算分）</label>
       <div id="hoursAuto" style="font-size:16px; font-weight:700; color:var(--accent2); text-align:center; padding:8px 0;">本週 0 小時 → +0 分</div>
     </div>
     <button class="btn btn-ghost btn-block" id="weekCopyBtn" style="display:none; border-color: var(--accent2); color: var(--accent2);">📅 複製當週分數</button>
@@ -1186,10 +1186,14 @@
     $('weekCopyBtn').style.display = (scope === 'day' && isSunday) ? 'block' : 'none';
     $('hoursBox').style.display = (scope === 'day' && isSunday) ? 'block' : 'none';
     if (scope === 'day' && isSunday) {
-      const mins = weekMinutes(openDate);
-      const hrs = Math.round(mins / 6) / 10; // 1 位小數
-      const pts = Math.round(mins / 12);     // 每分鐘 1/12 分
-      $('hoursAuto').textContent = '本週 ' + hrs + ' 小時 → +' + pts + ' 分';
+      // 週日看到的時數，改顯示「剛結束的前一週」，滿 1 小時才 +5
+      const prevStart = addDays(weekInfo(openDate).start, -7);
+      const prevKey = key(prevStart.getFullYear(), prevStart.getMonth(), prevStart.getDate());
+      const mins = weekMinutes(prevKey);
+      const fullHrs = Math.floor(mins / 60);
+      const leftover = mins % 60;
+      const pts = fullHrs * 5;
+      $('hoursAuto').textContent = '前一週 ' + fullHrs + ' 小時' + (leftover ? ' ' + leftover + ' 分（不滿 1 小時不算）' : '') + ' → +' + pts + ' 分';
     }
     const tasks = getTasks(scope, openDate);
     const r = calc(tasks);
@@ -2010,9 +2014,10 @@
 
     const wMin = weekMinutes(targetKey);
     if (wMin > 0) {
-      const wHrs = Math.round(wMin / 6) / 10;
-      const wPts = Math.round(wMin / 12);
-      lines.push('時數' + wHrs + ' +' + wPts);
+      const fullHrs = Math.floor(wMin / 60);
+      const leftover = wMin % 60;
+      const wPts = fullHrs * 5; // 每滿 1 小時 +5，不滿 1 小時不算
+      lines.push('時數 ' + fullHrs + ' 小時' + (leftover ? ' ' + leftover + ' 分（不滿 1 小時不算）' : '') + ' +' + wPts);
       grand += wPts;
     }
 
