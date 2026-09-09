@@ -1076,34 +1076,7 @@
 
         // 首頁日曆不顯示每日任務個數 / 收禮進度，只保留特殊統計與週月 badge
 
-        try {
-          const wt = getTasks('week', ds), wr = calc(wt);
-          const mt = getTasks('month', ds), mr = calc(mt);
-          if (wt.length || mt.length) {
-            const parts = [];
-            if (wt.length) parts.push(`週 ${wr.doneCnt}/${wt.length}`);
-            if (mt.length) parts.push(`月 ${mr.doneCnt}/${mt.length}`);
-            inner += `<div class="badge wm">${parts.join('・')}</div>`;
-            const wOk = !wt.length || wr.allDone;
-            const mOk = !mt.length || mr.allDone;
-            if (wt.length && mt.length ? (wr.allDone && mr.allDone) : (wr.allDone || mr.allDone)) cell.classList.add('wm-done');
-            else if (!wOk || !mOk) cell.classList.add(wr.doneUnits > 0 || mr.doneUnits > 0 ? 'wm-part' : '');
-          }
-        } catch (err) { noteCalErr(err); }
-
-        try {
-          if (store.ranges && typeof store.ranges === 'object') {
-            let cDone = 0, cTot = 0;
-            Object.keys(store.ranges).forEach(id => {
-              const rg = store.ranges[id];
-              if (rg && typeof rg === 'object' && rg.start && rg.end && ds >= rg.start && ds <= rg.end) {
-                const rc = calc(Array.isArray(rg.tasks) ? rg.tasks : []);
-                cDone += rc.doneCnt; cTot += rc.total;
-              }
-            });
-            if (cTot) inner += `<div class="badge wm">區間 ${cDone}/${cTot}</div>`;
-          }
-        } catch (err) { noteCalErr(err); }
+        // 首頁日曆只顯示開播時間，不顯示週月任務 / 區間統計
 
         cell.innerHTML = inner;
       } catch (err) {
