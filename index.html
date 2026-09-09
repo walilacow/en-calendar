@@ -152,7 +152,7 @@
     font-size: 15px; outline: none; min-width: 0;
   }
   .add-row input:focus { border-color: var(--accent); }
-  .add-hints { display: flex; gap: 8px; margin: -8px 0 12px; font-size: 11px; color: var(--muted); line-height: 1.2; }
+  .add-hints { display: flex; gap: 8px; margin: 0 0 6px; font-size: 11px; color: var(--muted); line-height: 1.2; }
   .add-hints > span { text-align: center; min-width: 0; }
   .add-hints .grow { flex: 1; }
   .add-hints .w76 { max-width: 76px; flex: 0 0 76px; }
@@ -343,6 +343,13 @@
     </div>
     <div style="border-top:1px solid var(--border); margin:30px 0 14px;"></div>
 
+    <div class="add-hints" aria-hidden="true">
+      <span class="grow"></span>
+      <span class="w76">個數</span>
+      <span class="w76">分數</span>
+      <span class="iconHint">圖示</span>
+      <span class="btnHint"></span>
+    </div>
     <div class="add-row">
       <input id="nameInput" type="text" placeholder="任務項目" autocomplete="off">
       <input id="qtyInput" type="number" min="1" value="1" placeholder="數量">
@@ -363,13 +370,6 @@
         <option value="禮物盒">🎁 禮物盒</option>
       </select>
       <button class="btn btn-primary" id="addBtn">新增</button>
-    </div>
-    <div class="add-hints" aria-hidden="true">
-      <span class="grow"></span>
-      <span class="w76">個數</span>
-      <span class="w76">分數</span>
-      <span class="iconHint">圖示</span>
-      <span class="btnHint"></span>
     </div>
     <div style="display:flex; gap:18px; margin:-6px 0 14px 2px;">
       <label style="display:flex; align-items:center; gap:5px; font-size:13px; color:var(--green); cursor:pointer; user-select:none;">
