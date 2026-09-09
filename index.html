@@ -216,6 +216,12 @@
   .sheet-foot { margin-top: 14px; display: flex; gap: 10px; }
   .sheet-foot .btn { flex: 1; }
 
+  .sfx-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .sfx-item { background: var(--card); border: 1px solid var(--border); color: var(--text); border-radius: 12px; padding: 14px 10px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; text-align: center; }
+  .sfx-item:hover { background: var(--card-hover); }
+  .sfx-item:active { transform: scale(.98); border-color: var(--accent); }
+  .vol-row { display:flex; align-items:center; gap:10px; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:14px; }
+  .vol-row input[type=range] { flex:1; accent-color: var(--accent); }
   .toast {
     position: fixed; left: 50%; bottom: 30px; transform: translateX(-50%);
     background: var(--accent); color: #14141c; padding: 10px 20px;
@@ -291,6 +297,7 @@
   <div style="display:flex; gap:10px; margin-bottom:12px;">
     <button class="btn-today" id="topicBtn" style="background: var(--accent2); flex:1;">🔥 熱門話題</button>
     <button class="btn-today" id="songBtn" style="background: var(--green); flex:1;">🎵 流行歌曲</button>
+    <button class="btn-today" id="sfxBtn" style="background: var(--blue); flex:1;">🔊 音效庫</button>
   </div>
 
   <div class="stats">
@@ -485,6 +492,21 @@
       <button class="btn btn-ghost" id="cardDownload" style="flex:1;">⬇️ 存到相簿</button>
     </div>
     <div class="day-summary" id="cardMsg" style="margin-top:10px;"></div>
+  </div>
+</div>
+
+<!-- 音效庫 -->
+<div class="overlay" id="sfxOverlay">
+  <div class="sheet">
+    <div class="sheet-head"><h2>🔊 直播音效庫</h2><button class="close" id="closeSfx">✕</button></div>
+    <div class="day-summary">點按即播・音量可調・iPhone 若沒聲音請先按任一顆音效解鎖聲音</div>
+    <div class="vol-row">
+      <span>🔈</span>
+      <input id="sfxVolume" type="range" min="0" max="100" value="80">
+      <span>🔊</span>
+      <b id="sfxVolLabel" style="min-width:52px;text-align:right;">80%</b>
+    </div>
+    <div class="sfx-grid" id="sfxList"></div>
   </div>
 </div>
 
@@ -1843,6 +1865,103 @@
   };
   $('closeSong').onclick = () => $('songOverlay').classList.remove('open');
   $('songOverlay').addEventListener('click', (e) => { if (e.target === $('songOverlay')) $('songOverlay').classList.remove('open'); });
+
+  // ---------- 直播音效庫（WebAudio 合成，無外部音檔） ----------
+  let audioCtx = null, masterGain = null;
+  let sfxVolume = Math.max(0, Math.min(100, parseInt(localStorage.getItem('sfxVolume') || '80', 10) || 80));
+  const SFX = [
+    { id: 'applause', label: '👏 掌聲歡呼' },
+    { id: 'ding', label: '✨ 叮咚提示' },
+    { id: 'airhorn', label: '📣 氣氛喇叭' },
+    { id: 'drum', label: '🥁 鼓點' },
+    { id: 'coin', label: '💰 收款金幣' },
+    { id: 'whoosh', label: '🌬️ 轉場呼嘯' },
+    { id: 'fanfare', label: '🎺 歡慶小號' },
+    { id: 'fail', label: '😵 糗了失敗' },
+    { id: 'surprise', label: '🎉 驚喜跳拍' },
+    { id: 'countdown', label: '⏱️ 倒數 3-2-1' }
+  ];
+  function ensureAudio() {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return false;
+    if (!audioCtx) {
+      audioCtx = new AC();
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = sfxVolume / 100;
+      masterGain.connect(audioCtx.destination);
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return true;
+  }
+  function setSfxVolume(v) {
+    sfxVolume = Math.max(0, Math.min(100, Number.isFinite(v) ? v : 80));
+    if (masterGain) masterGain.gain.value = sfxVolume / 100;
+    localStorage.setItem('sfxVolume', String(sfxVolume));
+    $('sfxVolLabel').textContent = sfxVolume + '%';
+    $('sfxVolume').value = sfxVolume;
+  }
+  function tone(freq, dur, type = 'sine', vol = 0.25, when = 0, slide = 0) {
+    if (!ensureAudio()) return;
+    const t = audioCtx.currentTime + when;
+    const o = audioCtx.createOscillator();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(1, slide), t + dur);
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(masterGain);
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+  function noise(dur = 0.4, vol = 0.2, type = 'bandpass', freq = 1200, when = 0) {
+    if (!ensureAudio()) return;
+    const t = audioCtx.currentTime + when;
+    const len = Math.max(1, Math.floor(audioCtx.sampleRate * dur));
+    const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    const src = audioCtx.createBufferSource(); src.buffer = buf;
+    const f = audioCtx.createBiquadFilter(); f.type = type; f.frequency.value = freq;
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(f); f.connect(g); g.connect(masterGain);
+    src.start(t);
+  }
+  const SFX_PLAYERS = {
+    applause() { noise(0.9, 0.35, 'bandpass', 1600); noise(0.6, 0.18, 'highpass', 2500, 0.08); },
+    ding() { tone(880, .18, 'sine', .25); tone(1318, .28, 'sine', .18, .08); },
+    airhorn() { [220, 277, 330].forEach((f, i) => tone(f, .55, 'sawtooth', .16, i * .02)); },
+    drum() { tone(120, .25, 'sine', .45, 0, 45); noise(.08, .18, 'lowpass', 900); },
+    coin() { tone(988, .12, 'square', .18); tone(1319, .22, 'square', .16, .07); },
+    whoosh() { noise(.55, .28, 'lowpass', 700); },
+    fanfare() { [523, 659, 784, 1047].forEach((f, i) => tone(f, .22, 'triangle', .22, i * .09)); },
+    fail() { tone(320, .25, 'sawtooth', .22, 0, 180); tone(180, .4, 'sawtooth', .18, .18, 90); },
+    surprise() { [660, 880, 660, 990].forEach((f, i) => tone(f, .12, 'square', .16, i * .06)); },
+    countdown() { tone(600, .12, 'sine', .22); tone(600, .12, 'sine', .22, .28); tone(900, .3, 'sine', .25, .56); }
+  };
+  function renderSfx() {
+    const list = $('sfxList');
+    list.innerHTML = '';
+    SFX.forEach(s => {
+      const b = document.createElement('button');
+      b.className = 'sfx-item';
+      b.textContent = s.label;
+      b.onclick = () => { const player = SFX_PLAYERS[s.id]; if (player) player(); };
+      list.appendChild(b);
+    });
+  }
+  function bindSfx() {
+    setSfxVolume(sfxVolume);
+    renderSfx();
+    $('sfxBtn').onclick = () => { $('sfxOverlay').classList.add('open'); ensureAudio(); };
+    $('closeSfx').onclick = () => $('sfxOverlay').classList.remove('open');
+    $('sfxOverlay').addEventListener('click', (e) => { if (e.target === $('sfxOverlay')) $('sfxOverlay').classList.remove('open'); });
+    $('sfxVolume').addEventListener('input', (e) => setSfxVolume(parseInt(e.target.value, 10) || 0));
+  }
+  bindSfx();
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') $('songOverlay').classList.remove('open');
   });
