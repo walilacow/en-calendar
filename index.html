@@ -301,7 +301,7 @@
     <button class="btn-today" id="logoutBtn" style="background: var(--card); color: var(--muted); border: 1px solid var(--border); padding: 10px 12px; font-size: 13px;">登出</button>
   </div>
   <div style="display:flex; gap:10px; margin-bottom:12px;">
-    <button class="btn-today" id="topicBtn" style="background: var(--accent2); flex:1;">🔥 熱門話題</button>
+    <button class="btn-today" id="topicBtn" style="background: var(--accent2); flex:1;">📈 Google 搜尋趨勢</button>
     <button class="btn-today" id="songBtn" style="background: var(--green); flex:1;">🎵 流行歌曲</button>
     <button class="btn-today" id="sfxBtn" style="background: var(--blue); flex:1;">🔊 音效庫</button>
   </div>
@@ -431,7 +431,7 @@
 <div class="overlay" id="topicOverlay">
   <div class="sheet">
     <div class="sheet-head">
-      <h2>🔥 熱門話題</h2>
+      <h2>📈 Google 搜尋趨勢</h2>
       <button class="close" id="closeTopic">✕</button>
     </div>
     <div class="day-summary" id="topicSummary"></div>
@@ -1714,76 +1714,29 @@
   });
 
   // ---------- 熱門話題（近 10 日累計排行）----------
-  $('topicBtn').onclick = async () => {
+  $('topicBtn').onclick = () => {
     $('topicOverlay').classList.add('open');
+    $('topicSummary').innerHTML = '查看台灣 Google 搜尋趨勢；點下方按鈕開啟官方頁面，或輸入關鍵字直接探索。';
     const list = $('topicList');
-    list.innerHTML = '<div class="empty">搜尋近 10 日熱門話題中…約需幾秒</div>';
-    $('topicSummary').textContent = '';
-
-    // 依序抓近 10 天排行，把各條目瀏覽量加總
-    const now = new Date();
-    const agg = {};
-    let got = 0;
-    let newest = null;
-    for (let back = 0; back < 10; back++) {
-      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - back);
-      const url = 'https://wikimedia.org/api/rest_v1/metrics/pageviews/top/zh.wikipedia/all-access/'
-        + `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
-      try {
-        const res = await fetch(url);
-        if (!res.ok) continue;
-        const data = await res.json();
-        const items = (data.items && data.items[0] && data.items[0].articles) || [];
-        if (!items.length) continue;
-        got++;
-        if (!newest) newest = d;
-        for (const a of items) {
-          if (a.article.indexOf(':') !== -1) continue;
-          if (!agg[a.article]) agg[a.article] = { article: a.article, views: 0 };
-          agg[a.article].views += a.views;
-        }
-      } catch (err) {}
-    }
-    const arts = Object.keys(agg).map(k => agg[k]).sort((x, y) => y.views - x.views);
-    if (!arts.length) {
-      list.innerHTML = '<div class="empty">抓不到資料 😢<br>請確認手機有連上網路後再按一次</div>';
-      return;
-    }
-
-    // 分類：優先綜藝八卦、社會時事
-    const KW_ENT = ['綜藝', '節目', '演唱會', '歌手', '演員', '偶像', '明星', '電影', '電視劇', '戲劇', '影集', '實境', '選秀', '金鐘', '金曲', '金馬', '頒獎', '緋聞', '結婚', '婚禮', '離婚', '懷孕', '出道', '專輯', '票房', '取景', '客串', '戀情', '交往', '認愛', '閃婚', '密婚', '婚變', '劈腿', '分手', '復合', '復出', '退圈', '封殺', '解約', '整形', '整容', '私生子', '醜聞', '開撕', '對嗆', '槓上', '翻臉'];
-    const KW_SOC = ['案', '判決', '起訴', '羈押', '判賠', '裁罰', '罰款', '選舉', '公投', '罷免', '政策', '條例', '社會', '事故', '災', '地震', '颱風', '疫情', '罷工', '抗議', '遊行', '逝世', '去世', '罹難', '車禍', '火災', '爆炸', '詐騙', '貪污', '爆料', '爭議', '道歉', '聲明', '記者會', '風波', '調查', '槍擊', '起底', '逮', '被捕'];
-    const kind = t => KW_ENT.some(k => t.includes(k)) ? 'ent' : (KW_SOC.some(k => t.includes(k)) ? 'soc' : 'other');
-    const pref = arts.filter(a => kind(a.article) !== 'other');
-    const rest = arts.filter(a => kind(a.article) === 'other');
-    $('topicSummary').innerHTML =
-      `中文維基百科近 10 日累計瀏覽排行（成功取得 ${got} 天資料，最新到 ${newest.getMonth() + 1}/${newest.getDate()}）・已優先篩選綜藝八卦、社會時事・<a href="https://zh.wikipedia.org/" target="_blank" rel="noopener">參考來源：維基百科</a>`;
-    list.innerHTML = '';
-    [...pref, ...rest].slice(0, 20).forEach((a, i) => {
-      const link = 'https://zh.wikipedia.org/wiki/' + encodeURIComponent(a.article);
-      const div = document.createElement('a');
-      div.className = 'task';
-      div.href = link;
-      div.target = '_blank';
-      div.rel = 'noopener';
-      div.style.textDecoration = 'none';
-      div.style.display = 'block';
-      const name = document.createElement('span');
-      name.className = 'task-name';
-      name.textContent = `${i + 1}. ${a.article}`;
-      const k = kind(a.article);
-      const tag = document.createElement('span');
-      tag.className = 'task-meta';
-      tag.textContent = k === 'ent' ? '🎬 綜藝八卦' : (k === 'soc' ? '📰 社會時事' : '📌 其他');
-      const views = document.createElement('span');
-      views.className = 'task-meta';
-      views.textContent = `👁 ${a.views.toLocaleString()}`;
-      const row = document.createElement('div');
-      row.className = 'task-top';
-      row.appendChild(name); row.appendChild(tag); row.appendChild(views);
-      div.appendChild(row);
-      list.appendChild(div);
+    list.innerHTML = `
+      <div class="add-row" style="margin-bottom:14px;">
+        <input id="gtrendKeyword" type="text" placeholder="輸入關鍵字，例如：演唱會 / 颱風 / iPhone" autocomplete="off" style="flex:1;min-width:0;">
+        <button class="btn btn-primary" id="gtrendSearch">搜尋趨勢</button>
+      </div>
+      <button class="btn btn-ghost btn-block gt-open" data-url="https://trends.google.com/trends/trendingsearches/daily?geo=TW">📅 每日搜尋趨勢（台灣）</button>
+      <button class="btn btn-ghost btn-block gt-open" data-url="https://trends.google.com/trends/trendingsearches/realtime?geo=TW&category=all">⚡ 即時搜尋趨勢（台灣）</button>
+      <button class="btn btn-ghost btn-block gt-open" data-url="https://trends.google.com/trends/explore?geo=TW">🔎 探索搜尋趨勢</button>
+      <button class="btn btn-ghost btn-block gt-open" data-url="https://trends.google.com/trends/trendingsearches/daily?geo=HK">🇭🇰 香港每日趨勢</button>
+      <button class="btn btn-ghost btn-block gt-open" data-url="https://trends.google.com/trends/trendingsearches/daily?geo=MY">🇲🇾 馬來西亞每日趨勢</button>
+      <div class="day-summary" style="margin-top:12px;">提示：若手機內建瀏覽器擋 Google 頁面，會改用外部瀏覽器開啟。</div>
+    `;
+    const openUrl = (url) => window.open(url, '_blank', 'noopener');
+    list.querySelectorAll('.gt-open').forEach(b => b.addEventListener('click', () => openUrl(b.dataset.url)));
+    $('gtrendSearch').addEventListener('click', () => {
+      const kw = $('gtrendKeyword').value.trim();
+      openUrl(kw ? `https://trends.google.com/trends/explore?q=${encodeURIComponent(kw)}&geo=TW` : 'https://trends.google.com/trends/explore?geo=TW');
     });
+    $('gtrendKeyword').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('gtrendSearch').click(); });
   };
   $('closeTopic').onclick = () => $('topicOverlay').classList.remove('open');
   $('topicOverlay').addEventListener('click', (e) => { if (e.target === $('topicOverlay')) $('topicOverlay').classList.remove('open'); });
