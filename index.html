@@ -875,6 +875,8 @@
     return ds.slice(0, 7); // YYYY-MM
   }
 
+  const BUCKET = { day: 'dates', week: 'weeks', month: 'months' };
+
   function getTasks(sc, ds) {
     if (sc === 'custom') {
       const r = customId && store.ranges ? store.ranges[customId] : null;
