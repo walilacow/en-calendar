@@ -505,6 +505,7 @@
       <input id="sfxVolume" type="range" min="0" max="100" value="80">
       <span>🔊</span>
       <b id="sfxVolLabel" style="min-width:52px;text-align:right;">80%</b>
+      <button class="btn btn-ghost" id="sfxStop" style="padding:10px 12px; white-space:nowrap;">■ 停止</button>
     </div>
     <div class="sfx-grid" id="sfxList"></div>
   </div>
@@ -1870,16 +1871,22 @@
   let audioCtx = null, masterGain = null;
   let sfxVolume = Math.max(0, Math.min(100, parseInt(localStorage.getItem('sfxVolume') || '80', 10) || 80));
   const SFX = [
-    { id: 'applause', label: '👏 掌聲歡呼' },
-    { id: 'ding', label: '✨ 叮咚提示' },
-    { id: 'airhorn', label: '📣 氣氛喇叭' },
-    { id: 'drum', label: '🥁 鼓點' },
-    { id: 'coin', label: '💰 收款金幣' },
-    { id: 'whoosh', label: '🌬️ 轉場呼嘯' },
-    { id: 'fanfare', label: '🎺 歡慶小號' },
-    { id: 'fail', label: '😵 糗了失敗' },
-    { id: 'surprise', label: '🎉 驚喜跳拍' },
-    { id: 'countdown', label: '⏱️ 倒數 3-2-1' }
+    { id: 'applause', label: '👏 掌聲', file: 'sfx/applause.mp3', fallback: 'applause' },
+    { id: 'celebrate', label: '🎉 歡呼慶祝', file: 'sfx/celebrate.mp3', fallback: 'fanfare' },
+    { id: 'airhorn', label: '📣 氣氛喇叭', file: 'sfx/airhorn.mp3', fallback: 'airhorn' },
+    { id: 'cash', label: '💰 收款', file: 'sfx/cash.mp3', fallback: 'coin' },
+    { id: 'drumroll', label: '🥁 鼓動人心', file: 'sfx/drumroll.mp3', fallback: 'drum' },
+    { id: 'ding', label: '✨ 叮咚', file: 'sfx/ding.mp3', fallback: 'ding' },
+    { id: 'win', label: '🏆 勝利', file: 'sfx/win.mp3', fallback: 'fanfare' },
+    { id: 'fail', label: '😵 糗了', file: 'sfx/fail.mp3', fallback: 'fail' },
+    { id: 'scratch', label: '📀 尷尬刮碟', file: 'sfx/scratch.mp3', fallback: 'whoosh' },
+    { id: 'clap', label: '👏 高爾夫鼓掌', file: 'sfx/clap.mp3', fallback: 'applause' },
+    { id: 'thanks', label: '🙏 觀眾感謝', file: 'sfx/thanks.mp3', fallback: 'fanfare' },
+    { id: 'laugh', label: '😂 觀眾笑聲', file: 'sfx/laugh.mp3', fallback: 'surprise' },
+    { id: 'gasp', label: '😮 驚訝倒抽氣', file: 'sfx/gasp.mp3', fallback: 'surprise' },
+    { id: 'crickets', label: '🦗 冷場蟋蟀', file: 'sfx/crickets.mp3', fallback: 'fail' },
+    { id: 'timpani', label: '🎬 緊張定音鼓', file: 'sfx/timpani.mp3', fallback: 'drum' },
+    { id: 'shush', label: '🤫 安靜噓聲', file: 'sfx/shush.mp3', fallback: 'ding' }
   ];
   function ensureAudio() {
     const AC = window.AudioContext || window.webkitAudioContext;
@@ -1896,6 +1903,7 @@
   function setSfxVolume(v) {
     sfxVolume = Math.max(0, Math.min(100, Number.isFinite(v) ? v : 80));
     if (masterGain) masterGain.gain.value = sfxVolume / 100;
+    activeAudios.forEach(a => { try { a.volume = sfxVolume / 100; } catch (e) {} });
     localStorage.setItem('sfxVolume', String(sfxVolume));
     $('sfxVolLabel').textContent = sfxVolume + '%';
     $('sfxVolume').value = sfxVolume;
@@ -1942,6 +1950,32 @@
     surprise() { [660, 880, 660, 990].forEach((f, i) => tone(f, .12, 'square', .16, i * .06)); },
     countdown() { tone(600, .12, 'sine', .22); tone(600, .12, 'sine', .22, .28); tone(900, .3, 'sine', .25, .56); }
   };
+  const activeAudios = [];
+  function stopAllSfx() {
+    activeAudios.forEach(a => { try { a.pause(); a.currentTime = 0; } catch (e) {} });
+    activeAudios.length = 0;
+  }
+  function playSfx(s) {
+    if (s.file) {
+      try {
+        const a = new Audio(s.file);
+        a.volume = sfxVolume / 100;
+        activeAudios.push(a);
+        const p = a.play();
+        if (p && p.catch) p.catch(() => {
+          const fb = s.fallback || s.id;
+          if (SFX_PLAYERS[fb]) SFX_PLAYERS[fb]();
+        });
+        a.addEventListener('ended', () => {
+          const i = activeAudios.indexOf(a);
+          if (i >= 0) activeAudios.splice(i, 1);
+        });
+        return;
+      } catch (err) {}
+    }
+    const fb = s.fallback || s.id;
+    if (SFX_PLAYERS[fb]) SFX_PLAYERS[fb]();
+  }
   function renderSfx() {
     const list = $('sfxList');
     list.innerHTML = '';
@@ -1949,7 +1983,7 @@
       const b = document.createElement('button');
       b.className = 'sfx-item';
       b.textContent = s.label;
-      b.onclick = () => { const player = SFX_PLAYERS[s.id]; if (player) player(); };
+      b.onclick = () => playSfx(s);
       list.appendChild(b);
     });
   }
@@ -1960,6 +1994,7 @@
     $('closeSfx').onclick = () => $('sfxOverlay').classList.remove('open');
     $('sfxOverlay').addEventListener('click', (e) => { if (e.target === $('sfxOverlay')) $('sfxOverlay').classList.remove('open'); });
     $('sfxVolume').addEventListener('input', (e) => setSfxVolume(parseInt(e.target.value, 10) || 0));
+    $('sfxStop').onclick = stopAllSfx;
   }
   bindSfx();
   document.addEventListener('keydown', (e) => {
