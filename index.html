@@ -210,6 +210,7 @@
     font-size: 15px; padding: 4px;
   }
   .task-del:hover { color: var(--red); }
+  .slot-done { width: 18px; height: 18px; accent-color: var(--green); flex-shrink: 0; cursor: pointer; }
 
   .empty { text-align: center; color: var(--muted); padding: 28px 0; font-size: 14px; line-height: 1.8; }
   .sheet-foot { margin-top: 14px; display: flex; gap: 10px; }
@@ -974,6 +975,31 @@
     return Math.round(total);
   }
 
+  function slotMinutes(sl) {
+    if (!sl || !sl.start || !sl.end) return 0;
+    const [sh, sm] = String(sl.start).split(':').map(Number);
+    const [eh, em] = String(sl.end).split(':').map(Number);
+    if (!Number.isFinite(sh) || !Number.isFinite(eh)) return 0;
+    const st = new Date(2000, 0, 1, sh, sm || 0);
+    const en = new Date(2000, 0, 1, eh, em || 0);
+    if (en <= st) return 0;
+    return Math.round((en - st) / 60000);
+  }
+  function doneMinutesForMonth(ym) {
+    let total = 0;
+    Object.keys(store.dates || {}).forEach(dk => {
+      if (!String(dk).startsWith(ym)) return;
+      const b = store.dates[dk];
+      if (!b || !Array.isArray(b.slots)) return;
+      b.slots.forEach(sl => { if (sl && sl.done) total += slotMinutes(sl); });
+    });
+    return total;
+  }
+  function fmtHrsMins(mins) {
+    const h = Math.floor(mins / 60), m = mins % 60;
+    return h + ' 小時' + (m ? ' ' + m + ' 分' : '');
+  }
+
   // ---------- 月曆 ----------
   function renderCalendar() {
     // v42 保險：某些裝置/資料狀態下 viewYear/viewMonth 可能被污染，先轉回合法值，避免整個月不畫
@@ -1228,8 +1254,10 @@
       weekLine = `・ 結算週期每日分數 <b>${wkEarn}/${wkTot}</b>（${fmtMD(wi.start)} 00:00–${fmtMD(wi.end)} 00:00）`;
       weekLine += `・ 當月 🐉x<b>${ms.dragon}</b> 🏰x<b>${ms.castle}</b>`;
     }
+    const doneMin = doneMinutesForMonth(openDate.slice(0, 7));
+    const hoursLine = scope === 'day' ? ` ・ 當月已完成時數 <b>${fmtHrsMins(doneMin)}</b>` : '';
     $('daySummary').innerHTML =
-      `任務達成 <b>${r.doneCnt}/${r.total}</b> ・ 收禮進度 <b>${r.pct}%</b>（${r.doneUnits}/${r.totUnits} 個）・ 分數 <b>${r.scoreEarned}/${r.scoreTotal}</b>${weekLine} ・ ${status}<br>${notes[scope]}`;
+      `任務達成 <b>${r.doneCnt}/${r.total}</b> ・ 收禮進度 <b>${r.pct}%</b>（${r.doneUnits}/${r.totUnits} 個）・ 分數 <b>${r.scoreEarned}/${r.scoreTotal}</b>${weekLine}${hoursLine} ・ ${status}<br>${notes[scope]}`;
 
     const labels = {
       day: ['📋 複製前一天任務', '🗑 清空這天'],
@@ -1257,6 +1285,7 @@
         const row = document.createElement('div');
         row.style.cssText = 'display:flex; gap:8px; align-items:center; margin-bottom:8px;';
         row.innerHTML = `
+          <input type="checkbox" class="slot-done" data-slot="${i}" ${sl.done ? 'checked' : ''} title="已完成開播" aria-label="已完成開播">
           <input type="time" class="slot-start" data-slot="${i}" value="${sl.start || ''}" style="flex:1; min-width:0; background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px; font-size:16px; font-family:inherit; outline:none; color-scheme:dark;">
           <span style="color:var(--muted); font-size:14px;">～</span>
           <input type="time" class="slot-end" data-slot="${i}" value="${sl.end || ''}" style="flex:1; min-width:0; background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px; font-size:16px; font-family:inherit; outline:none; color-scheme:dark;">
@@ -1342,6 +1371,30 @@
   }
 
   // 任務操作（事件委派）
+  let plusPressTimer = null;
+  let plusLongFired = false;
+  $('taskList').addEventListener('pointerdown', (e) => {
+    const btn = e.target.closest('button.plus');
+    if (!btn || !openDate) return;
+    plusLongFired = false;
+    clearTimeout(plusPressTimer);
+    plusPressTimer = setTimeout(() => {
+      plusLongFired = true;
+      const idx = Number(btn.dataset.idx);
+      const tasks = getTasks(scope, openDate);
+      if (!tasks[idx]) return;
+      const raw = prompt(`「${tasks[idx].name}」要增加多少個？`, '1');
+      if (raw === null) return;
+      const n = parseInt(raw, 10);
+      if (!Number.isFinite(n) || n <= 0) { toast('請輸入大於 0 的數字'); return; }
+      tasks[idx].cur += n;
+      if (tasks[idx].cur >= tasks[idx].target) toast(`🎉 「${tasks[idx].name}」收滿！`);
+      save(); renderSheet();
+    }, 650);
+  });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => {
+    $('taskList').addEventListener(ev, () => clearTimeout(plusPressTimer));
+  });
   $('taskList').addEventListener('click', (e) => {
     const btn = e.target.closest('button');
     if (!btn || !openDate) return;
@@ -1349,6 +1402,7 @@
     const tasks = getTasks(scope, openDate);
     if (!tasks[idx]) return;
     if (btn.classList.contains('plus')) {
+      if (plusLongFired) { plusLongFired = false; return; }
       tasks[idx].cur++;
       if (tasks[idx].cur === tasks[idx].target) toast(`🎉 「${tasks[idx].name}」收滿！`);
     } else if (btn.classList.contains('minus')) {
@@ -1492,6 +1546,13 @@
     if (!b.slots) return;
     const i = Number(e.target.dataset.slot);
     if (!b.slots[i]) return;
+    if (e.target.classList.contains('slot-done')) {
+      b.slots[i].done = e.target.checked;
+      save();
+      renderCalendar();
+      renderSheet();
+      return;
+    }
     if (e.target.classList.contains('slot-start')) b.slots[i].start = e.target.value;
     else if (e.target.classList.contains('slot-end')) b.slots[i].end = e.target.value;
     else return;
