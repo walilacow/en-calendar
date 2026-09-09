@@ -1595,16 +1595,22 @@
   // 複製完成/未完成清單（每日 + 每週 + 每月；加碼任務標註）
   $('copyListBtn').onclick = () => {
     if (!openDate) return;
-    const GIFT_EMOJIS = ['🌹','🚀','🏰','🐉','🏎️','✈️','🛥️','💍','👑','🎆','❤️','🎁'];
-    const cleanName = n => { let s = String(n); GIFT_EMOJIS.forEach(e => { s = s.split(e).join(''); }); return s.trim(); };
+    // 清單複製用：移除任務名稱中的所有圖示/emoji，只保留主播馬甲 alias
+    const cleanName = n => String(n)
+      .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{FE0F}]/gu, '')
+      .replace(/\s+/g, ' ')
+      .trim();
     const label = t => cleanName(t.name) + (taskTypeOf(t) === 'bonus' ? '（加碼）' : '');
+    let firstSection = true;
     const pushSection = (lines, title, tasks) => {
       if (!tasks || !tasks.length) return;
+      if (!firstSection) { lines.push(''); lines.push(''); }
+      firstSection = false;
       const done = tasks.filter(t => t.cur >= t.target);
       const undone = tasks.filter(t => t.cur < t.target);
       lines.push(`${title}：${done.length} 已完成 / ${undone.length} 未完成`);
-      done.forEach(t => lines.push(`✅ ${label(t)} ${t.cur}/${t.target} ${alias || '💛'}`));
-      undone.forEach(t => lines.push(`□ ${label(t)} ${t.cur}/${t.target}`));
+      done.forEach(t => lines.push(`${label(t)} ${t.cur}/${t.target} ${alias || '💛'}`));
+      undone.forEach(t => lines.push(`${label(t)} ${t.cur}/${t.target}`));
     };
     const lines = [`【${openDate}・完成/未完成】`];
     pushSection(lines, '每日', getTasks('day', openDate));
