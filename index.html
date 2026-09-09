@@ -1074,10 +1074,7 @@
           if (slotTxt) inner += `<div class="badge">🎙️ ${slotTxt}</div>`;
         }
 
-        if (tasks.length) {
-          inner += `<div class="badge">${r.doneCnt}/${tasks.length} 任務・${r.doneUnits}/${r.totUnits} 個</div>
-                    <div class="mini-bar"><div class="mini-fill" style="width:${r.pct}%"></div></div>`;
-        }
+        // 首頁日曆不顯示每日任務個數 / 收禮進度，只保留特殊統計與週月 badge
 
         try {
           const wt = getTasks('week', ds), wr = calc(wt);
@@ -1622,22 +1619,27 @@
     toast(added > 0 ? `已複製 ${added} 個目標（進度歸零）` : '目標都已存在');
   };
 
-  // 複製完成/未完成清單
+  // 複製完成/未完成清單（每日 + 每週 + 每月；加碼任務標註）
   $('copyListBtn').onclick = () => {
     if (!openDate) return;
-    const tasks = getTasks(scope, openDate);
-    if (!tasks.length) { toast('還沒有目標'); return; }
-    const done = tasks.filter(t => t.cur >= t.target);
-    const undone = tasks.filter(t => t.cur < t.target);
-    const scopeName = { day: '每日', week: '每週', month: '每月' }[scope];
-    const title = $('sheetTitle').textContent.replace(/・.*/, '');
-    const lines = [`【${title}・${scopeName}】${done.length}(已完成)/${undone.length}(未完成)`];
     const GIFT_EMOJIS = ['🌹','🚀','🏰','🐉','🏎️','✈️','🛥️','💍','👑','🎆','❤️','🎁'];
     const cleanName = n => { let s = String(n); GIFT_EMOJIS.forEach(e => { s = s.split(e).join(''); }); return s.trim(); };
-    done.forEach(t => lines.push(`${cleanName(t.name)} ${t.cur}/${t.target} ${alias || '💛'}`));
-    undone.forEach(t => lines.push(`${cleanName(t.name)} ${t.cur}/${t.target}`));
+    const label = t => cleanName(t.name) + (taskTypeOf(t) === 'bonus' ? '（加碼）' : '');
+    const pushSection = (lines, title, tasks) => {
+      if (!tasks || !tasks.length) return;
+      const done = tasks.filter(t => t.cur >= t.target);
+      const undone = tasks.filter(t => t.cur < t.target);
+      lines.push(`${title}：${done.length} 已完成 / ${undone.length} 未完成`);
+      done.forEach(t => lines.push(`✅ ${label(t)} ${t.cur}/${t.target} ${alias || '💛'}`));
+      undone.forEach(t => lines.push(`□ ${label(t)} ${t.cur}/${t.target}`));
+    };
+    const lines = [`【${openDate}・完成/未完成】`];
+    pushSection(lines, '每日', getTasks('day', openDate));
+    const wi = weekInfo(openDate);
+    pushSection(lines, `每週（${fmtMD(wi.start)}–${fmtMD(wi.end)}）`, getTasks('week', openDate));
+    pushSection(lines, `每月（${openDate.slice(0, 7)}）`, getTasks('month', openDate));
+    if (lines.length === 1) { toast('還沒有目標'); return; }
     const text = lines.join('\n');
-
     const fallback = () => {
       const ta = document.createElement('textarea');
       ta.value = text;
