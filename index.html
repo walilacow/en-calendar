@@ -1251,13 +1251,13 @@
           wkEarn += rc.scoreEarned; wkTot += rc.scoreTotal;
         }
       });
-      weekLine = `・ 結算週期每日分數 <b>${wkEarn}/${wkTot}</b>（${fmtMD(wi.start)} 00:00–${fmtMD(wi.end)} 00:00）`;
+      weekLine = ''; // 依需求移除：任務達成 / 收禮進度 / 分數 / 結算週期每日分數
       weekLine += `・ 當月 🐉x<b>${ms.dragon}</b> 🏰x<b>${ms.castle}</b>`;
     }
     const doneMin = doneMinutesForMonth(openDate.slice(0, 7));
     const hoursLine = scope === 'day' ? ` ・ 當月已完成時數 <b>${fmtHrsMins(doneMin)}</b>` : '';
     $('daySummary').innerHTML =
-      `任務達成 <b>${r.doneCnt}/${r.total}</b> ・ 收禮進度 <b>${r.pct}%</b>（${r.doneUnits}/${r.totUnits} 個）・ 分數 <b>${r.scoreEarned}/${r.scoreTotal}</b>${weekLine}${hoursLine} ・ ${status}<br>${notes[scope]}`;
+      `${weekLine}${hoursLine} ・ ${status}<br>${notes[scope]}`;
 
     const labels = {
       day: ['📋 複製前一天任務', '🗑 清空這天'],
@@ -1331,7 +1331,7 @@
           </div>
           <button class="task-del" data-idx="${idx}" title="刪除">✕</button>
         </div>
-        <div class="task-meta">目標 ${t.target} 個 ・ 已收 ${t.cur} 個（${tpct}%）・ ${t.score || 0} 分${isDone ? ' ・ ✅ 達成' : ''}</div>
+        <div class="task-meta">目標 ${t.target} 個 ・ 已收 ${t.cur} 個（${tpct}%）・ 尚缺 ${Math.max(0, t.target - t.cur)} 個・ ${t.score || 0} 分${isDone ? ' ・ ✅ 達成' : ''}</div>
         <div class="task-bar"><div class="task-fill" style="width:${tpct}%"></div></div>
       `;
       const nameEl = div.querySelector('.task-name');
