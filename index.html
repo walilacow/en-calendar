@@ -217,6 +217,10 @@
   }
   .task-del:hover { color: var(--red); }
   .slot-done { width: 18px; height: 18px; accent-color: var(--green); flex-shrink: 0; cursor: pointer; }
+  .fan-shots { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  .fan-shot { width:86px; height:86px; object-fit:cover; border-radius:10px; border:1px solid var(--border); background:var(--bg); }
+  .shot-thumb-row { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  .shot-thumb { width:72px; height:72px; object-fit:cover; border-radius:8px; border:1px solid var(--border); background:var(--bg); cursor:pointer; }
 
   .empty { text-align: center; color: var(--muted); padding: 28px 0; font-size: 14px; line-height: 1.8; }
   .sheet-foot { margin-top: 14px; display: flex; gap: 10px; }
@@ -559,6 +563,14 @@
       <input id="fanPersonality" type="text" placeholder="個性，例如：幽默 / 安靜 / 愛聊天" autocomplete="off">
       <input id="fanBirthday" type="text" placeholder="生日，例如：09/10 或 1995/09/10">
       <input id="fanTopic" class="wide" type="text" placeholder="最近話題，例如：最近在聊貓、工作轉職、演唱會" autocomplete="off">
+      <div class="wide">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">截圖紀錄（最多 2 張，會先壓縮再儲存）</div>
+        <input id="fanShotInput" type="file" accept="image/*" multiple style="display:none;">
+        <div style="display:flex;gap:8px;margin:0;">
+          <button class="btn btn-ghost" id="fanShotPick" type="button">選擇截圖</button>
+        </div>
+        <div class="shot-thumb-row" id="fanShotPreview"></div>
+      </div>
       <button class="btn btn-primary" id="fanSave">新增聽眾</button>
       <button class="btn btn-ghost" id="fanClear">清除</button>
     </div>
@@ -913,7 +925,8 @@
         nickname: String((l && l.nickname) || ''),
         personality: String((l && l.personality) || ''),
         topic: String((l && l.topic) || ''),
-        birthday: String((l && l.birthday) || '')
+        birthday: String((l && l.birthday) || ''),
+        shots: Array.isArray(l && l.shots) ? l.shots.slice(0, 2).map(x => String(x || '')) : []
       })).filter(l => l.nickname || l.id);
     } else {
       out.listeners = [];
@@ -2374,9 +2387,76 @@
     $('fansForm').classList.remove('show');
     $('fanAddToggle').style.display = '';
   }
+
+  // 聽眾截圖（最多 2 張，前端壓縮）
+  let fanShotDraft = [];
+  const MAX_FAN_SHOTS = 2;
+  function compressImage(file, cb) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const maxSide = 1200;
+        let w = img.width, h = img.height;
+        const scale = Math.min(1, maxSide / Math.max(w, h));
+        w = Math.max(1, Math.round(w * scale));
+        h = Math.max(1, Math.round(h * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        try {
+          cb(canvas.toDataURL('image/jpeg', 0.75));
+        } catch (err) {
+          toast('截圖壓縮失敗');
+        }
+      };
+      img.onerror = () => toast('圖片讀取失敗');
+      img.src = reader.result;
+    };
+    reader.onerror = () => toast('圖片讀取失敗');
+    reader.readAsDataURL(file);
+  }
+  function renderFanShotPreview() {
+    const box = $('fanShotPreview');
+    box.innerHTML = '';
+    fanShotDraft.slice(0, MAX_FAN_SHOTS).forEach((src, i) => {
+      const wrap = document.createElement('div');
+      wrap.style.position = 'relative';
+      const img = document.createElement('img');
+      img.className = 'fan-shot';
+      img.src = src;
+      img.onclick = () => window.open(src, '_blank');
+      const del = document.createElement('button');
+      del.textContent = '✕';
+      del.className = 'fan-del';
+      del.style.position = 'absolute';
+      del.style.right = '2px';
+      del.style.top = '2px';
+      del.onclick = () => { fanShotDraft.splice(i, 1); renderFanShotPreview(); };
+      wrap.appendChild(img); wrap.appendChild(del);
+      box.appendChild(wrap);
+    });
+  }
+  function bindFanShots() {
+    $('fanShotPick').onclick = () => $('fanShotInput').click();
+    $('fanShotInput').addEventListener('change', () => {
+      const files = Array.from($('fanShotInput').files || []).slice(0, Math.max(0, MAX_FAN_SHOTS - fanShotDraft.length));
+      if (!files.length) { toast('最多只能放 2 張截圖'); $('fanShotInput').value = ''; return; }
+      files.forEach(f => compressImage(f, dataUrl => {
+        fanShotDraft.push(dataUrl);
+        renderFanShotPreview();
+      }));
+      $('fanShotInput').value = '';
+    });
+  }
+
   function clearFanForm() {
     editingFanId = null;
     ['fanId', 'fanNickname', 'fanPersonality', 'fanBirthday', 'fanTopic'].forEach(id => { $(id).value = ''; });
+    fanShotDraft = [];
+    renderFanShotPreview();
+    $('fanShotInput').value = '';
     $('fanSave').textContent = '新增聽眾';
     hideFanForm();
   }
@@ -2400,7 +2480,8 @@
           <button class="fan-del" data-id="${escapeHtml(f.id || '')}" title="刪除">✕</button>
         </div>
         <div class="fan-meta">個性：${escapeHtml(f.personality || '未填')}</div>
-        <div class="fan-meta">最近話題：${escapeHtml(f.topic || '未填')}</div>`;
+        <div class="fan-meta">最近話題：${escapeHtml(f.topic || '未填')}</div>
+        ${(Array.isArray(f.shots) && f.shots.length) ? `<div class="fan-shots">${f.shots.slice(0, 2).map(s => `<img class="shot-thumb" src="${s}" alt="">`).join('')}</div>` : ''}`;
       div.onclick = (e) => {
         if (e.target && e.target.classList && e.target.classList.contains('fan-del')) return;
         editingFanId = f.id || null;
@@ -2409,6 +2490,8 @@
         $('fanPersonality').value = f.personality || '';
         $('fanBirthday').value = f.birthday || '';
         $('fanTopic').value = f.topic || '';
+        fanShotDraft = Array.isArray(f.shots) ? f.shots.slice(0, 2) : [];
+        renderFanShotPreview();
         $('fanSave').textContent = '更新聽眾';
         showFanForm(); // 編輯聽眾卡時也展開欄位
       };
@@ -2429,7 +2512,8 @@
       nickname,
       personality: $('fanPersonality').value.trim(),
       birthday: $('fanBirthday').value.trim(),
-      topic: $('fanTopic').value.trim()
+      topic: $('fanTopic').value.trim(),
+      shots: fanShotDraft.slice(0, MAX_FAN_SHOTS)
     };
     if (!Array.isArray(store.listeners)) store.listeners = [];
     const i = store.listeners.findIndex(x => x.id === id);
@@ -2444,6 +2528,8 @@
     $('fansOverlay').addEventListener('click', (e) => { if (e.target === $('fansOverlay')) $('fansOverlay').classList.remove('open'); });
     $('fanSave').onclick = saveFan;
     $('fanClear').onclick = clearFanForm;
+    bindFanShots();
+    renderFanShotPreview();
     $('fanAddToggle').onclick = () => { clearFanForm(); showFanForm(); };
     $('fansList').addEventListener('click', (e) => {
       const btn = e.target.closest('.fan-del');
