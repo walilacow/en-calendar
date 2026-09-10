@@ -1628,39 +1628,42 @@
     toast(added > 0 ? `已複製 ${added} 個目標（進度歸零）` : '目標都已存在');
   };
 
-  // 複製完成/未完成清單（每日 + 每週 + 每月；加碼任務標註）
+  // 複製完成/未完成清單：只複製「目前 scope」，每日頁就只複製每日，每週/每月同理
   $('copyListBtn').onclick = () => {
     if (!openDate) return;
-    // 清單複製用：移除任務名稱中的所有圖示/emoji，只保留主播馬甲 alias
     const cleanName = n => String(n)
       .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{FE0F}]/gu, '')
       .replace(/\s+/g, ' ')
       .trim();
     const label = t => cleanName(t.name) + (taskTypeOf(t) === 'bonus' ? '（加碼）' : '');
-    let firstSection = true;
-    const pushSection = (lines, title, tasks) => {
-      if (!tasks || !tasks.length) return;
-      if (!firstSection) lines.push('');
-      firstSection = false;
-      const done = tasks.filter(t => t.cur >= t.target);
-      const undone = tasks.filter(t => t.cur < t.target);
-      lines.push(`【${title}】${done.length} 已完成 / ${undone.length} 未完成`);
-      done.forEach(t => lines.push(`${label(t)} ${t.cur}/${t.target} ${alias || '💛'}`));
-      undone.forEach(t => lines.push(`${label(t)} ${t.cur}/${t.target}`));
-    };
-    const lines = [`【${openDate}・完成/未完成】`];
-    pushSection(lines, '每日', getTasks('day', openDate));
-    const wi = weekInfo(openDate);
-    pushSection(lines, `每週（${fmtMD(wi.start)}–${fmtMD(wi.end)}）`, getTasks('week', openDate));
-    pushSection(lines, `每月（${openDate.slice(0, 7)}）`, getTasks('month', openDate));
-    if (lines.length === 1) { toast('還沒有目標'); return; }
+    const tasks = getTasks(scope, openDate);
+    if (!tasks.length) { toast('這個範圍還沒有目標'); return; }
+
+    let scopeLabel = '每日';
+    if (scope === 'week') {
+      const wi = weekInfo(openDate);
+      scopeLabel = `每週（${fmtMD(wi.start)}–${fmtMD(wi.end)}）`;
+    } else if (scope === 'month') {
+      scopeLabel = `每月（${openDate.slice(0, 7)}）`;
+    } else if (scope === 'custom') {
+      scopeLabel = (SCOPES.find(s => s.id === 'custom') || {}).label || '自訂';
+    }
+
+    const done = tasks.filter(t => t.cur >= t.target);
+    const undone = tasks.filter(t => t.cur < t.target);
+    const lines = [
+      `【${openDate}・${scopeLabel}】`,
+      '',
+      `【${scopeLabel}】${done.length} 已完成 / ${undone.length} 未完成`
+    ];
+    done.forEach(t => lines.push(`${label(t)} ${t.cur}/${t.target} ${alias || '💛'}`));
+    undone.forEach(t => lines.push(`${label(t)} ${t.cur}/${t.target}`));
+
     const text = lines.join('\n');
     const fallback = () => {
       const ta = document.createElement('textarea');
-      ta.value = text;
-      ta.style.position = 'fixed'; ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.select();
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
       try { document.execCommand('copy'); toast('已複製到剪貼簿'); }
       catch (err) { alert(text); }
       document.body.removeChild(ta);
