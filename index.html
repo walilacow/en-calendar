@@ -238,6 +238,15 @@
   .settings-row input[type=checkbox] { width:17px; height:17px; accent-color: var(--accent); cursor:pointer; }
   .settings-row input[type=number] { flex:1; background:var(--bg); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:10px; outline:none; min-width:0; }
   .settings-row input[type=number]:focus { border-color: var(--accent); }
+  .sales-box { background: var(--card); border:1px solid var(--border); border-radius:12px; padding:12px; margin-top:14px; }
+  .sales-line { font-size:15px; font-weight:700; color: var(--text); margin-bottom:10px; }
+  .sales-add { display:flex; gap:8px; }
+  .sales-add input { flex:1; background:var(--bg); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px; outline:none; min-width:0; }
+  .sales-add input:focus { border-color: var(--accent); }
+  .sales-add button { border:none; border-radius:10px; padding:12px 16px; font-weight:700; cursor:pointer; background: var(--accent); color:#14141c; font-family:inherit; }
+  .trend-wrap { background: var(--card); border:1px solid var(--border); border-radius:12px; padding:12px; margin-top:14px; }
+  .trend-title { font-size:14px; color:var(--muted); margin-bottom:10px; }
+  .trend-canvas { width:100%; height:auto; border-radius:10px; background:#191924; border:1px solid var(--border); }
   .fans-add-btn { width:100%; margin-bottom:12px; background: var(--accent); color:#14141c; }
   .fans-form { display:none; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:14px; }
   .fans-form.show { display:grid; }
@@ -437,6 +446,14 @@
     </div>
 
     <div style="border-top:1px solid var(--border); margin:16px 0;"></div>
+    <div class="sales-box" id="salesInlineBox" style="display:none;">
+      <div class="sales-line" id="salesInlineLine"></div>
+      <div class="sales-add">
+        <input id="salesAddInput" type="number" min="0" placeholder="輸入本次業績收禮分數">
+        <button id="salesAddBtn">＋ 分數</button>
+      </div>
+    </div>
+    <div style="border-top:1px solid var(--border); margin:16px 0;"></div>
     <div class="note-box" id="noteBox" style="margin-top:14px; display:none;">
       <label for="noteInput" style="display:block; font-size:13px; color:var(--muted); margin-bottom:6px;">📝 今日趣事</label>
       <textarea id="noteInput" rows="3" placeholder="記錄今天的趣事、感謝的聽眾、難忘的互動…" style="width:100%; background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px; font-size:15px; font-family:inherit; resize:vertical; outline:none; min-height:72px;"></textarea>
@@ -447,6 +464,8 @@
       <label style="font-size:13px; color:var(--muted); display:block; margin-bottom:6px;">📻 前一週時數（每滿 1 小時 +5，不滿 1 小時不算分）</label>
       <div id="hoursAuto" style="font-size:16px; font-weight:700; color:var(--accent2); text-align:center; padding:8px 0;">本週 0 小時 → +0 分</div>
     </div>
+    <button class="btn btn-ghost btn-block" id="trendWeekBtn" style="display:none; border-color: var(--accent2); color: var(--accent2);">📈 產生本週趨勢圖</button>
+    <button class="btn btn-ghost btn-block" id="trendMonthBtn" style="display:none; border-color: var(--accent); color: var(--accent);">📈 產生本月趨勢圖</button>
     <button class="btn btn-ghost btn-block" id="weekCopyBtn" style="display:none; border-color: var(--accent2); color: var(--accent2);">📅 複製當週分數</button>
     <button class="btn btn-ghost btn-block" id="copyListBtn">📋 複製完成 / 未完成清單</button>
 
@@ -596,6 +615,14 @@
   </div>
 </div>
 
+<!-- 趨勢圖 -->
+<div class="overlay" id="trendOverlay" style="align-items:center;">
+  <div style="background:var(--card); border:1px solid var(--border); border-radius:18px; padding:16px; width:92%; max-width:760px; max-height:88vh; overflow:auto;">
+    <div class="sheet-head"><h2 id="trendTitle">📈 趨勢圖</h2><button class="close" id="closeTrend">✕</button></div>
+    <div class="trend-wrap"><div class="trend-title">業績分數 / 任務達成分數</div><canvas id="trendCanvas" class="trend-canvas" width="960" height="420"></canvas></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -671,6 +698,7 @@
         scoreLog: store.scoreLog || {},
         listeners: store.listeners || [],
         settings: store.settings || {},
+        salesLog: store.salesLog || {},
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }).catch(() => {});
     }, 1500);
@@ -688,7 +716,7 @@
         const snap = await db.collection('users').doc(user.uid).get();
         if (snap.exists) {
           const d = snap.data();
-          const cloud = sanitizeStore({ dates: d.dates, weeks: d.weeks, months: d.months, ranges: d.ranges, scoreLog: d.scoreLog, listeners: d.listeners, settings: d.settings });
+          const cloud = sanitizeStore({ dates: d.dates, weeks: d.weeks, months: d.months, ranges: d.ranges, scoreLog: d.scoreLog, salesLog: d.salesLog, listeners: d.listeners, settings: d.settings });
           // 合併保險：本機任務較多的日期保留本機版，避免空/舊雲端清掉九月資料
           try {
             const local = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
@@ -702,6 +730,7 @@
             });
             if ((!cloud.listeners || !cloud.listeners.length) && Array.isArray(local.listeners)) cloud.listeners = local.listeners;
             if ((!cloud.settings || typeof cloud.settings !== 'object') && local.settings) cloud.settings = local.settings;
+            if ((!cloud.salesLog || typeof cloud.salesLog !== 'object') && local.salesLog) cloud.salesLog = local.salesLog;
           } catch (e) {}
           store = cloud;
           save();
@@ -883,7 +912,7 @@
   // 資料消毒：雲端/本機資料可能因舊版或寫入中斷而型別異常（例如 tasks 不是陣列），
   // 一筆壞資料會讓 renderCalendar 在迴圈中 throw、整個月空白。統一在此修正。
   function sanitizeStore(s) {
-    const out = { dates: {}, weeks: {}, months: {}, ranges: {}, scoreLog: {}, listeners: [], settings: { enableGiftTasks: true, enableSalesScore: true, salesDayTarget: 0, salesWeekTarget: 0, salesMonthTarget: 0 } };
+    const out = { dates: {}, weeks: {}, months: {}, ranges: {}, scoreLog: {}, salesLog: {}, listeners: [], settings: { enableGiftTasks: true, enableSalesScore: true, salesDayTarget: 0, salesWeekTarget: 0, salesMonthTarget: 0 } };
     if (!s || typeof s !== 'object') return out;
     const normTask = t => {
       if (!t || typeof t !== 'object' || Array.isArray(t)) return null;
@@ -931,6 +960,9 @@
     } else {
       out.listeners = [];
     }
+    out.salesLog = (s.salesLog && typeof s.salesLog === 'object' && !Array.isArray(s.salesLog))
+      ? Object.fromEntries(Object.entries(s.salesLog).filter(([k, v]) => /^\d{4}-\d{2}-\d{2}$/.test(k) && Number.isFinite(Number(v))).map(([k, v]) => [k, Number(v)]))
+      : {};
     out.settings = Object.assign({ enableGiftTasks: true, enableSalesScore: true, salesDayTarget: 0, salesWeekTarget: 0, salesMonthTarget: 0 }, (s.settings && typeof s.settings === 'object' && !Array.isArray(s.settings)) ? s.settings : {});
     ['salesDayTarget', 'salesWeekTarget', 'salesMonthTarget'].forEach(k => {
       const n = Number(out.settings[k]);
@@ -946,7 +978,7 @@
       const raw = localStorage.getItem(STORE_KEY);
       if (raw) return sanitizeStore(JSON.parse(raw));
     } catch (e) {}
-    return { dates: {}, weeks: {}, months: {}, ranges: {}, scoreLog: {}, listeners: [], settings: { enableGiftTasks: true, enableSalesScore: true, salesDayTarget: 0, salesWeekTarget: 0, salesMonthTarget: 0 } };
+    return { dates: {}, weeks: {}, months: {}, ranges: {}, scoreLog: {}, salesLog: {}, listeners: [], settings: { enableGiftTasks: true, enableSalesScore: true, salesDayTarget: 0, salesWeekTarget: 0, salesMonthTarget: 0 } };
   }
   function save() { try { logTodayScores(); } catch (e) {} try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) {} scheduleCloudSave(); }
 
@@ -1129,6 +1161,146 @@
   function fmtHrsMins(mins) {
     const h = Math.floor(mins / 60), m = mins % 60;
     return h + ' 小時' + (m ? ' ' + m + ' 分' : '');
+  }
+
+
+  // ---------- 業績分數（每天 08:00 起算，到隔天 08:00） ----------
+  const SALES_CUTOFF_HOUR = 8;
+  function salesDayKeyFromDate(d) {
+    const x = new Date(d);
+    if (x.getHours() < SALES_CUTOFF_HOUR) x.setDate(x.getDate() - 1);
+    return key(x.getFullYear(), x.getMonth(), x.getDate());
+  }
+  function salesDayKey(ds) {
+    // 歷史日期一律視為該日業績日
+    if (ds && ds !== todayKey()) return ds;
+    return salesDayKeyFromDate(new Date());
+  }
+  function salesWeekKey(ds) {
+    const d = new Date(String(salesDayKey(ds)).replace(/-/g, '/'));
+    d.setHours(12, 0, 0, 0);
+    const start = new Date(d);
+    start.setDate(d.getDate() - d.getDay()); // 週日
+    start.setHours(SALES_CUTOFF_HOUR, 0, 0, 0);
+    return key(start.getFullYear(), start.getMonth(), start.getDate());
+  }
+  function salesMonthKey(ds) {
+    return salesDayKey(ds).slice(0, 7);
+  }
+  function salesEarned(scope, ds) {
+    const log = store.salesLog || {};
+    if (scope === 'day') return Number(log[salesDayKey(ds)] || 0);
+    if (scope === 'week') {
+      const wk = salesWeekKey(ds);
+      return Object.keys(log).filter(dk => salesWeekKey(dk) === wk).reduce((a, k) => a + (Number(log[k]) || 0), 0);
+    }
+    const mk = salesMonthKey(ds);
+    return Object.keys(log).filter(dk => salesMonthKey(dk) === mk).reduce((a, k) => a + (Number(log[k]) || 0), 0);
+  }
+  function addSalesScore(points) {
+    const n = Math.max(0, parseInt(points, 10) || 0);
+    if (!n) { toast('請輸入大於 0 的分數'); return; }
+    if (!store.salesLog || typeof store.salesLog !== 'object') store.salesLog = {};
+    const dk = salesDayKey(openDate);
+    store.salesLog[dk] = (Number(store.salesLog[dk]) || 0) + n;
+    save(); renderSheet(); renderCalendar(); toast(`已新增業績分數 +${n}`);
+  }
+
+
+  // ---------- 趨勢圖 ----------
+  function isLastDayOfMonth(ds) {
+    const [y, m, d] = ds.split('-').map(Number);
+    const next = new Date(y, m, 0);
+    return d === next.getDate();
+  }
+  function isSaturday(ds) {
+    const [y, m, d] = ds.split('-').map(Number);
+    return new Date(y, m - 1, d).getDay() === 6;
+  }
+  function taskScoreForDay(ds) {
+    const b = store.dates && store.dates[ds];
+    const tasks = b && Array.isArray(b.tasks) ? b.tasks : [];
+    return tasks.reduce((a, t) => a + Math.min(Math.max(t.cur || 0, 0), Math.max(t.target || 0, 0)) * (t.score || 0), 0);
+  }
+  function salesScoreForDay(ds) {
+    const log = store.salesLog || {};
+    return Object.keys(log).filter(k => salesDayKey(k) === ds).reduce((a, k) => a + (Number(log[k]) || 0), 0);
+  }
+  function drawTrend(canvas, labels, salesData, taskData, title) {
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#191924'; ctx.fillRect(0, 0, W, H);
+    const padL = 56, padR = 24, padT = 24, padB = 44;
+    const plotW = W - padL - padR, plotH = H - padT - padB;
+    const maxVal = Math.max(10, ...salesData, ...taskData);
+    const niceMax = Math.ceil(maxVal / 100) * 100;
+    ctx.strokeStyle = '#2e2e40'; ctx.lineWidth = 1;
+    ctx.fillStyle = '#8b8b9e'; ctx.font = '18px sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    for (let i = 0; i <= 4; i++) {
+      const y = padT + plotH - (plotH * i / 4);
+      ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+      ctx.fillText(String(Math.round(niceMax * i / 4)), padL - 10, y);
+    }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    const step = Math.max(1, Math.ceil(labels.length / 10));
+    labels.forEach((lab, i) => {
+      if (i % step !== 0 && i !== labels.length - 1) return;
+      const x = padL + (plotW * i / Math.max(1, labels.length - 1));
+      ctx.fillText(lab, x, H - padB + 12);
+    });
+    const series = [
+      { data: salesData, color: '#f6ad55', name: '業績分數' },
+      { data: taskData, color: '#63b3ed', name: '任務達成分數' }
+    ];
+    series.forEach(s => {
+      ctx.strokeStyle = s.color; ctx.lineWidth = 3; ctx.beginPath();
+      s.data.forEach((v, i) => {
+        const x = padL + (plotW * i / Math.max(1, s.data.length - 1));
+        const y = padT + plotH - (plotH * (v / niceMax));
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+      s.data.forEach((v, i) => {
+        const x = padL + (plotW * i / Math.max(1, s.data.length - 1));
+        const y = padT + plotH - (plotH * (v / niceMax));
+        ctx.fillStyle = s.color; ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
+      });
+    });
+    let lx = padL; const ly = 16;
+    series.forEach(s => {
+      ctx.fillStyle = s.color; ctx.fillRect(lx, ly, 18, 18);
+      ctx.fillStyle = '#e8e8f0'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = '18px sans-serif';
+      ctx.fillText(s.name, lx + 26, ly + 9);
+      lx += 140;
+    });
+    $('trendTitle').textContent = title;
+  }
+  function openTrend(scopeType) {
+    if (!openDate) return;
+    const [y, m] = openDate.split('-').map(Number);
+    let labels = [], sales = [], tasks = [];
+    if (scopeType === 'week') {
+      const wi = weekInfo(openDate);
+      for (let i = 0; i < 7; i++) {
+        const dt = new Date(wi.start); dt.setDate(wi.start.getDate() + i);
+        const dk = key(dt.getFullYear(), dt.getMonth(), dt.getDate());
+        labels.push(`${dt.getMonth() + 1}/${dt.getDate()}`);
+        sales.push(salesScoreForDay(dk));
+        tasks.push(taskScoreForDay(dk));
+      }
+      drawTrend($('trendCanvas'), labels, sales, tasks, `📈 本週趨勢圖（${fmtMD(wi.start)}–${fmtMD(wi.end)}）`);
+    } else {
+      const days = new Date(y, m, 0).getDate();
+      for (let d = 1; d <= days; d++) {
+        const dk = key(y, m - 1, d);
+        labels.push(String(d));
+        sales.push(salesScoreForDay(dk));
+        tasks.push(taskScoreForDay(dk));
+      }
+      drawTrend($('trendCanvas'), labels, sales, tasks, `📈 本月趨勢圖（${y}-${String(m).padStart(2, '0')}）`);
+    }
+    $('trendOverlay').classList.add('open');
   }
 
   // ---------- 月曆 ----------
@@ -1314,6 +1486,8 @@
     const isSunday = new Date(y, m - 1, d).getDay() === 0;
     $('weekCopyBtn').style.display = (scope === 'day' && isSunday) ? 'block' : 'none';
     $('hoursBox').style.display = (scope === 'day' && isSunday) ? 'block' : 'none';
+    $('trendWeekBtn').style.display = (scope === 'day' && isSaturday(openDate)) ? 'block' : 'none';
+    $('trendMonthBtn').style.display = (scope === 'day' && isLastDayOfMonth(openDate)) ? 'block' : 'none';
     if (scope === 'day' && isSunday) {
       // 週日看到的時數，改顯示「剛結束的前一週」，滿 1 小時才 +5
       const prevStart = addDays(weekInfo(openDate).start, -7);
@@ -1360,13 +1534,19 @@
     const hoursLine = scope === 'day' ? ` ・ 當月已完成時數 <b>${fmtHrsMins(doneMin)}</b>` : '';
     let salesLine = '';
     if (settings.enableSalesScore) {
-      const earned = scope === 'day' ? calc(tasks).scoreEarned
-        : scope === 'week' ? Object.keys(store.scoreLog || {}).filter(dk => weekInfo(dk).key === weekInfo(openDate).key).reduce((a, dk) => a + ((store.scoreLog[dk] && store.scoreLog[dk].earned) || 0), 0)
-        : Object.keys(store.scoreLog || {}).filter(dk => dk.slice(0, 7) === openDate.slice(0, 7)).reduce((a, dk) => a + ((store.scoreLog[dk] && store.scoreLog[dk].earned) || 0), 0);
+      const earned = salesEarned(scope, openDate);
       const target = scope === 'day' ? (settings.salesDayTarget || 0)
         : scope === 'week' ? (settings.salesWeekTarget || 0)
         : scope === 'month' ? (settings.salesMonthTarget || 0) : 0;
       salesLine = target > 0 ? ` ・ 業績分數 <b>${earned}/${target}</b>（尚缺 ${Math.max(0, target - earned)}）` : '';
+      const box = $('salesInlineBox');
+      if (box) {
+        box.style.display = '';
+        $('salesInlineLine').innerHTML = `業績分數：<b>${earned}/${target || 0}</b>（尚缺 ${Math.max(0, (target || 0) - earned)}）`;
+        $('salesAddInput').value = '';
+      }
+    } else if ($('salesInlineBox')) {
+      $('salesInlineBox').style.display = 'none';
     }
     const summaryBody = `${weekLine}${hoursLine}${salesLine}`;
     $('daySummary').innerHTML = summaryBody ? `${summaryBody}<br>${notes[scope]}` : `${notes[scope]}`;
@@ -2557,6 +2737,16 @@
     const wc = $('weekCopyBtn');
     if (wc && gift) wc.style.display = '';
   }
+  function bindSalesInline() {
+    const btn = $('salesAddBtn');
+    if (btn) btn.onclick = () => addSalesScore($('salesAddInput').value);
+  }
+  bindSalesInline();
+  $('trendWeekBtn').onclick = () => openTrend('week');
+  $('trendMonthBtn').onclick = () => openTrend('month');
+  $('closeTrend').onclick = () => $('trendOverlay').classList.remove('open');
+  $('trendOverlay').addEventListener('click', (e) => { if (e.target === $('trendOverlay')) $('trendOverlay').classList.remove('open'); });
+
   function bindSettings() {
     $('settingsBtn').onclick = () => {
       const s = store.settings || {};
