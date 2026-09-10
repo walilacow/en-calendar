@@ -221,6 +221,8 @@
   .fan-shot { width:86px; height:86px; object-fit:cover; border-radius:10px; border:1px solid var(--border); background:var(--bg); }
   .shot-thumb-row { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
   .shot-thumb { width:72px; height:72px; object-fit:cover; border-radius:8px; border:1px solid var(--border); background:var(--bg); cursor:pointer; }
+  .img-preview-wrap { background:#000; border:1px solid var(--border); border-radius:18px; padding:12px; width:92%; max-width:960px; max-height:90vh; overflow:auto; }
+  .img-preview-wrap img { width:100%; height:auto; display:block; border-radius:12px; background:#111; }
 
   .empty { text-align: center; color: var(--muted); padding: 28px 0; font-size: 14px; line-height: 1.8; }
   .sheet-foot { margin-top: 14px; display: flex; gap: 10px; }
@@ -430,13 +432,13 @@
     <div class="note-box" id="specialBox" style="margin-top:14px; display:none;">
       <label style="display:block; font-size:13px; color:var(--muted); margin-bottom:6px;">🎰 幸運開出統計</label>
       <div style="display:flex; flex-direction:column; gap:10px;">
-        <div style="background:var(--card); border:1px solid var(--border); border-radius:10px; padding:10px 12px; display:flex; align-items:center; gap:8px;">
+        <div id="dragonRow" style="background:var(--card); border:1px solid var(--border); border-radius:10px; padding:10px 12px; display:flex; align-items:center; gap:8px;">
           <span style="flex:1; font-weight:600; font-size:15px;">🐉 金龍</span>
           <button class="sp-minus" data-k="dragon" style="width:32px; height:32px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--red); font-size:16px; cursor:pointer;">−</button>
           <b class="sp-count" data-k="dragon" style="min-width:28px; text-align:center; font-size:17px;">0</b>
           <button class="sp-plus" data-k="dragon" style="min-width:44px; height:32px; padding:0 10px; border-radius:8px; border:none; background:var(--accent2); color:#14141c; font-weight:700; cursor:pointer;">+1</button>
         </div>
-        <div style="background:var(--card); border:1px solid var(--border); border-radius:10px; padding:10px 12px; display:flex; align-items:center; gap:8px;">
+        <div id="castleRow" style="background:var(--card); border:1px solid var(--border); border-radius:10px; padding:10px 12px; display:flex; align-items:center; gap:8px;">
           <span style="flex:1; font-weight:600; font-size:15px;">🏰 城堡</span>
           <button class="sp-minus" data-k="castle" style="width:32px; height:32px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--red); font-size:16px; cursor:pointer;">−</button>
           <b class="sp-count" data-k="castle" style="min-width:28px; text-align:center; font-size:17px;">0</b>
@@ -611,6 +613,11 @@
         <div class="settings-row"><span>月目標</span><input id="salesMonthTarget" type="number" min="0" placeholder="例如 8000"></div>
       </div>
     </div>
+    <div class="settings-block">
+      <div class="settings-title">統計</div>
+      <label class="settings-row"><input id="enableDragon" type="checkbox"> 啟用金龍統計</label>
+      <label class="settings-row"><input id="enableCastle" type="checkbox"> 啟用城堡統計</label>
+    </div>
     <button class="btn btn-primary btn-block" id="settingsSave">儲存設定</button>
   </div>
 </div>
@@ -619,7 +626,19 @@
 <div class="overlay" id="trendOverlay" style="align-items:center;">
   <div style="background:var(--card); border:1px solid var(--border); border-radius:18px; padding:16px; width:92%; max-width:760px; max-height:88vh; overflow:auto;">
     <div class="sheet-head"><h2 id="trendTitle">📈 趨勢圖</h2><button class="close" id="closeTrend">✕</button></div>
-    <div class="trend-wrap"><div class="trend-title">業績分數 / 任務達成分數</div><canvas id="trendCanvas" class="trend-canvas" width="960" height="420"></canvas></div>
+    <div class="trend-wrap"><div class="trend-title">業績分數 / 任務達成分數</div>    <div class="tabs" style="margin-bottom:12px;">
+      <button class="tab" id="tabTrendSales">業績分數</button>
+      <button class="tab" id="tabTrendTasks">任務目標收禮分數</button>
+    </div>
+    <canvas id="trendCanvas" class="trend-canvas" width="1100" height="460"></canvas></div>
+  </div>
+</div>
+
+<!-- 圖片預覽 -->
+<div class="overlay" id="imgPreviewOverlay" style="align-items:center; z-index:180;">
+  <div class="img-preview-wrap">
+    <div class="sheet-head"><h2>🖼️ 圖片預覽</h2><button class="close" id="closeImgPreview">✕</button></div>
+    <img id="imgPreviewImg" alt="預覽圖片">
   </div>
 </div>
 
@@ -912,7 +931,7 @@
   // 資料消毒：雲端/本機資料可能因舊版或寫入中斷而型別異常（例如 tasks 不是陣列），
   // 一筆壞資料會讓 renderCalendar 在迴圈中 throw、整個月空白。統一在此修正。
   function sanitizeStore(s) {
-    const out = { dates: {}, weeks: {}, months: {}, ranges: {}, scoreLog: {}, salesLog: {}, listeners: [], settings: { enableGiftTasks: true, enableSalesScore: true, salesDayTarget: 0, salesWeekTarget: 0, salesMonthTarget: 0 } };
+    const out = { dates: {}, weeks: {}, months: {}, ranges: {}, scoreLog: {}, salesLog: {}, listeners: [], settings: { enableGiftTasks: true, enableSalesScore: true, enableDragon: true, enableCastle: true, salesDayTarget: 0, salesWeekTarget: 0, salesMonthTarget: 0 } };
     if (!s || typeof s !== 'object') return out;
     const normTask = t => {
       if (!t || typeof t !== 'object' || Array.isArray(t)) return null;
@@ -930,7 +949,11 @@
         if (!b || typeof b !== 'object' || Array.isArray(b)) return;
         const nb = { tasks: (Array.isArray(b.tasks) ? b.tasks : []).map(normTask).filter(Boolean) };
         if (b.note) nb.note = String(b.note);
-        if (Array.isArray(b.slots)) nb.slots = b.slots.filter(sl => sl && typeof sl === 'object');
+        if (Array.isArray(b.slots)) nb.slots = b.slots.filter(sl => sl && typeof sl === 'object').map(sl => ({
+          start: String((sl && sl.start) || ''),
+          end: String((sl && sl.end) || ''),
+          done: !!(sl && sl.done)
+        }));
         if (b.special && typeof b.special === 'object') nb.special = { dragon: Number(b.special.dragon) || 0, castle: Number(b.special.castle) || 0 };
         out[bk][k] = nb;
       });
@@ -963,7 +986,9 @@
     out.salesLog = (s.salesLog && typeof s.salesLog === 'object' && !Array.isArray(s.salesLog))
       ? Object.fromEntries(Object.entries(s.salesLog).filter(([k, v]) => /^\d{4}-\d{2}-\d{2}$/.test(k) && Number.isFinite(Number(v))).map(([k, v]) => [k, Number(v)]))
       : {};
-    out.settings = Object.assign({ enableGiftTasks: true, enableSalesScore: true, salesDayTarget: 0, salesWeekTarget: 0, salesMonthTarget: 0 }, (s.settings && typeof s.settings === 'object' && !Array.isArray(s.settings)) ? s.settings : {});
+    out.settings = Object.assign({ enableGiftTasks: true, enableSalesScore: true, enableDragon: true, enableCastle: true, salesDayTarget: 0, salesWeekTarget: 0, salesMonthTarget: 0 }, (s.settings && typeof s.settings === 'object' && !Array.isArray(s.settings)) ? s.settings : {});
+    out.settings.enableDragon = out.settings.enableDragon !== false;
+    out.settings.enableCastle = out.settings.enableCastle !== false;
     ['salesDayTarget', 'salesWeekTarget', 'salesMonthTarget'].forEach(k => {
       const n = Number(out.settings[k]);
       out.settings[k] = Number.isFinite(n) && n >= 0 ? n : 0;
@@ -978,7 +1003,7 @@
       const raw = localStorage.getItem(STORE_KEY);
       if (raw) return sanitizeStore(JSON.parse(raw));
     } catch (e) {}
-    return { dates: {}, weeks: {}, months: {}, ranges: {}, scoreLog: {}, salesLog: {}, listeners: [], settings: { enableGiftTasks: true, enableSalesScore: true, salesDayTarget: 0, salesWeekTarget: 0, salesMonthTarget: 0 } };
+    return { dates: {}, weeks: {}, months: {}, ranges: {}, scoreLog: {}, salesLog: {}, listeners: [], settings: { enableGiftTasks: true, enableSalesScore: true, enableDragon: true, enableCastle: true, salesDayTarget: 0, salesWeekTarget: 0, salesMonthTarget: 0 } };
   }
   function save() { try { logTodayScores(); } catch (e) {} try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) {} scheduleCloudSave(); }
 
@@ -1226,15 +1251,19 @@
     const log = store.salesLog || {};
     return Object.keys(log).filter(k => salesDayKey(k) === ds).reduce((a, k) => a + (Number(log[k]) || 0), 0);
   }
-  function drawTrend(canvas, labels, salesData, taskData, title) {
+  function drawTrend(canvas, labels, salesData, taskData, title, mode) {
     const ctx = canvas.getContext('2d');
     const W = canvas.width, H = canvas.height;
     ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = '#191924'; ctx.fillRect(0, 0, W, H);
     const padL = 56, padR = 24, padT = 24, padB = 44;
     const plotW = W - padL - padR, plotH = H - padT - padB;
-    const maxVal = Math.max(10, ...salesData, ...taskData);
-    const niceMax = Math.ceil(maxVal / 100) * 100;
+    const useSales = mode !== 'tasks';
+    const useTasks = mode !== 'sales';
+    const shownSales = useSales ? salesData : [];
+    const shownTasks = useTasks ? taskData : [];
+    const maxVal = Math.max(10, ...shownSales, ...shownTasks);
+    const niceMax = Math.ceil(maxVal / 100) * 100 || 100;
     ctx.strokeStyle = '#2e2e40'; ctx.lineWidth = 1;
     ctx.fillStyle = '#8b8b9e'; ctx.font = '18px sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
     for (let i = 0; i <= 4; i++) {
@@ -1249,10 +1278,9 @@
       const x = padL + (plotW * i / Math.max(1, labels.length - 1));
       ctx.fillText(lab, x, H - padB + 12);
     });
-    const series = [
-      { data: salesData, color: '#f6ad55', name: '業績分數' },
-      { data: taskData, color: '#63b3ed', name: '任務達成分數' }
-    ];
+    const series = [];
+    if (useSales) series.push({ data: salesData, color: '#f6ad55', name: '業績分數' });
+    if (useTasks) series.push({ data: taskData, color: '#63b3ed', name: '任務目標收禮分數' });
     series.forEach(s => {
       ctx.strokeStyle = s.color; ctx.lineWidth = 3; ctx.beginPath();
       s.data.forEach((v, i) => {
@@ -1276,8 +1304,19 @@
     });
     $('trendTitle').textContent = title;
   }
+  let trendMode = 'sales';
   function openTrend(scopeType) {
     if (!openDate) return;
+    const settings = store.settings || {};
+    const showSales = settings.enableSalesScore !== false;
+    const showTasks = settings.enableGiftTasks !== false;
+    if (!showSales && !showTasks) { toast('請先在設定啟用業績分數或禮物任務'); return; }
+    if (!showSales) trendMode = 'tasks';
+    if (!showTasks) trendMode = 'sales';
+    $('tabTrendSales').classList.toggle('active', trendMode === 'sales');
+    $('tabTrendTasks').classList.toggle('active', trendMode === 'tasks');
+    $('tabTrendSales').style.display = showSales ? '' : 'none';
+    $('tabTrendTasks').style.display = showTasks ? '' : 'none';
     const [y, m] = openDate.split('-').map(Number);
     let labels = [], sales = [], tasks = [];
     if (scopeType === 'week') {
@@ -1289,7 +1328,7 @@
         sales.push(salesScoreForDay(dk));
         tasks.push(taskScoreForDay(dk));
       }
-      drawTrend($('trendCanvas'), labels, sales, tasks, `📈 本週趨勢圖（${fmtMD(wi.start)}–${fmtMD(wi.end)}）`);
+      drawTrend($('trendCanvas'), labels, sales, tasks, `📈 本週趨勢圖（${fmtMD(wi.start)}–${fmtMD(wi.end)}）`, trendMode);
     } else {
       const days = new Date(y, m, 0).getDate();
       for (let d = 1; d <= days; d++) {
@@ -1298,7 +1337,7 @@
         sales.push(salesScoreForDay(dk));
         tasks.push(taskScoreForDay(dk));
       }
-      drawTrend($('trendCanvas'), labels, sales, tasks, `📈 本月趨勢圖（${y}-${String(m).padStart(2, '0')}）`);
+      drawTrend($('trendCanvas'), labels, sales, tasks, `📈 本月趨勢圖（${y}-${String(m).padStart(2, '0')}）`, trendMode);
     }
     $('trendOverlay').classList.add('open');
   }
@@ -1486,8 +1525,15 @@
     const isSunday = new Date(y, m - 1, d).getDay() === 0;
     $('weekCopyBtn').style.display = (scope === 'day' && isSunday) ? 'block' : 'none';
     $('hoursBox').style.display = (scope === 'day' && isSunday) ? 'block' : 'none';
-    $('trendWeekBtn').style.display = (scope === 'day' && isSaturday(openDate)) ? 'block' : 'none';
-    $('trendMonthBtn').style.display = (scope === 'day' && isLastDayOfMonth(openDate)) ? 'block' : 'none';
+    const stSettings = store.settings || {};
+    const showDragon = stSettings.enableDragon !== false;
+    const showCastle = stSettings.enableCastle !== false;
+    $('dragonRow').style.display = showDragon ? '' : 'none';
+    $('castleRow').style.display = showCastle ? '' : 'none';
+    $('specialBox').style.display = (scope === 'day' && (showDragon || showCastle)) ? 'block' : 'none';
+    const trendVisible = stSettings.enableGiftTasks !== false || stSettings.enableSalesScore !== false;
+    $('trendWeekBtn').style.display = (scope === 'day' && isSaturday(openDate) && trendVisible) ? 'block' : 'none';
+    $('trendMonthBtn').style.display = (scope === 'day' && isLastDayOfMonth(openDate) && trendVisible) ? 'block' : 'none';
     if (scope === 'day' && isSunday) {
       // 週日看到的時數，改顯示「剛結束的前一週」，滿 1 小時才 +5
       const prevStart = addDays(weekInfo(openDate).start, -7);
@@ -2557,6 +2603,14 @@
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
   }
 
+
+  // ---------- 圖片預覽 ----------
+  function openImgPreview(src) {
+    if (!src) return;
+    $('imgPreviewImg').src = src;
+    $('imgPreviewOverlay').classList.add('open');
+  }
+
   // ---------- 聽眾資料庫 ----------
   let editingFanId = null;
   function showFanForm() {
@@ -2606,7 +2660,7 @@
       const img = document.createElement('img');
       img.className = 'fan-shot';
       img.src = src;
-      img.onclick = () => window.open(src, '_blank');
+      img.onclick = () => openImgPreview(src);
       const del = document.createElement('button');
       del.textContent = '✕';
       del.className = 'fan-del';
@@ -2661,7 +2715,7 @@
         </div>
         <div class="fan-meta">個性：${escapeHtml(f.personality || '未填')}</div>
         <div class="fan-meta">最近話題：${escapeHtml(f.topic || '未填')}</div>
-        ${(Array.isArray(f.shots) && f.shots.length) ? `<div class="fan-shots">${f.shots.slice(0, 2).map(s => `<img class="shot-thumb" src="${s}" alt="">`).join('')}</div>` : ''}`;
+        ${(Array.isArray(f.shots) && f.shots.length) ? `<div class="fan-shots">${f.shots.slice(0, 2).map(s => `<img class="shot-thumb" src="${s}" alt="" data-shot-src="${escapeHtml(s)}">`).join('')}</div>` : ''}`;
       div.onclick = (e) => {
         if (e.target && e.target.classList && e.target.classList.contains('fan-del')) return;
         editingFanId = f.id || null;
@@ -2712,6 +2766,8 @@
     renderFanShotPreview();
     $('fanAddToggle').onclick = () => { clearFanForm(); showFanForm(); };
     $('fansList').addEventListener('click', (e) => {
+      const shot = e.target.closest && e.target.closest('.shot-thumb');
+      if (shot && shot.dataset && shot.dataset.shotSrc) { openImgPreview(shot.dataset.shotSrc); return; }
       const btn = e.target.closest('.fan-del');
       if (!btn) return;
       const id = btn.dataset.id;
@@ -2742,6 +2798,10 @@
     if (btn) btn.onclick = () => addSalesScore($('salesAddInput').value);
   }
   bindSalesInline();
+  $('closeImgPreview').onclick = () => $('imgPreviewOverlay').classList.remove('open');
+  $('imgPreviewOverlay').addEventListener('click', (e) => { if (e.target === $('imgPreviewOverlay')) $('imgPreviewOverlay').classList.remove('open'); });
+  $('tabTrendSales').onclick = () => { trendMode = 'sales'; openTrend(openDate && isLastDayOfMonth(openDate) ? 'month' : 'week'); };
+  $('tabTrendTasks').onclick = () => { trendMode = 'tasks'; openTrend(openDate && isLastDayOfMonth(openDate) ? 'month' : 'week'); };
   $('trendWeekBtn').onclick = () => openTrend('week');
   $('trendMonthBtn').onclick = () => openTrend('month');
   $('closeTrend').onclick = () => $('trendOverlay').classList.remove('open');
@@ -2752,6 +2812,8 @@
       const s = store.settings || {};
       $('enableGiftTasks').checked = s.enableGiftTasks !== false;
       $('enableSalesScore').checked = s.enableSalesScore !== false;
+      $('enableDragon').checked = s.enableDragon !== false;
+      $('enableCastle').checked = s.enableCastle !== false;
       $('salesSettingsBox').style.display = $('enableSalesScore').checked ? '' : 'none';
       $('salesDayTarget').value = Number.isFinite(s.salesDayTarget) ? s.salesDayTarget : 0;
       $('salesWeekTarget').value = Number.isFinite(s.salesWeekTarget) ? s.salesWeekTarget : 0;
@@ -2765,6 +2827,8 @@
       store.settings = {
         enableGiftTasks: $('enableGiftTasks').checked,
         enableSalesScore: $('enableSalesScore').checked,
+        enableDragon: $('enableDragon').checked,
+        enableCastle: $('enableCastle').checked,
         salesDayTarget: Math.max(0, parseInt($('salesDayTarget').value, 10) || 0),
         salesWeekTarget: Math.max(0, parseInt($('salesWeekTarget').value, 10) || 0),
         salesMonthTarget: Math.max(0, parseInt($('salesMonthTarget').value, 10) || 0)
