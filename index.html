@@ -251,7 +251,7 @@
   .trend-canvas { width:100%; height:auto; border-radius:10px; background:#191924; border:1px solid var(--border); }
   .fans-add-btn { width:100%; margin-bottom:12px; background: var(--accent); color:#14141c; }
   .fans-form { display:none; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:14px; }
-  .fans-form.show { display:grid; }
+  .fans-form.show { display:grid !important; }
   .fans-form input { background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px 10px; font-size:14px; outline:none; font-family:inherit; min-width:0; }
   .fans-form input:focus { border-color: var(--accent); }
   .fans-form .wide { grid-column: 1 / -1; }
@@ -579,7 +579,7 @@
   <div class="sheet">
     <div class="sheet-head"><h2>🧑‍🤝‍🧑 聽眾資料卡</h2><button class="close" id="closeFans">✕</button></div>
     <div class="day-summary">記錄常互動聽眾：點卡片可編輯，暱稱必填，ID 留空會自動產生。</div>
-    <button class="btn btn-primary fans-add-btn" id="fanAddToggle">＋ 新增聽眾</button>
+    <button class="btn btn-primary fans-add-btn" id="fanAddToggle" style="display:block;">＋ 新增聽眾</button>
     <div class="fans-form" id="fansForm">
       <input id="fanId" type="text" placeholder="ID（可空白）" autocomplete="off">
       <input id="fanNickname" type="text" placeholder="暱稱 *" autocomplete="off">
@@ -595,6 +595,7 @@
         <div class="shot-thumb-row" id="fanShotPreview"></div>
       </div>
       <button class="btn btn-primary" id="fanSave">新增聽眾</button>
+      <button class="btn btn-ghost" id="fanCancelEdit" style="display:none;">取消編輯</button>
       <button class="btn btn-ghost" id="fanClear">清除</button>
     </div>
     <div class="task-list" id="fansList"></div>
@@ -2621,7 +2622,7 @@
   }
   function hideFanForm() {
     $('fansForm').classList.remove('show');
-    $('fanAddToggle').style.display = '';
+    $('fanAddToggle').style.display = 'block';
   }
 
   // 聽眾截圖（最多 2 張，前端壓縮）
@@ -2694,6 +2695,7 @@
     renderFanShotPreview();
     $('fanShotInput').value = '';
     $('fanSave').textContent = '新增聽眾';
+    $('fanCancelEdit').style.display = 'none';
     hideFanForm();
   }
   function renderFans() {
@@ -2729,6 +2731,7 @@
         fanShotDraft = Array.isArray(f.shots) ? f.shots.slice(0, 2) : [];
         renderFanShotPreview();
         $('fanSave').textContent = '更新聽眾';
+        $('fanCancelEdit').style.display = '';
         showFanForm(); // 編輯聽眾卡時也展開欄位
       };
       list.appendChild(div);
@@ -2766,7 +2769,9 @@
     $('fanClear').onclick = clearFanForm;
     bindFanShots();
     renderFanShotPreview();
+    $('fanAddToggle').style.display = 'block';
     $('fanAddToggle').onclick = () => { clearFanForm(); showFanForm(); };
+    $('fanCancelEdit').onclick = () => { clearFanForm(); showFanForm(); };
     $('fansList').addEventListener('click', (e) => {
       const shot = e.target.closest && e.target.closest('.shot-thumb');
       if (shot && shot.dataset && shot.dataset.shotSrc) { openImgPreview(shot.dataset.shotSrc); return; }
