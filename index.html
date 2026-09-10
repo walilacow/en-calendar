@@ -1497,7 +1497,7 @@
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
 
     const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
-    $('verTag').textContent = dayCellCount > 0 ? ('v1.14' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.14 · 日曆異常';
+    $('verTag').textContent = dayCellCount > 0 ? ('v1.15' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.15 · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -2706,7 +2706,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v1.14';
+  $('verTag').textContent = 'v1.15';
 
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
@@ -3018,6 +3018,80 @@ document.addEventListener('DOMContentLoaded', function () {
     try { if (typeof renderFans === 'function') renderFans(); } catch (e) {}
     try { if (typeof bindFanShots === 'function') bindFanShots(); } catch (e) {}
     try { if (typeof renderFanShotPreview === 'function') renderFanShotPreview(); } catch (e) {}
+  });
+  bindBtn('settingsBtn', 'settingsOverlay', function () {
+    try {
+      if (typeof store === 'undefined' || !store) return;
+      var s = store.settings || {};
+      var setChecked = function (id, val) { var el = document.getElementById(id); if (el) el.checked = val !== false; };
+      var setVal = function (id, val) { var el = document.getElementById(id); if (el) el.value = val; };
+      var show = function (id, on) { var el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; };
+      setChecked('enableGiftTasks', s.enableGiftTasks);
+      setChecked('enableSalesScore', s.enableSalesScore);
+      setChecked('enableDragon', s.enableDragon);
+      setChecked('enableCastle', s.enableCastle);
+      setVal('giftCutoffHour', String([0, 8].indexOf(Number(s.giftCutoffHour)) >= 0 ? Number(s.giftCutoffHour) : 0));
+      setVal('salesCutoffHour', String([0, 8].indexOf(Number(s.salesCutoffHour)) >= 0 ? Number(s.salesCutoffHour) : 8));
+      setVal('salesDayTarget', Number.isFinite(s.salesDayTarget) ? s.salesDayTarget : 0);
+      setVal('salesWeekTarget', Number.isFinite(s.salesWeekTarget) ? s.salesWeekTarget : 0);
+      setVal('salesMonthTarget', Number.isFinite(s.salesMonthTarget) ? s.salesMonthTarget : 0);
+      show('giftCutoffRow', document.getElementById('enableGiftTasks') && document.getElementById('enableGiftTasks').checked);
+      show('salesCutoffRow', document.getElementById('enableSalesScore') && document.getElementById('enableSalesScore').checked);
+      show('salesSettingsBox', document.getElementById('enableSalesScore') && document.getElementById('enableSalesScore').checked);
+    } catch (e) {}
+  });
+  ['closeSfx','closeDonate','closeFans','closeSettings'].forEach(function (id) {
+    var btn = document.getElementById(id);
+    if (!btn) return;
+    btn.onclick = function () {
+      var overlay = btn.closest ? btn.closest('.overlay') : null;
+      if (overlay) overlay.classList.remove('open');
+    };
+  });
+});
+</script>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  function safeCall(name, fn) {
+    try { if (typeof fn === 'function') fn(); }
+    catch (e) { try { console.error(name, e); } catch (_) {} }
+  }
+  // 先安全執行內部 init，避免一個壞全部壞
+  safeCall('bindSfx', window.bindSfx);
+  safeCall('bindFans', window.bindFans);
+  safeCall('bindFanShots', window.bindFanShots);
+  safeCall('renderSfx', window.renderSfx);
+  safeCall('renderFans', window.renderFans);
+  safeCall('renderFanShotPreview', window.renderFanShotPreview);
+  safeCall('bindSettings', window.bindSettings);
+
+  function forceOpen(overlayId) {
+    var el = document.getElementById(overlayId);
+    if (el) {
+      el.classList.remove('open');
+      requestAnimationFrame(function () { el.classList.add('open'); });
+    }
+  }
+  function bindBtn(btnId, overlayId, before) {
+    var btn = document.getElementById(btnId);
+    if (!btn) return;
+    btn.onclick = function () {
+      try { if (typeof before === 'function') before(); } catch (e) {}
+      forceOpen(overlayId);
+    };
+  }
+  bindBtn('sfxBtn', 'sfxOverlay', function () {
+    safeCall('ensureAudio', window.ensureAudio);
+    safeCall('renderSfx', window.renderSfx);
+  });
+  bindBtn('donateBtn', 'donateOverlay');
+  bindBtn('fansBtn', 'fansOverlay', function () {
+    safeCall('bindFans', window.bindFans);
+    safeCall('renderFans', window.renderFans);
+    safeCall('bindFanShots', window.bindFanShots);
+    safeCall('renderFanShotPreview', window.renderFanShotPreview);
   });
   bindBtn('settingsBtn', 'settingsOverlay', function () {
     try {
