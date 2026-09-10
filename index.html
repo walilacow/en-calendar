@@ -1497,7 +1497,7 @@
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
 
     const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
-    $('verTag').textContent = dayCellCount > 0 ? ('v1.05' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.05 · 日曆異常';
+    $('verTag').textContent = dayCellCount > 0 ? ('v1.06' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.06 · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -2347,7 +2347,7 @@
   async function playSfxFile(file) {
     if (!ensureAudio()) return false;
     try {
-      const res = await fetch(file);
+      const res = await fetch(file, { cache: 'no-store' });
       if (!res.ok) return false;
       const buf = await res.arrayBuffer();
       const audioBuf = await audioCtx.decodeAudioData(buf);
@@ -2386,14 +2386,20 @@
       const b = document.createElement('button');
       b.className = 'sfx-item';
       b.textContent = s.label;
-      b.onclick = () => playSfx(s);
+      b.onclick = () => {
+        try { playSfx(s); }
+        catch (err) {
+          const fb = s.fallback || s.id;
+          if (SFX_PLAYERS[fb]) SFX_PLAYERS[fb]();
+        }
+      };
       list.appendChild(b);
     });
   }
   function bindSfx() {
     setSfxVolume(sfxVolume);
     renderSfx();
-    $('sfxBtn').onclick = () => { $('sfxOverlay').classList.add('open'); ensureAudio(); };
+    $('sfxBtn').onclick = () => { ensureAudio(); renderSfx(); $('sfxOverlay').classList.add('open'); };
     $('closeSfx').onclick = () => $('sfxOverlay').classList.remove('open');
     $('sfxOverlay').addEventListener('click', (e) => { if (e.target === $('sfxOverlay')) $('sfxOverlay').classList.remove('open'); });
     $('sfxVolume').addEventListener('input', (e) => { setSfxVolume(parseInt(e.target.value, 10) || 0); syncSfxVolumeToAudios(); });
@@ -2675,7 +2681,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v1.05';
+  $('verTag').textContent = 'v1.06';
 
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
