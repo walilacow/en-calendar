@@ -1497,7 +1497,7 @@
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
 
     const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
-    $('verTag').textContent = dayCellCount > 0 ? ('v1.06' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.06 · 日曆異常';
+    $('verTag').textContent = dayCellCount > 0 ? ('v1.07' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.07 · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -2399,8 +2399,22 @@
   function bindSfx() {
     setSfxVolume(sfxVolume);
     renderSfx();
-    $('sfxBtn').onclick = () => { ensureAudio(); renderSfx(); $('sfxOverlay').classList.add('open'); };
+    function openSfxLibrary() {
+    ensureAudio();
+    renderSfx();
+    const overlay = $('sfxOverlay');
+    if (overlay) overlay.classList.add('open');
+  }
+  $('sfxBtn').onclick = openSfxLibrary;
+  document.addEventListener('click', (e) => {
+    const btn = e.target && e.target.closest ? e.target.closest('#sfxBtn') : null;
+    if (btn) openSfxLibrary();
+  });
     $('closeSfx').onclick = () => $('sfxOverlay').classList.remove('open');
+  document.addEventListener('click', (e) => {
+    const btn = e.target && e.target.closest ? e.target.closest('#closeSfx') : null;
+    if (btn) $('sfxOverlay').classList.remove('open');
+  });
     $('sfxOverlay').addEventListener('click', (e) => { if (e.target === $('sfxOverlay')) $('sfxOverlay').classList.remove('open'); });
     $('sfxVolume').addEventListener('input', (e) => { setSfxVolume(parseInt(e.target.value, 10) || 0); syncSfxVolumeToAudios(); });
     $('sfxStop').onclick = stopAllSfx;
@@ -2681,7 +2695,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v1.06';
+  $('verTag').textContent = 'v1.07';
 
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
