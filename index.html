@@ -1440,8 +1440,9 @@
       const raw = prompt(`「${tasks[idx].name}」要增加多少個？`, '1');
       if (raw === null) return;
       const n = parseInt(raw, 10);
-      if (!Number.isFinite(n) || n <= 0) { toast('請輸入大於 0 的數字'); return; }
+      if (!Number.isFinite(n) || n < 0 || n > 9999) { toast('請輸入 0～9999 的數字'); return; }
       tasks[idx].cur += n;
+      if (tasks[idx].cur > 9999) tasks[idx].cur = 9999;
       if (tasks[idx].cur >= tasks[idx].target) toast(`🎉 「${tasks[idx].name}」收滿！`);
       save(); renderSheet();
     }, 650);
@@ -1607,9 +1608,13 @@
       renderSheet();
       return;
     }
-    if (e.target.classList.contains('slot-start')) b.slots[i].start = e.target.value;
-    else if (e.target.classList.contains('slot-end')) b.slots[i].end = e.target.value;
-    else return;
+    if (e.target.classList.contains('slot-start')) {
+      if (/^00:/.test(e.target.value || '')) { toast('開播時間不能是 0 小時'); renderSheet(); return; }
+      b.slots[i].start = e.target.value;
+    } else if (e.target.classList.contains('slot-end')) {
+      if (/^00:/.test(e.target.value || '')) { toast('結束時間不能是 0 小時'); renderSheet(); return; }
+      b.slots[i].end = e.target.value;
+    } else return;
     try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch (err) {}
     save();
     renderCalendar();
@@ -1627,9 +1632,10 @@
     if (!openDate) return;
     const b = ensureBucket('day', openDate);
     if (!b.slots) b.slots = [];
-    const hh = String(new Date().getHours()).padStart(2, '0');
+    const nowH = new Date().getHours();
+    const hh = String(nowH === 0 ? 1 : nowH).padStart(2, '0');
     const mm = '00';
-    b.slots.push({ start: hh + ':' + mm, end: '' });
+    b.slots.push({ start: hh + ':' + mm, end: hh + ':' + mm });
     save(); renderSheet();
   };
   $('clearTimeBtn').onclick = () => {
@@ -2354,6 +2360,11 @@
     const nickname = $('fanNickname').value.trim();
     if (!nickname) { toast('請填暱稱'); return; }
     const id = $('fanId').value.trim() || editingFanId || ('F-' + Date.now().toString(36));
+    const exists = Array.isArray(store.listeners) && store.listeners.some(x => x.id === id);
+    if (!exists && Array.isArray(store.listeners) && store.listeners.length >= 50) {
+      toast('聽眾資料卡上限為 50 張');
+      return;
+    }
     const obj = {
       id,
       nickname,
