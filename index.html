@@ -1652,9 +1652,7 @@
     const done = tasks.filter(t => t.cur >= t.target);
     const undone = tasks.filter(t => t.cur < t.target);
     const lines = [
-      `【${openDate}・${scopeLabel}】`,
-      '',
-      `【${scopeLabel}】${done.length} 已完成 / ${undone.length} 未完成`
+      `【${openDate}・${scopeLabel}】${done.length} 已完成 / ${undone.length} 未完成`
     ];
     done.forEach(t => lines.push(`${label(t)} ${t.cur}/${t.target} ${alias || '💛'}`));
     undone.forEach(t => lines.push(`${label(t)} ${t.cur}/${t.target}`));
