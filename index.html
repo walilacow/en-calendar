@@ -1497,7 +1497,7 @@
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
 
     const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
-    $('verTag').textContent = dayCellCount > 0 ? ('v1.04' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.04 · 日曆異常';
+    $('verTag').textContent = dayCellCount > 0 ? ('v1.05' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.05 · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -2339,29 +2339,42 @@
     surprise() { [660, 880, 660, 990].forEach((f, i) => tone(f, .12, 'square', .16, i * .06)); },
     countdown() { tone(600, .12, 'sine', .22); tone(600, .12, 'sine', .22, .28); tone(900, .3, 'sine', .25, .56); }
   };
-  const activeAudios = [];
+  const activeSources = [];
   function stopAllSfx() {
-    activeAudios.forEach(a => { try { a.pause(); a.currentTime = 0; } catch (e) {} });
-    activeAudios.length = 0;
+    activeSources.forEach(src => { try { src.onended = null; src.stop(0); } catch (e) {} });
+    activeSources.length = 0;
+  }
+  async function playSfxFile(file) {
+    if (!ensureAudio()) return false;
+    try {
+      const res = await fetch(file);
+      if (!res.ok) return false;
+      const buf = await res.arrayBuffer();
+      const audioBuf = await audioCtx.decodeAudioData(buf);
+      const srcNode = audioCtx.createBufferSource();
+      srcNode.buffer = audioBuf;
+      srcNode.connect(masterGain);
+      activeSources.push(srcNode);
+      srcNode.onended = () => {
+        const i = activeSources.indexOf(srcNode);
+        if (i >= 0) activeSources.splice(i, 1);
+      };
+      srcNode.start(0);
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
   function playSfx(s) {
     syncSfxVolumeToAudios();
     if (s.file) {
-      try {
-        const a = new Audio(s.file);
-        a.volume = sfxVolume / 100;
-        activeAudios.push(a);
-        const p = a.play();
-        if (p && p.catch) p.catch(() => {
+      playSfxFile(s.file).then(ok => {
+        if (!ok) {
           const fb = s.fallback || s.id;
           if (SFX_PLAYERS[fb]) SFX_PLAYERS[fb]();
-        });
-        a.addEventListener('ended', () => {
-          const i = activeAudios.indexOf(a);
-          if (i >= 0) activeAudios.splice(i, 1);
-        });
-        return;
-      } catch (err) {}
+        }
+      });
+      return;
     }
     const fb = s.fallback || s.id;
     if (SFX_PLAYERS[fb]) SFX_PLAYERS[fb]();
@@ -2662,7 +2675,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v1.04';
+  $('verTag').textContent = 'v1.05';
 
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
