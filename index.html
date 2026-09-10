@@ -1640,11 +1640,11 @@
     let firstSection = true;
     const pushSection = (lines, title, tasks) => {
       if (!tasks || !tasks.length) return;
-      if (!firstSection) { lines.push(''); lines.push(''); }
+      if (!firstSection) lines.push('');
       firstSection = false;
       const done = tasks.filter(t => t.cur >= t.target);
       const undone = tasks.filter(t => t.cur < t.target);
-      lines.push(`${title}：${done.length} 已完成 / ${undone.length} 未完成`);
+      lines.push(`【${title}】${done.length} 已完成 / ${undone.length} 未完成`);
       done.forEach(t => lines.push(`${label(t)} ${t.cur}/${t.target} ${alias || '💛'}`));
       undone.forEach(t => lines.push(`${label(t)} ${t.cur}/${t.target}`));
     };
