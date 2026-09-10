@@ -1611,11 +1611,19 @@
     if (e.target.classList.contains('slot-start')) {
       b.slots[i].start = e.target.value;
       const sl = b.slots[i];
-      if (sl.start && sl.end && sl.end <= sl.start) { toast('開播時段不能是 0 小時'); renderSheet(); return; }
+      if (sl.start && sl.end) {
+        const toMin = t => { const [h, m] = String(t).split(':').map(Number); return (h * 60) + (m || 0); };
+        if (toMin(sl.end) === toMin(sl.start)) { toast('結束時間不能等於開始時間'); renderSheet(); return; }
+        if (toMin(sl.end) < toMin(sl.start)) { toast('結束時間不能早於開始時間'); renderSheet(); return; }
+      }
     } else if (e.target.classList.contains('slot-end')) {
       b.slots[i].end = e.target.value;
       const sl = b.slots[i];
-      if (sl.start && sl.end && sl.end <= sl.start) { toast('開播時段不能是 0 小時'); renderSheet(); return; }
+      if (sl.start && sl.end) {
+        const toMin = t => { const [h, m] = String(t).split(':').map(Number); return (h * 60) + (m || 0); };
+        if (toMin(sl.end) === toMin(sl.start)) { toast('結束時間不能等於開始時間'); renderSheet(); return; }
+        if (toMin(sl.end) < toMin(sl.start)) { toast('結束時間不能早於開始時間'); renderSheet(); return; }
+      }
     } else return;
     try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch (err) {}
     save();
