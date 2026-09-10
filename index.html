@@ -1497,7 +1497,7 @@
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
 
     const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
-    $('verTag').textContent = dayCellCount > 0 ? ('v1.08' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.08 · 日曆異常';
+    $('verTag').textContent = dayCellCount > 0 ? ('v1.09' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.09 · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -2415,7 +2415,15 @@
     const overlay = $('sfxOverlay');
     if (overlay) overlay.classList.remove('open');
   }
-  $('sfxBtn').addEventListener('click', openSfxLibrary);
+  const __sfxBtn = document.getElementById('sfxBtn');
+const __sfxOverlay = document.getElementById('sfxOverlay');
+if (__sfxBtn && __sfxOverlay) {
+  __sfxBtn.onclick = function () {
+    try { ensureAudio(); renderSfx(); } catch (e) {}
+    __sfxOverlay.classList.remove('open');
+    requestAnimationFrame(() => __sfxOverlay.classList.add('open'));
+  };
+}
   $('closeSfx').addEventListener('click', closeSfxLibrary);
   $('sfxOverlay').addEventListener('click', (e) => {
     if (e.target === $('sfxOverlay')) closeSfxLibrary();
@@ -2706,7 +2714,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v1.08';
+  $('verTag').textContent = 'v1.09';
 
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
