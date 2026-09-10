@@ -228,7 +228,9 @@
   .sfx-item:active { transform: scale(.98); border-color: var(--accent); }
   .vol-row { display:flex; align-items:center; gap:10px; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:14px; }
   .vol-row input[type=range] { flex:1; accent-color: var(--accent); }
-  .fans-form { display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:14px; }
+  .fans-add-btn { width:100%; margin-bottom:12px; background: var(--accent); color:#14141c; }
+  .fans-form { display:none; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:14px; }
+  .fans-form.show { display:grid; }
   .fans-form input { background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px 10px; font-size:14px; outline:none; font-family:inherit; min-width:0; }
   .fans-form input:focus { border-color: var(--accent); }
   .fans-form .wide { grid-column: 1 / -1; }
@@ -543,7 +545,8 @@
   <div class="sheet">
     <div class="sheet-head"><h2>🧑‍🤝‍🧑 聽眾資料卡</h2><button class="close" id="closeFans">✕</button></div>
     <div class="day-summary">記錄常互動聽眾：點卡片可編輯，暱稱必填，ID 留空會自動產生。</div>
-    <div class="fans-form">
+    <button class="btn btn-primary fans-add-btn" id="fanAddToggle">＋ 新增聽眾</button>
+    <div class="fans-form" id="fansForm">
       <input id="fanId" type="text" placeholder="ID（可空白）" autocomplete="off">
       <input id="fanNickname" type="text" placeholder="暱稱 *" autocomplete="off">
       <input id="fanPersonality" type="text" placeholder="個性，例如：幽默 / 安靜 / 愛聊天" autocomplete="off">
@@ -2292,10 +2295,19 @@
 
   // ---------- 聽眾資料庫 ----------
   let editingFanId = null;
+  function showFanForm() {
+    $('fansForm').classList.add('show');
+    $('fanAddToggle').style.display = 'none';
+  }
+  function hideFanForm() {
+    $('fansForm').classList.remove('show');
+    $('fanAddToggle').style.display = '';
+  }
   function clearFanForm() {
     editingFanId = null;
     ['fanId', 'fanNickname', 'fanPersonality', 'fanBirthday', 'fanTopic'].forEach(id => { $(id).value = ''; });
     $('fanSave').textContent = '新增聽眾';
+    hideFanForm();
   }
   function renderFans() {
     const list = $('fansList');
@@ -2327,6 +2339,7 @@
         $('fanBirthday').value = f.birthday || '';
         $('fanTopic').value = f.topic || '';
         $('fanSave').textContent = '更新聽眾';
+        showFanForm(); // 編輯聽眾卡時也展開欄位
       };
       list.appendChild(div);
     });
@@ -2355,6 +2368,7 @@
     $('fansOverlay').addEventListener('click', (e) => { if (e.target === $('fansOverlay')) $('fansOverlay').classList.remove('open'); });
     $('fanSave').onclick = saveFan;
     $('fanClear').onclick = clearFanForm;
+    $('fanAddToggle').onclick = () => { clearFanForm(); showFanForm(); };
     $('fansList').addEventListener('click', (e) => {
       const btn = e.target.closest('.fan-del');
       if (!btn) return;
