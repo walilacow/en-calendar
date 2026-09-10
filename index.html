@@ -228,6 +228,17 @@
   .sfx-item:active { transform: scale(.98); border-color: var(--accent); }
   .vol-row { display:flex; align-items:center; gap:10px; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:14px; }
   .vol-row input[type=range] { flex:1; accent-color: var(--accent); }
+  .fans-form { display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:14px; }
+  .fans-form input { background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px 10px; font-size:14px; outline:none; font-family:inherit; min-width:0; }
+  .fans-form input:focus { border-color: var(--accent); }
+  .fans-form .wide { grid-column: 1 / -1; }
+  .fan-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px 14px; cursor:pointer; }
+  .fan-card:hover { background: var(--card-hover); border-color: var(--accent); }
+  .fan-top { display:flex; justify-content:space-between; gap:8px; align-items:flex-start; }
+  .fan-name { font-weight:800; font-size:16px; }
+  .fan-meta { color:var(--muted); font-size:12px; margin-top:4px; line-height:1.55; }
+  .fan-del { background:none; border:none; color:var(--muted); cursor:pointer; font-size:16px; padding:2px 4px; }
+  .fan-del:hover { color:var(--red); }
   .toast {
     position: fixed; left: 50%; bottom: 30px; transform: translateX(-50%);
     background: var(--accent); color: #14141c; padding: 10px 20px;
@@ -304,6 +315,7 @@
     <button class="btn-today" id="topicBtn" style="background: var(--accent2); flex:1;">📈 Google 搜尋趨勢</button>
     <button class="btn-today" id="songBtn" style="background: var(--green); flex:1;">🎵 流行歌曲</button>
     <button class="btn-today" id="sfxBtn" style="background: var(--blue); flex:1;">🔊 音效庫</button>
+    <button class="btn-today" id="fansBtn" style="background: var(--accent); flex:1;">🧑‍🤝‍🧑 聽眾庫</button>
   </div>
 
   <div class="stats">
@@ -524,6 +536,24 @@
   </div>
 </div>
 
+<!-- 聽眾資料庫 -->
+<div class="overlay" id="fansOverlay">
+  <div class="sheet">
+    <div class="sheet-head"><h2>🧑‍🤝‍🧑 聽眾資料庫</h2><button class="close" id="closeFans">✕</button></div>
+    <div class="day-summary">記錄常互動聽眾：點卡片可編輯，暱稱必填，ID 留空會自動產生。</div>
+    <div class="fans-form">
+      <input id="fanId" type="text" placeholder="ID（可空白）" autocomplete="off">
+      <input id="fanNickname" type="text" placeholder="暱稱 *" autocomplete="off">
+      <input id="fanPersonality" type="text" placeholder="個性，例如：幽默 / 安靜 / 愛聊天" autocomplete="off">
+      <input id="fanBirthday" type="text" placeholder="生日，例如：09/10 或 1995/09/10">
+      <input id="fanTopic" class="wide" type="text" placeholder="最近話題，例如：最近在聊貓、工作轉職、演唱會" autocomplete="off">
+      <button class="btn btn-primary" id="fanSave">新增聽眾</button>
+      <button class="btn btn-ghost" id="fanClear">清除</button>
+    </div>
+    <div class="task-list" id="fansList"></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -597,6 +627,7 @@
         months: store.months || {},
         ranges: store.ranges || {},
         scoreLog: store.scoreLog || {},
+        listeners: store.listeners || [],
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }).catch(() => {});
     }, 1500);
@@ -614,7 +645,7 @@
         const snap = await db.collection('users').doc(user.uid).get();
         if (snap.exists) {
           const d = snap.data();
-          const cloud = sanitizeStore({ dates: d.dates, weeks: d.weeks, months: d.months, ranges: d.ranges, scoreLog: d.scoreLog });
+          const cloud = sanitizeStore({ dates: d.dates, weeks: d.weeks, months: d.months, ranges: d.ranges, scoreLog: d.scoreLog, listeners: d.listeners });
           // 合併保險：本機任務較多的日期保留本機版，避免空/舊雲端清掉九月資料
           try {
             const local = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
@@ -626,6 +657,7 @@
                 if (lt > ct) cloud[bk][k] = lb[k];
               });
             });
+            if ((!cloud.listeners || !cloud.listeners.length) && Array.isArray(local.listeners)) cloud.listeners = local.listeners;
           } catch (e) {}
           store = cloud;
           save();
@@ -807,7 +839,7 @@
   // 資料消毒：雲端/本機資料可能因舊版或寫入中斷而型別異常（例如 tasks 不是陣列），
   // 一筆壞資料會讓 renderCalendar 在迴圈中 throw、整個月空白。統一在此修正。
   function sanitizeStore(s) {
-    const out = { dates: {}, weeks: {}, months: {}, ranges: {}, scoreLog: {} };
+    const out = { dates: {}, weeks: {}, months: {}, ranges: {}, scoreLog: {}, listeners: [] };
     if (!s || typeof s !== 'object') return out;
     const normTask = t => {
       if (!t || typeof t !== 'object' || Array.isArray(t)) return null;
@@ -843,6 +875,17 @@
       });
     }
     if (s.scoreLog && typeof s.scoreLog === 'object' && !Array.isArray(s.scoreLog)) out.scoreLog = s.scoreLog;
+    if (Array.isArray(s.listeners)) {
+      out.listeners = s.listeners.map((l, idx) => ({
+        id: String((l && l.id) || ('F-' + (idx + 1))),
+        nickname: String((l && l.nickname) || ''),
+        personality: String((l && l.personality) || ''),
+        topic: String((l && l.topic) || ''),
+        birthday: String((l && l.birthday) || '')
+      })).filter(l => l.nickname || l.id);
+    } else {
+      out.listeners = [];
+    }
     return out;
   }
 
@@ -851,7 +894,7 @@
       const raw = localStorage.getItem(STORE_KEY);
       if (raw) return sanitizeStore(JSON.parse(raw));
     } catch (e) {}
-    return { dates: {}, weeks: {}, months: {}, ranges: {}, scoreLog: {} };
+    return { dates: {}, weeks: {}, months: {}, ranges: {}, scoreLog: {}, listeners: [] };
   }
   function save() { try { logTodayScores(); } catch (e) {} try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) {} scheduleCloudSave(); }
 
@@ -2240,6 +2283,83 @@
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
   $('verTag').textContent = 'v44';
+
+  // ---------- 聽眾資料庫 ----------
+  let editingFanId = null;
+  function clearFanForm() {
+    editingFanId = null;
+    ['fanId', 'fanNickname', 'fanPersonality', 'fanBirthday', 'fanTopic'].forEach(id => { $(id).value = ''; });
+    $('fanSave').textContent = '新增聽眾';
+  }
+  function renderFans() {
+    const list = $('fansList');
+    list.innerHTML = '';
+    const fans = Array.isArray(store.listeners) ? store.listeners : [];
+    if (!fans.length) {
+      list.innerHTML = '<div class="empty">還沒有聽眾資料<br>先把常互動的聽眾記起來吧</div>';
+      return;
+    }
+    fans.forEach(f => {
+      const div = document.createElement('div');
+      div.className = 'fan-card';
+      div.innerHTML = `
+        <div class="fan-top">
+          <div>
+            <div class="fan-name">${escapeHtml(f.nickname || '未命名')}</div>
+            <div class="fan-meta">ID：${escapeHtml(f.id || '-')}　🎂 ${escapeHtml(f.birthday || '未填')}</div>
+          </div>
+          <button class="fan-del" data-id="${escapeHtml(f.id || '')}" title="刪除">✕</button>
+        </div>
+        <div class="fan-meta">個性：${escapeHtml(f.personality || '未填')}</div>
+        <div class="fan-meta">最近話題：${escapeHtml(f.topic || '未填')}</div>`;
+      div.onclick = (e) => {
+        if (e.target && e.target.classList && e.target.classList.contains('fan-del')) return;
+        editingFanId = f.id || null;
+        $('fanId').value = f.id || '';
+        $('fanNickname').value = f.nickname || '';
+        $('fanPersonality').value = f.personality || '';
+        $('fanBirthday').value = f.birthday || '';
+        $('fanTopic').value = f.topic || '';
+        $('fanSave').textContent = '更新聽眾';
+      };
+      list.appendChild(div);
+    });
+  }
+  function saveFan() {
+    const nickname = $('fanNickname').value.trim();
+    if (!nickname) { toast('請填暱稱'); return; }
+    const id = $('fanId').value.trim() || editingFanId || ('F-' + Date.now().toString(36));
+    const obj = {
+      id,
+      nickname,
+      personality: $('fanPersonality').value.trim(),
+      birthday: $('fanBirthday').value.trim(),
+      topic: $('fanTopic').value.trim()
+    };
+    if (!Array.isArray(store.listeners)) store.listeners = [];
+    const i = store.listeners.findIndex(x => x.id === id);
+    if (i >= 0) store.listeners[i] = obj; else store.listeners.push(obj);
+    save(); renderFans(); clearFanForm(); toast('已儲存聽眾');
+  }
+  function bindFans() {
+    if (!Array.isArray(store.listeners)) store.listeners = [];
+    renderFans();
+    $('fansBtn').onclick = () => { $('fansOverlay').classList.add('open'); renderFans(); };
+    $('closeFans').onclick = () => $('fansOverlay').classList.remove('open');
+    $('fansOverlay').addEventListener('click', (e) => { if (e.target === $('fansOverlay')) $('fansOverlay').classList.remove('open'); });
+    $('fanSave').onclick = saveFan;
+    $('fanClear').onclick = clearFanForm;
+    $('fansList').addEventListener('click', (e) => {
+      const btn = e.target.closest('.fan-del');
+      if (!btn) return;
+      const id = btn.dataset.id;
+      store.listeners = (store.listeners || []).filter(x => x.id !== id);
+      if (editingFanId === id) clearFanForm();
+      save(); renderFans(); toast('已刪除聽眾');
+    });
+  }
+  bindFans();
+
   renderCalendar();
 })();
 </script>
