@@ -228,6 +228,12 @@
   .sfx-item:active { transform: scale(.98); border-color: var(--accent); }
   .vol-row { display:flex; align-items:center; gap:10px; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:14px; }
   .vol-row input[type=range] { flex:1; accent-color: var(--accent); }
+  .settings-block { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+  .settings-title { font-size: 15px; font-weight: 800; color: var(--accent2); margin-bottom: 10px; }
+  .settings-row { display:flex; align-items:center; gap:8px; margin:8px 0; color:var(--text); font-size:14px; }
+  .settings-row input[type=checkbox] { width:17px; height:17px; accent-color: var(--accent); cursor:pointer; }
+  .settings-row input[type=number] { flex:1; background:var(--bg); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:10px; outline:none; min-width:0; }
+  .settings-row input[type=number]:focus { border-color: var(--accent); }
   .fans-add-btn { width:100%; margin-bottom:12px; background: var(--accent); color:#14141c; }
   .fans-form { display:none; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:14px; }
   .fans-form.show { display:grid; }
@@ -318,8 +324,9 @@
     <button class="btn-today" id="songBtn" style="background: var(--green); flex:1;">🎵 流行歌曲</button>
     <button class="btn-today" id="sfxBtn" style="background: var(--blue); flex:1;">🔊 音效庫</button>
   </div>
-  <div style="display:flex; justify-content:center; margin:-2px 0 12px;">
-    <button class="btn-today" id="fansBtn" style="background: var(--accent); width:100%;">🧑‍🤝‍🧑 聽眾資料卡</button>
+  <div style="display:flex; gap:10px; justify-content:center; margin:-2px 0 12px;">
+    <button class="btn-today" id="fansBtn" style="background: var(--accent); flex:1;">🧑‍🤝‍🧑 聽眾資料卡</button>
+    <button class="btn-today" id="settingsBtn" style="background: var(--card); color: var(--text); border:1px solid var(--border); flex:1;">⚙️ 設定</button>
   </div>
 
   <div class="stats">
@@ -559,6 +566,24 @@
   </div>
 </div>
 
+<!-- 設定 -->
+<div class="overlay" id="settingsOverlay">
+  <div class="sheet">
+    <div class="sheet-head"><h2>⚙️ 設定</h2><button class="close" id="closeSettings">✕</button></div>
+    <div class="settings-block">
+      <div class="settings-title">業績</div>
+      <label class="settings-row"><input id="enableGiftTasks" type="checkbox"> 啟用禮物任務</label>
+      <label class="settings-row"><input id="enableSalesScore" type="checkbox"> 啟用業績分數</label>
+      <div id="salesSettingsBox" style="display:none; margin-top:10px;">
+        <div class="settings-row"><span>日目標</span><input id="salesDayTarget" type="number" min="0" placeholder="例如 300"></div>
+        <div class="settings-row"><span>週目標</span><input id="salesWeekTarget" type="number" min="0" placeholder="例如 2000"></div>
+        <div class="settings-row"><span>月目標</span><input id="salesMonthTarget" type="number" min="0" placeholder="例如 8000"></div>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-block" id="settingsSave">儲存設定</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -633,6 +658,7 @@
         ranges: store.ranges || {},
         scoreLog: store.scoreLog || {},
         listeners: store.listeners || [],
+        settings: store.settings || {},
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }).catch(() => {});
     }, 1500);
@@ -650,7 +676,7 @@
         const snap = await db.collection('users').doc(user.uid).get();
         if (snap.exists) {
           const d = snap.data();
-          const cloud = sanitizeStore({ dates: d.dates, weeks: d.weeks, months: d.months, ranges: d.ranges, scoreLog: d.scoreLog, listeners: d.listeners });
+          const cloud = sanitizeStore({ dates: d.dates, weeks: d.weeks, months: d.months, ranges: d.ranges, scoreLog: d.scoreLog, listeners: d.listeners, settings: d.settings });
           // 合併保險：本機任務較多的日期保留本機版，避免空/舊雲端清掉九月資料
           try {
             const local = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
@@ -663,6 +689,7 @@
               });
             });
             if ((!cloud.listeners || !cloud.listeners.length) && Array.isArray(local.listeners)) cloud.listeners = local.listeners;
+            if ((!cloud.settings || typeof cloud.settings !== 'object') && local.settings) cloud.settings = local.settings;
           } catch (e) {}
           store = cloud;
           save();
@@ -844,7 +871,7 @@
   // 資料消毒：雲端/本機資料可能因舊版或寫入中斷而型別異常（例如 tasks 不是陣列），
   // 一筆壞資料會讓 renderCalendar 在迴圈中 throw、整個月空白。統一在此修正。
   function sanitizeStore(s) {
-    const out = { dates: {}, weeks: {}, months: {}, ranges: {}, scoreLog: {}, listeners: [] };
+    const out = { dates: {}, weeks: {}, months: {}, ranges: {}, scoreLog: {}, listeners: [], settings: { enableGiftTasks: true, enableSalesScore: true, salesDayTarget: 0, salesWeekTarget: 0, salesMonthTarget: 0 } };
     if (!s || typeof s !== 'object') return out;
     const normTask = t => {
       if (!t || typeof t !== 'object' || Array.isArray(t)) return null;
@@ -891,6 +918,13 @@
     } else {
       out.listeners = [];
     }
+    out.settings = Object.assign({ enableGiftTasks: true, enableSalesScore: true, salesDayTarget: 0, salesWeekTarget: 0, salesMonthTarget: 0 }, (s.settings && typeof s.settings === 'object' && !Array.isArray(s.settings)) ? s.settings : {});
+    ['salesDayTarget', 'salesWeekTarget', 'salesMonthTarget'].forEach(k => {
+      const n = Number(out.settings[k]);
+      out.settings[k] = Number.isFinite(n) && n >= 0 ? n : 0;
+    });
+    out.settings.enableGiftTasks = out.settings.enableGiftTasks !== false;
+    out.settings.enableSalesScore = out.settings.enableSalesScore !== false;
     return out;
   }
 
@@ -899,7 +933,7 @@
       const raw = localStorage.getItem(STORE_KEY);
       if (raw) return sanitizeStore(JSON.parse(raw));
     } catch (e) {}
-    return { dates: {}, weeks: {}, months: {}, ranges: {}, scoreLog: {}, listeners: [] };
+    return { dates: {}, weeks: {}, months: {}, ranges: {}, scoreLog: {}, listeners: [], settings: { enableGiftTasks: true, enableSalesScore: true, salesDayTarget: 0, salesWeekTarget: 0, salesMonthTarget: 0 } };
   }
   function save() { try { logTodayScores(); } catch (e) {} try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) {} scheduleCloudSave(); }
 
@@ -1277,7 +1311,8 @@
       const pts = fullHrs * 5;
       $('hoursAuto').textContent = '前一週 ' + fullHrs + ' 小時' + (leftover ? ' ' + leftover + ' 分（不滿 1 小時不算）' : '') + ' → +' + pts + ' 分';
     }
-    const tasks = getTasks(scope, openDate);
+    const settings = store.settings || { enableGiftTasks: true, enableSalesScore: true, salesDayTarget: 0, salesWeekTarget: 0, salesMonthTarget: 0 };
+    const tasks = settings.enableGiftTasks ? getTasks(scope, openDate) : [];
     const r = calc(tasks);
     let status;
     if (!tasks.length) status = '尚未新增目標';
@@ -1310,7 +1345,17 @@
     }
     const doneMin = doneMinutesForMonth(openDate.slice(0, 7));
     const hoursLine = scope === 'day' ? ` ・ 當月已完成時數 <b>${fmtHrsMins(doneMin)}</b>` : '';
-    const summaryBody = `${weekLine}${hoursLine}`;
+    let salesLine = '';
+    if (settings.enableSalesScore) {
+      const earned = scope === 'day' ? calc(tasks).scoreEarned
+        : scope === 'week' ? Object.keys(store.scoreLog || {}).filter(dk => weekInfo(dk).key === weekInfo(openDate).key).reduce((a, dk) => a + ((store.scoreLog[dk] && store.scoreLog[dk].earned) || 0), 0)
+        : Object.keys(store.scoreLog || {}).filter(dk => dk.slice(0, 7) === openDate.slice(0, 7)).reduce((a, dk) => a + ((store.scoreLog[dk] && store.scoreLog[dk].earned) || 0), 0);
+      const target = scope === 'day' ? (settings.salesDayTarget || 0)
+        : scope === 'week' ? (settings.salesWeekTarget || 0)
+        : scope === 'month' ? (settings.salesMonthTarget || 0) : 0;
+      salesLine = target > 0 ? ` ・ 業績分數 <b>${earned}/${target}</b>（尚缺 ${Math.max(0, target - earned)}）` : '';
+    }
+    const summaryBody = `${weekLine}${hoursLine}${salesLine}`;
     $('daySummary').innerHTML = summaryBody ? `${summaryBody}<br>${notes[scope]}` : `${notes[scope]}`;
 
     const labels = {
@@ -1365,6 +1410,10 @@
 
     const list = $('taskList');
     list.innerHTML = '';
+    if (!settings.enableGiftTasks) {
+      list.innerHTML = '<div class="empty">已停用禮物任務</div>';
+      return;
+    }
     if (!tasks.length) {
       list.innerHTML = '<div class="empty">還沒有目標<br>在上方輸入「項目」「數量」「分數」開始新增</div>';
       return;
@@ -2409,6 +2458,46 @@
     });
   }
   bindFans();
+
+
+  // ---------- 設定 ----------
+  function applySettingsVisibility() {
+    const settings = store.settings || {};
+    const gift = settings.enableGiftTasks !== false;
+    ['.add-row', '.add-hints', '#copyPrevBtn', '#clearDayBtn', '#copyListBtn'].forEach(sel => {
+      const el = document.querySelector(sel);
+      if (el && el.style) el.style.display = gift ? '' : 'none';
+    });
+    const wc = $('weekCopyBtn');
+    if (wc && gift) wc.style.display = '';
+  }
+  function bindSettings() {
+    $('settingsBtn').onclick = () => {
+      const s = store.settings || {};
+      $('enableGiftTasks').checked = s.enableGiftTasks !== false;
+      $('enableSalesScore').checked = s.enableSalesScore !== false;
+      $('salesSettingsBox').style.display = $('enableSalesScore').checked ? '' : 'none';
+      $('salesDayTarget').value = Number.isFinite(s.salesDayTarget) ? s.salesDayTarget : 0;
+      $('salesWeekTarget').value = Number.isFinite(s.salesWeekTarget) ? s.salesWeekTarget : 0;
+      $('salesMonthTarget').value = Number.isFinite(s.salesMonthTarget) ? s.salesMonthTarget : 0;
+      $('settingsOverlay').classList.add('open');
+    };
+    $('closeSettings').onclick = () => $('settingsOverlay').classList.remove('open');
+    $('settingsOverlay').addEventListener('click', (e) => { if (e.target === $('settingsOverlay')) $('settingsOverlay').classList.remove('open'); });
+    $('enableSalesScore').addEventListener('change', () => { $('salesSettingsBox').style.display = $('enableSalesScore').checked ? '' : 'none'; });
+    $('settingsSave').onclick = () => {
+      store.settings = {
+        enableGiftTasks: $('enableGiftTasks').checked,
+        enableSalesScore: $('enableSalesScore').checked,
+        salesDayTarget: Math.max(0, parseInt($('salesDayTarget').value, 10) || 0),
+        salesWeekTarget: Math.max(0, parseInt($('salesWeekTarget').value, 10) || 0),
+        salesMonthTarget: Math.max(0, parseInt($('salesMonthTarget').value, 10) || 0)
+      };
+      save(); renderSheet(); renderCalendar(); applySettingsVisibility(); toast('設定已儲存');
+    };
+    applySettingsVisibility();
+  }
+  bindSettings();
 
   renderCalendar();
 })();
