@@ -1497,7 +1497,7 @@
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
 
     const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
-    $('verTag').textContent = dayCellCount > 0 ? ('v1.09' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.09 · 日曆異常';
+    $('verTag').textContent = dayCellCount > 0 ? ('v1.10' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.10 · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -2714,7 +2714,7 @@ if (__sfxBtn && __sfxOverlay) {
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v1.09';
+  $('verTag').textContent = 'v1.10';
 
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
@@ -2993,6 +2993,33 @@ if (__sfxBtn && __sfxOverlay) {
   $('closeSafariTip').onclick = () => $('safariTipOverlay').classList.remove('open');
   $('safariTipOk').onclick = () => $('safariTipOverlay').classList.remove('open');
   $('safariTipOverlay').addEventListener('click', (e) => { if (e.target === $('safariTipOverlay')) $('safariTipOverlay').classList.remove('open'); });
+
+
+  safeOpenOverlay('sfxBtn', 'sfxOverlay', () => { ensureAudio(); renderSfx(); }, '找不到音效庫');
+  safeOpenOverlay('donateBtn', 'donateOverlay', null, '找不到贊助視窗');
+  safeOpenOverlay('fansBtn', 'fansOverlay', () => { renderFans(); }, '找不到聽眾資料卡');
+  safeCloseOverlay('closeSfx', 'sfxOverlay');
+  safeCloseOverlay('closeDonate', 'donateOverlay');
+  safeCloseOverlay('closeFans', 'fansOverlay');
+
+
+  // ---------- 首頁主要按鈕安全開關 ----------
+  function safeOpenOverlay(btnId, overlayId, beforeOpen, missingMsg) {
+    const btn = document.getElementById(btnId);
+    const overlay = document.getElementById(overlayId);
+    if (!btn || !overlay) { toast(missingMsg || '找不到視窗'); return; }
+    btn.onclick = function () {
+      try { if (typeof beforeOpen === 'function') beforeOpen(); } catch (e) {}
+      overlay.classList.remove('open');
+      requestAnimationFrame(() => overlay.classList.add('open'));
+    };
+  }
+  function safeCloseOverlay(btnId, overlayId) {
+    const btn = document.getElementById(btnId);
+    const overlay = document.getElementById(overlayId);
+    if (!btn || !overlay) return;
+    btn.onclick = function () { overlay.classList.remove('open'); };
+  }
 
   renderCalendar();
 })();
