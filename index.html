@@ -1503,7 +1503,7 @@
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
 
     const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
-    $('verTag').textContent = dayCellCount > 0 ? ('v1.12' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.12 · 日曆異常';
+    $('verTag').textContent = dayCellCount > 0 ? ('v1.13' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.13 · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -2712,7 +2712,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v1.12';
+  $('verTag').textContent = 'v1.13';
 
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
@@ -3015,11 +3015,16 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   bindBtn('sfxBtn', 'sfxOverlay', function () {
     try { if (typeof ensureAudio === 'function') ensureAudio(); } catch (e) {}
+    try { if (typeof setSfxVolume === 'function') setSfxVolume(typeof sfxVolume !== 'undefined' ? sfxVolume : 80); } catch (e) {}
     try { if (typeof renderSfx === 'function') renderSfx(); } catch (e) {}
+    try { if (typeof bindFanShots === 'function') bindFanShots(); } catch (e) {}
   });
   bindBtn('donateBtn', 'donateOverlay');
   bindBtn('fansBtn', 'fansOverlay', function () {
+    try { if (typeof bindFans === 'function') bindFans(); } catch (e) {}
     try { if (typeof renderFans === 'function') renderFans(); } catch (e) {}
+    try { if (typeof bindFanShots === 'function') bindFanShots(); } catch (e) {}
+    try { if (typeof renderFanShotPreview === 'function') renderFanShotPreview(); } catch (e) {}
   });
   bindBtn('settingsBtn', 'settingsOverlay', function () {
     try {
