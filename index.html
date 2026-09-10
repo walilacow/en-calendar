@@ -315,7 +315,9 @@
     <button class="btn-today" id="topicBtn" style="background: var(--accent2); flex:1;">📈 Google 搜尋趨勢</button>
     <button class="btn-today" id="songBtn" style="background: var(--green); flex:1;">🎵 流行歌曲</button>
     <button class="btn-today" id="sfxBtn" style="background: var(--blue); flex:1;">🔊 音效庫</button>
-    <button class="btn-today" id="fansBtn" style="background: var(--accent); flex:1;">🧑‍🤝‍🧑 聽眾庫</button>
+  </div>
+  <div style="display:flex; justify-content:center; margin:-2px 0 12px;">
+    <button class="btn-today" id="fansBtn" style="background: var(--accent); width:100%;">🧑‍🤝‍🧑 聽眾資料卡</button>
   </div>
 
   <div class="stats">
@@ -539,7 +541,7 @@
 <!-- 聽眾資料庫 -->
 <div class="overlay" id="fansOverlay">
   <div class="sheet">
-    <div class="sheet-head"><h2>🧑‍🤝‍🧑 聽眾資料庫</h2><button class="close" id="closeFans">✕</button></div>
+    <div class="sheet-head"><h2>🧑‍🤝‍🧑 聽眾資料卡</h2><button class="close" id="closeFans">✕</button></div>
     <div class="day-summary">記錄常互動聽眾：點卡片可編輯，暱稱必填，ID 留空會自動產生。</div>
     <div class="fans-form">
       <input id="fanId" type="text" placeholder="ID（可空白）" autocomplete="off">
@@ -2283,6 +2285,10 @@
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
   $('verTag').textContent = 'v44';
+
+  function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  }
 
   // ---------- 聽眾資料庫 ----------
   let editingFanId = null;
