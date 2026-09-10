@@ -458,7 +458,7 @@
     <div style="border-top:1px solid var(--border); margin:16px 0;"></div>
     <div class="sales-box" id="salesInlineBox" style="display:none;">
       <div class="sales-line" id="salesInlineLine"></div>
-      <div style="font-size:11px;color:var(--muted);margin:6px 0 8px;">業績分數結算時間為隔日早上八點</div>
+      <div style="font-size:11px;color:var(--muted);margin:6px 0 8px;">業績分數依設定之每日分界時間結算</div>
       <div class="sales-add">
         <input id="salesAddInput" type="number" min="0" placeholder="輸入本次業績收禮分數">
         <button id="salesAddBtn">＋ 分數</button>
@@ -616,7 +616,21 @@
     <div class="settings-block">
       <div class="settings-title">業績</div>
       <label class="settings-row"><input id="enableGiftTasks" type="checkbox"> 啟用禮物任務</label>
+      <div class="settings-row" id="giftCutoffRow" style="display:none; padding-left:24px;">
+        <span>每日分界</span>
+        <select id="giftCutoffHour" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px;outline:none;">
+          <option value="0">00:00</option>
+          <option value="8">08:00</option>
+        </select>
+      </div>
       <label class="settings-row"><input id="enableSalesScore" type="checkbox"> 啟用業績分數</label>
+      <div class="settings-row" id="salesCutoffRow" style="display:none; padding-left:24px;">
+        <span>每日分界</span>
+        <select id="salesCutoffHour" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px;outline:none;">
+          <option value="0">00:00</option>
+          <option value="8">08:00</option>
+        </select>
+      </div>
       <div id="salesSettingsBox" style="display:none; margin-top:10px;">
         <div class="settings-row"><span>日目標</span><input id="salesDayTarget" type="number" min="0" placeholder="例如 300"></div>
         <div class="settings-row"><span>週目標</span><input id="salesWeekTarget" type="number" min="0" placeholder="例如 2000"></div>
@@ -664,6 +678,23 @@
       如有特殊功能需求，請來信洽談：walilacow.hu@gmail.com<br><br>
       感謝您的支持，也歡迎隨時提供使用建議與問題回報。
     </div>
+  </div>
+</div>
+
+<!-- Safari 建議 -->
+<div class="overlay" id="safariTipOverlay" style="align-items:center; z-index:210;">
+  <div style="background:var(--card); border:1px solid var(--border); border-radius:18px; padding:18px; width:88%; max-width:420px;">
+    <div class="sheet-head"><h2>建議使用 Safari</h2><button class="close" id="closeSafariTip">✕</button></div>
+    <div class="day-summary" style="line-height:1.9;">
+      為獲得較穩定的使用體驗，建議使用 Safari 開啟本服務。<br><br>
+      <b>建議分享到主畫面：</b><br>
+      1. 使用 Safari 開啟本服務<br>
+      2. 點選下方「分享」按鈕<br>
+      3. 滑動功能列，點選「加入主畫面」<br>
+      4. 點選「新增」<br><br>
+      加入主畫面後，即可像 App 一樣從桌面直接開啟本服務。
+    </div>
+    <button class="btn btn-primary btn-block" id="safariTipOk">我知道了</button>
   </div>
 </div>
 
@@ -956,7 +987,7 @@
   // 資料消毒：雲端/本機資料可能因舊版或寫入中斷而型別異常（例如 tasks 不是陣列），
   // 一筆壞資料會讓 renderCalendar 在迴圈中 throw、整個月空白。統一在此修正。
   function sanitizeStore(s) {
-    const out = { dates: {}, weeks: {}, months: {}, ranges: {}, scoreLog: {}, salesLog: {}, listeners: [], settings: { enableGiftTasks: true, enableSalesScore: true, enableDragon: true, enableCastle: true, salesDayTarget: 0, salesWeekTarget: 0, salesMonthTarget: 0 } };
+    const out = { dates: {}, weeks: {}, months: {}, ranges: {}, scoreLog: {}, salesLog: {}, listeners: [], settings: { enableGiftTasks: true, enableSalesScore: true, enableDragon: true, enableCastle: true, giftCutoffHour: 0, salesCutoffHour: 8, salesDayTarget: 0, salesWeekTarget: 0, salesMonthTarget: 0 } };
     if (!s || typeof s !== 'object') return out;
     const normTask = t => {
       if (!t || typeof t !== 'object' || Array.isArray(t)) return null;
@@ -1011,9 +1042,11 @@
     out.salesLog = (s.salesLog && typeof s.salesLog === 'object' && !Array.isArray(s.salesLog))
       ? Object.fromEntries(Object.entries(s.salesLog).filter(([k, v]) => /^\d{4}-\d{2}-\d{2}$/.test(k) && Number.isFinite(Number(v))).map(([k, v]) => [k, Number(v)]))
       : {};
-    out.settings = Object.assign({ enableGiftTasks: true, enableSalesScore: true, enableDragon: true, enableCastle: true, salesDayTarget: 0, salesWeekTarget: 0, salesMonthTarget: 0 }, (s.settings && typeof s.settings === 'object' && !Array.isArray(s.settings)) ? s.settings : {});
+    out.settings = Object.assign({ enableGiftTasks: true, enableSalesScore: true, enableDragon: true, enableCastle: true, giftCutoffHour: 0, salesCutoffHour: 8, salesDayTarget: 0, salesWeekTarget: 0, salesMonthTarget: 0 }, (s.settings && typeof s.settings === 'object' && !Array.isArray(s.settings)) ? s.settings : {});
     out.settings.enableDragon = out.settings.enableDragon !== false;
     out.settings.enableCastle = out.settings.enableCastle !== false;
+    out.settings.giftCutoffHour = [0, 8].includes(Number(out.settings.giftCutoffHour)) ? Number(out.settings.giftCutoffHour) : 0;
+    out.settings.salesCutoffHour = [0, 8].includes(Number(out.settings.salesCutoffHour)) ? Number(out.settings.salesCutoffHour) : 8;
     ['salesDayTarget', 'salesWeekTarget', 'salesMonthTarget'].forEach(k => {
       const n = Number(out.settings[k]);
       out.settings[k] = Number.isFinite(n) && n >= 0 ? n : 0;
@@ -1028,7 +1061,7 @@
       const raw = localStorage.getItem(STORE_KEY);
       if (raw) return sanitizeStore(JSON.parse(raw));
     } catch (e) {}
-    return { dates: {}, weeks: {}, months: {}, ranges: {}, scoreLog: {}, salesLog: {}, listeners: [], settings: { enableGiftTasks: true, enableSalesScore: true, enableDragon: true, enableCastle: true, salesDayTarget: 0, salesWeekTarget: 0, salesMonthTarget: 0 } };
+    return { dates: {}, weeks: {}, months: {}, ranges: {}, scoreLog: {}, salesLog: {}, listeners: [], settings: { enableGiftTasks: true, enableSalesScore: true, enableDragon: true, enableCastle: true, giftCutoffHour: 0, salesCutoffHour: 8, salesDayTarget: 0, salesWeekTarget: 0, salesMonthTarget: 0 } };
   }
   function save() { try { logTodayScores(); } catch (e) {} try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) {} scheduleCloudSave(); }
 
@@ -1215,10 +1248,13 @@
 
 
   // ---------- 業績分數（每天 08:00 起算，到隔天 08:00） ----------
-  const SALES_CUTOFF_HOUR = 8;
+  function getSalesCutoffHour() {
+    const n = Number((store.settings || {}).salesCutoffHour);
+    return n === 0 ? 0 : 8;
+  }
   function salesDayKeyFromDate(d) {
     const x = new Date(d);
-    if (x.getHours() < SALES_CUTOFF_HOUR) x.setDate(x.getDate() - 1);
+    if (x.getHours() < getSalesCutoffHour()) x.setDate(x.getDate() - 1);
     return key(x.getFullYear(), x.getMonth(), x.getDate());
   }
   function salesDayKey(ds) {
@@ -1231,7 +1267,7 @@
     d.setHours(12, 0, 0, 0);
     const start = new Date(d);
     start.setDate(d.getDate() - d.getDay()); // 週日
-    start.setHours(SALES_CUTOFF_HOUR, 0, 0, 0);
+    start.setHours(getSalesCutoffHour(), 0, 0, 0);
     return key(start.getFullYear(), start.getMonth(), start.getDate());
   }
   function salesMonthKey(ds) {
@@ -1461,7 +1497,7 @@
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
 
     const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
-    $('verTag').textContent = dayCellCount > 0 ? ('v1.03' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.03 · 日曆異常';
+    $('verTag').textContent = dayCellCount > 0 ? ('v1.04' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.04 · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -2252,11 +2288,14 @@
   }
   function setSfxVolume(v) {
     sfxVolume = Math.max(0, Math.min(100, Number.isFinite(v) ? v : 80));
-    if (masterGain) masterGain.gain.value = sfxVolume / 100;
-    activeAudios.forEach(a => { try { a.volume = sfxVolume / 100; } catch (e) {} });
+    syncSfxVolumeToAudios();
     localStorage.setItem('sfxVolume', String(sfxVolume));
     $('sfxVolLabel').textContent = sfxVolume + '%';
     $('sfxVolume').value = sfxVolume;
+  }
+  function syncSfxVolumeToAudios() {
+    if (masterGain) masterGain.gain.value = sfxVolume / 100;
+    activeAudios.forEach(a => { try { a.volume = sfxVolume / 100; } catch (e) {} });
   }
   function tone(freq, dur, type = 'sine', vol = 0.25, when = 0, slide = 0) {
     if (!ensureAudio()) return;
@@ -2306,6 +2345,7 @@
     activeAudios.length = 0;
   }
   function playSfx(s) {
+    syncSfxVolumeToAudios();
     if (s.file) {
       try {
         const a = new Audio(s.file);
@@ -2343,7 +2383,7 @@
     $('sfxBtn').onclick = () => { $('sfxOverlay').classList.add('open'); ensureAudio(); };
     $('closeSfx').onclick = () => $('sfxOverlay').classList.remove('open');
     $('sfxOverlay').addEventListener('click', (e) => { if (e.target === $('sfxOverlay')) $('sfxOverlay').classList.remove('open'); });
-    $('sfxVolume').addEventListener('input', (e) => setSfxVolume(parseInt(e.target.value, 10) || 0));
+    $('sfxVolume').addEventListener('input', (e) => { setSfxVolume(parseInt(e.target.value, 10) || 0); syncSfxVolumeToAudios(); });
     $('sfxStop').onclick = stopAllSfx;
   }
   bindSfx();
@@ -2622,7 +2662,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v1.03';
+  $('verTag').textContent = 'v1.04';
 
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
@@ -2844,6 +2884,10 @@
       $('enableSalesScore').checked = s.enableSalesScore !== false;
       $('enableDragon').checked = s.enableDragon !== false;
       $('enableCastle').checked = s.enableCastle !== false;
+      $('giftCutoffRow').style.display = $('enableGiftTasks').checked ? '' : 'none';
+      $('salesCutoffRow').style.display = $('enableSalesScore').checked ? '' : 'none';
+      $('giftCutoffHour').value = String([0, 8].includes(Number(s.giftCutoffHour)) ? Number(s.giftCutoffHour) : 0);
+      $('salesCutoffHour').value = String([0, 8].includes(Number(s.salesCutoffHour)) ? Number(s.salesCutoffHour) : 8);
       $('salesSettingsBox').style.display = $('enableSalesScore').checked ? '' : 'none';
       $('salesDayTarget').value = Number.isFinite(s.salesDayTarget) ? s.salesDayTarget : 0;
       $('salesWeekTarget').value = Number.isFinite(s.salesWeekTarget) ? s.salesWeekTarget : 0;
@@ -2855,13 +2899,19 @@
   $('donateOverlay').addEventListener('click', (e) => { if (e.target === $('donateOverlay')) $('donateOverlay').classList.remove('open'); });
   $('closeSettings').onclick = () => $('settingsOverlay').classList.remove('open');
     $('settingsOverlay').addEventListener('click', (e) => { if (e.target === $('settingsOverlay')) $('settingsOverlay').classList.remove('open'); });
-    $('enableSalesScore').addEventListener('change', () => { $('salesSettingsBox').style.display = $('enableSalesScore').checked ? '' : 'none'; });
+    $('enableGiftTasks').addEventListener('change', () => { $('giftCutoffRow').style.display = $('enableGiftTasks').checked ? '' : 'none'; });
+    $('enableSalesScore').addEventListener('change', () => {
+      $('salesCutoffRow').style.display = $('enableSalesScore').checked ? '' : 'none';
+      $('salesSettingsBox').style.display = $('enableSalesScore').checked ? '' : 'none';
+    });
     $('settingsSave').onclick = () => {
       store.settings = {
         enableGiftTasks: $('enableGiftTasks').checked,
         enableSalesScore: $('enableSalesScore').checked,
         enableDragon: $('enableDragon').checked,
         enableCastle: $('enableCastle').checked,
+        giftCutoffHour: Number($('giftCutoffHour').value) === 8 ? 8 : 0,
+        salesCutoffHour: Number($('salesCutoffHour').value) === 0 ? 0 : 8,
         salesDayTarget: Math.max(0, parseInt($('salesDayTarget').value, 10) || 0),
         salesWeekTarget: Math.max(0, parseInt($('salesWeekTarget').value, 10) || 0),
         salesMonthTarget: Math.max(0, parseInt($('salesMonthTarget').value, 10) || 0)
@@ -2871,6 +2921,26 @@
     applySettingsVisibility();
   }
   bindSettings();
+
+
+  // ---------- Safari 建議 ----------
+  function isSafariBrowser() {
+    const ua = navigator.userAgent || '';
+    const isIOS = /iP(hone|od|ad)/.test(ua);
+    const isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|mercury|chrome|android/i.test(ua);
+    return isIOS && isSafari;
+  }
+  function maybeShowSafariTip() {
+    try {
+      if (localStorage.getItem('safariTipShown') === '1') return;
+      if (isSafariBrowser()) return;
+      $('safariTipOverlay').classList.add('open');
+      localStorage.setItem('safariTipShown', '1');
+    } catch (e) {}
+  }
+  $('closeSafariTip').onclick = () => $('safariTipOverlay').classList.remove('open');
+  $('safariTipOk').onclick = () => $('safariTipOverlay').classList.remove('open');
+  $('safariTipOverlay').addEventListener('click', (e) => { if (e.target === $('safariTipOverlay')) $('safariTipOverlay').classList.remove('open'); });
 
   renderCalendar();
 })();
