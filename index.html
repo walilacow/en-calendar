@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="恩恩聲播日曆">
 <meta name="theme-color" content="#14141c">
-<meta name="app-version" content="1.1.1">
+<meta name="app-version" content="1.1.3">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
 <title>恩恩聲播日曆</title>
@@ -1499,7 +1499,7 @@
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
 
     const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
-    $('verTag').textContent = dayCellCount > 0 ? ('v1.1.1' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.1.1 · 日曆異常';
+    $('verTag').textContent = dayCellCount > 0 ? ('v1.1.3' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.1.3 · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -1616,8 +1616,10 @@
     else if (r.doneUnits > 0) status = `<span class="mid">部分達成</span>`;
     else status = '進行中';
 
+    const giftCut = Number((store.settings || {}).giftCutoffHour) === 8 ? 8 : 0;
+    const giftCutTxt = giftCut === 0 ? '午夜 12 點（00:00）' : '08:00';
     const notes = {
-      day: '過了午夜 12 點後自動結算，新的一天從 0 重新開始。每週於禮拜日 00:00 結算並起算。',
+      day: `每日於 ${giftCutTxt} 重新結算，新的一天從 0 重新開始。每週於禮拜日 00:00 結算並起算。`,
       week: '每週從禮拜日 00:00 開始，下個禮拜日 00:00 自動結算並保留紀錄。',
       month: '每月 1 號自動結算上月並重新計算。',
       custom: '自訂區間：進度累計到結束日，結束後保留為紀錄。'
@@ -2655,50 +2657,55 @@
     const targetKey = key(start.getFullYear(), start.getMonth(), start.getDate());
 
     const log = store.scoreLog || {};
-    const lines = [];
+    const dayLines = [];
     let grand = 0;
-    let prevM = 0;
-    const baseMk = targetKey.slice(0, 7);
-    let monthCounted = false;
+    let prevW = 0;
+    const prevMByMonth = {}; // 各月份各自記錄累計，跨月週也能正確顯示月分數增量
 
     for (let dt = new Date(start); dt < end; dt.setDate(dt.getDate() + 1)) {
       const dk = key(dt.getFullYear(), dt.getMonth(), dt.getDate());
       const snap = log[dk];
       const b = store.dates[dk];
-      const sameMonth = dk.slice(0, 7) === baseMk;
-      let dDay = 0, dEasy = 0, dBonus = 0, mInc = 0;
-
+      const mk = dk.slice(0, 7);
+      // 日/簡/加碼：以當日任務實際資料為準（快照可能漏記後補的簡/加碼）
+      const sp = (b && Array.isArray(b.tasks)) ? splitScores(b.tasks) : { day: 0, easy: 0, bonus: 0 };
+      // 週/月：以快照累計差額歸屬到「實際拿到分數的那一天」
+      let wInc = 0, mInc = 0;
       if (snap) {
-        dDay = snap.day || 0; dEasy = snap.easy || 0; dBonus = snap.bonus || 0;
-        if (sameMonth) {
-          mInc = (snap.month || 0) - prevM;
-          prevM = snap.month || 0;
-          monthCounted = true;
-        }
-      } else if (b && Array.isArray(b.tasks)) {
-        const sp = splitScores(b.tasks);
-        dDay = sp.day; dEasy = sp.easy; dBonus = sp.bonus;
+        const wNow = snap.week || 0;
+        wInc = wNow - prevW; if (wInc < 0) wInc = 0; prevW = wNow;
+        const prevM = prevMByMonth[mk] || 0;
+        mInc = (snap.month || 0) - prevM; if (mInc < 0) mInc = 0;
+        prevMByMonth[mk] = snap.month || 0;
       }
-
+      grand += sp.day + sp.easy + sp.bonus + wInc + mInc;
+      // 每日細項順序固定：月 週 日 簡 加碼
       const parts = [];
-      if (dDay) parts.push('日+' + dDay);
-      if (dEasy) parts.push('簡+' + dEasy);
-      if (dBonus) parts.push('加碼+' + dBonus);
       if (mInc > 0) parts.push('月+' + mInc);
-      if (parts.length) lines.push(fmtMD(dt) + ' ' + parts.join(' '));
-      grand += dDay + dEasy + dBonus + Math.max(0, mInc);
+      if (wInc > 0) parts.push('週+' + wInc);
+      if (sp.day) parts.push('日+' + sp.day);
+      if (sp.easy) parts.push('簡+' + sp.easy);
+      if (sp.bonus) parts.push('加碼+' + sp.bonus);
+      if (parts.length) dayLines.push(fmtMD(dt) + ' ' + parts.join(' '));
     }
 
+    // 週/月任務若因缺快照無法歸日的殘差，以合計行補上
     const wr = calc(getTasks('week', targetKey));
-    if (wr.scoreEarned) {
-      lines.push('週任務 +' + wr.scoreEarned);
-      grand += wr.scoreEarned;
-    }
+    const wResidual = Math.max(0, wr.scoreEarned - prevW);
+    grand += wResidual;
+    const weekLine = wResidual > 0 ? ('週任務 +' + wResidual) : '';
 
-    if (!monthCounted) {
-      const mAll = calc(getTasks('month', targetKey)).scoreEarned;
-      if (mAll) { lines.push('月任務 +' + mAll); grand += mAll; }
-    }
+    const baseMk = targetKey.slice(0, 7);
+    const mo = calc(getTasks('month', targetKey));
+    const mResidual = Math.max(0, mo.scoreEarned - (prevMByMonth[baseMk] || 0));
+    grand += mResidual;
+    const monthLine = mResidual > 0 ? ('月任務 +' + mResidual) : '';
+
+    // 整體順序：月/週殘差行 → 每日（月 週 日 簡 加碼）→ 時數 → 總分
+    const lines = [];
+    if (monthLine) lines.push(monthLine);
+    if (weekLine) lines.push(weekLine);
+    lines.push(...dayLines);
 
     const wMin = weekMinutes(targetKey);
     if (wMin > 0) {
@@ -2762,7 +2769,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v1.1.1';
+  $('verTag').textContent = 'v1.1.3';
 
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
