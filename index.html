@@ -1461,7 +1461,7 @@
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
 
     const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
-    $('verTag').textContent = dayCellCount > 0 ? ('v1.02' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.02 · 日曆異常';
+    $('verTag').textContent = dayCellCount > 0 ? ('v1.03' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.03 · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -2622,7 +2622,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v1.02';
+  $('verTag').textContent = 'v1.03';
 
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
@@ -2762,7 +2762,8 @@
   function saveFan() {
     const nickname = $('fanNickname').value.trim();
     if (!nickname) { toast('請填暱稱'); return; }
-    const id = $('fanId').value.trim() || editingFanId || ('F-' + Date.now().toString(36));
+    const manualId = $('fanId').value.trim();
+    const id = manualId || editingFanId || ('F-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7));
     const exists = Array.isArray(store.listeners) && store.listeners.some(x => x.id === id);
     if (!exists && Array.isArray(store.listeners) && store.listeners.length >= 50) {
       toast('聽眾資料卡上限為 50 張');
