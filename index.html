@@ -319,10 +319,16 @@
 
 <div class="container" id="mainContent" style="display:none;">
   <header>
-    <div style="display:flex; align-items:center; justify-content:center; gap:10px;">
-      <img id="titleAvatar" src="avatars/cat.png" alt="頭像" style="width:38px; height:38px; border-radius:50%; border:2px solid var(--accent); object-fit:cover;">
-      <h1 id="appTitle">🎁 聲播日曆</h1>
-      <button id="editNickBtn" title="修改暱稱 / 馬甲 / 頭像" style="background:none; border:none; font-size:16px; cursor:pointer; padding:4px; opacity:.8;">✏️</button>
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+      <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+        <img id="titleAvatar" src="avatars/cat.png" alt="頭像" style="width:38px; height:38px; border-radius:50%; border:2px solid var(--accent); object-fit:cover;">
+        <h1 id="appTitle">🎁 聲播日曆</h1>
+        <button id="editNickBtn" title="修改暱稱 / 馬甲 / 頭像" style="background:none; border:none; font-size:16px; cursor:pointer; padding:4px; opacity:.8;">✏️</button>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center; flex-shrink:0;">
+        <button class="btn-today" id="donateBtn" style="background: var(--accent2); padding:10px 12px; font-size:13px;">☕ 小額贊助</button>
+        <button class="btn-today" id="settingsBtn" style="background: var(--card); color: var(--text); border:1px solid var(--border); padding:10px 12px; font-size:13px;">⚙️ 設定</button>
+      </div>
     </div>
     <div class="sub">點日期可設定「每日 / 每週 / 每月」收禮目標・每週於禮拜日 00:00 結算並起算・跨結算自動歸屬・歷史完成數保留</div>
   </header>
@@ -341,7 +347,6 @@
   </div>
   <div style="display:flex; gap:10px; justify-content:center; margin:-2px 0 12px;">
     <button class="btn-today" id="fansBtn" style="background: var(--accent); flex:1;">🧑‍🤝‍🧑 聽眾資料卡</button>
-    <button class="btn-today" id="settingsBtn" style="background: var(--card); color: var(--text); border:1px solid var(--border); flex:1;">⚙️ 設定</button>
   </div>
 
   <div class="stats">
@@ -428,6 +433,7 @@
       <button class="btn btn-ghost" id="clearDayBtn">🗑 清空這天</button>
     </div>
 
+    <div style="font-size:11px;color:var(--muted);margin:-4px 0 8px;">長按可直接輸入數量</div>
     <div class="task-list" id="taskList" style="margin-top:2px;"></div>
 
     <div style="border-top:1px solid var(--border); margin:16px 0;"></div>
@@ -643,6 +649,21 @@
   <div class="img-preview-wrap">
     <div class="sheet-head"><h2>🖼️ 圖片預覽</h2><button class="close" id="closeImgPreview">✕</button></div>
     <img id="imgPreviewImg" alt="預覽圖片">
+  </div>
+</div>
+
+<!-- 小額贊助 -->
+<div class="overlay" id="donateOverlay" style="align-items:center;">
+  <div style="background:var(--card); border:1px solid var(--border); border-radius:18px; padding:18px; width:90%; max-width:520px; max-height:86vh; overflow:auto;">
+    <div class="sheet-head"><h2>☕ 小額贊助</h2><button class="close" id="closeDonate">✕</button></div>
+    <div class="day-summary" style="line-height:1.9;">
+      感謝您使用本服務。<br><br>
+      本服務將持續優化現有功能、修復問題，並依使用者反饋陸續推出新功能。若您願意支持本服務的開發與維護，可透過以下帳號自願贊助：<br><br>
+      <b>中國信託銀行：822-901560747698</b><br><br>
+      本贊助僅屬自願支持性質，不構成投資、集資、購買服務或任何回饋承諾。本服務不保證因贊助而提供特定功能、服務或報酬。<br><br>
+      如有特殊功能需求，請來信洽談：walilacow.hu@gmail.com<br><br>
+      感謝您的支持，也歡迎隨時提供使用建議與問題回報。
+    </div>
   </div>
 </div>
 
@@ -1417,7 +1438,7 @@
             .map(sl => (sl ? String(sl.start || '') + (sl.end ? '–' + String(sl.end || '') : '') : ''))
             .filter(Boolean)
             .join(' ');
-          if (slotTxt) inner += `<div class="badge">🎙️ ${slotTxt}</div>`;
+          if (slotTxt) inner += `<div class="badge">${slotTxt}</div>`;
         }
 
         // 首頁日曆不顯示每日任務個數 / 收禮進度，只保留特殊統計與週月 badge
@@ -1440,7 +1461,7 @@
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
 
     const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
-    $('verTag').textContent = dayCellCount > 0 ? ('v1.01' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.01 · 日曆異常';
+    $('verTag').textContent = dayCellCount > 0 ? ('v1.02' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.02 · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -2601,7 +2622,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v1.01';
+  $('verTag').textContent = 'v1.02';
 
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
@@ -2828,7 +2849,10 @@
       $('salesMonthTarget').value = Number.isFinite(s.salesMonthTarget) ? s.salesMonthTarget : 0;
       $('settingsOverlay').classList.add('open');
     };
-    $('closeSettings').onclick = () => $('settingsOverlay').classList.remove('open');
+    $('donateBtn').onclick = () => $('donateOverlay').classList.add('open');
+  $('closeDonate').onclick = () => $('donateOverlay').classList.remove('open');
+  $('donateOverlay').addEventListener('click', (e) => { if (e.target === $('donateOverlay')) $('donateOverlay').classList.remove('open'); });
+  $('closeSettings').onclick = () => $('settingsOverlay').classList.remove('open');
     $('settingsOverlay').addEventListener('click', (e) => { if (e.target === $('settingsOverlay')) $('settingsOverlay').classList.remove('open'); });
     $('enableSalesScore').addEventListener('change', () => { $('salesSettingsBox').style.display = $('enableSalesScore').checked ? '' : 'none'; });
     $('settingsSave').onclick = () => {
