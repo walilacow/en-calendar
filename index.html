@@ -359,7 +359,8 @@
 
   <div class="cal" id="calGrid"></div>
   <div id="verTag" style="text-align:center; color:var(--muted); font-size:11px; margin-top:16px; opacity:.6;"></div>
-  <div style="text-align:center; color:var(--muted); font-size:11px; margin-top:8px; opacity:.7;">© 小盜</div>
+  <div style="text-align:center; color:var(--muted); font-size:11px; margin-top:8px; opacity:.8;">錯誤回報：walilacow.hu@gmail.com</div>
+  <div style="text-align:center; color:var(--muted); font-size:11px; margin-top:4px; opacity:.8;">Copyright © 2026 小盜. All rights reserved.</div>
 </div>
 
 <!-- 日面板 -->
@@ -1439,7 +1440,7 @@
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
 
     const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
-    $('verTag').textContent = dayCellCount > 0 ? ('v44' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v44 · 日曆異常';
+    $('verTag').textContent = dayCellCount > 0 ? ('v1.01' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.01 · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -2600,7 +2601,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v44';
+  $('verTag').textContent = 'v1.01';
 
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
