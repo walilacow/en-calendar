@@ -359,6 +359,7 @@
 
   <div class="cal" id="calGrid"></div>
   <div id="verTag" style="text-align:center; color:var(--muted); font-size:11px; margin-top:16px; opacity:.6;"></div>
+  <div style="text-align:center; color:var(--muted); font-size:11px; margin-top:8px; opacity:.7;">© 小盜</div>
 </div>
 
 <!-- 日面板 -->
@@ -450,6 +451,7 @@
     <div style="border-top:1px solid var(--border); margin:16px 0;"></div>
     <div class="sales-box" id="salesInlineBox" style="display:none;">
       <div class="sales-line" id="salesInlineLine"></div>
+      <div style="font-size:11px;color:var(--muted);margin:6px 0 8px;">業績分數結算時間為隔日早上八點</div>
       <div class="sales-add">
         <input id="salesAddInput" type="number" min="0" placeholder="輸入本次業績收禮分數">
         <button id="salesAddBtn">＋ 分數</button>
@@ -1256,7 +1258,7 @@
     const W = canvas.width, H = canvas.height;
     ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = '#191924'; ctx.fillRect(0, 0, W, H);
-    const padL = 56, padR = 24, padT = 24, padB = 44;
+    const padL = 92, padR = 28, padT = 34, padB = 56;
     const plotW = W - padL - padR, plotH = H - padT - padB;
     const useSales = mode !== 'tasks';
     const useTasks = mode !== 'sales';
@@ -1265,7 +1267,7 @@
     const maxVal = Math.max(10, ...shownSales, ...shownTasks);
     const niceMax = Math.ceil(maxVal / 100) * 100 || 100;
     ctx.strokeStyle = '#2e2e40'; ctx.lineWidth = 1;
-    ctx.fillStyle = '#8b8b9e'; ctx.font = '18px sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#8b8b9e'; ctx.font = '16px sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
     for (let i = 0; i <= 4; i++) {
       const y = padT + plotH - (plotH * i / 4);
       ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
