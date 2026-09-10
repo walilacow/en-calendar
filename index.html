@@ -2286,6 +2286,11 @@
     if (audioCtx.state === 'suspended') audioCtx.resume();
     return true;
   }
+  // iOS/Safari：AudioContext 只能在使用者手勢內建立並 resume，
+  // 全域掛手勢監聽預先解鎖，避免 PWA/主畫面模式第一次點按被靜音
+  ['touchstart', 'touchend', 'click'].forEach(function (ev) {
+    document.addEventListener(ev, function () { try { ensureAudio(); } catch (e) {} }, { passive: true });
+  });
   function setSfxVolume(v) {
     sfxVolume = Math.max(0, Math.min(100, Number.isFinite(v) ? v : 80));
     syncSfxVolumeToAudios();
@@ -2865,12 +2870,17 @@
     if (i >= 0) store.listeners[i] = obj; else store.listeners.push(obj);
     save(); renderFans(); clearFanForm(); toast('已儲存聽眾');
   }
+  // 供後段補丁 script 委派使用；放在此處確保一定執行得到（IIFE 結尾處另有備份）
+  window.fansUI = { clearFanForm: clearFanForm, saveFan: saveFan, showFanForm: showFanForm };
   function bindFans() {
     if (!Array.isArray(store.listeners)) store.listeners = [];
     renderFans();
     $('fansBtn').onclick = () => { $('fansOverlay').classList.add('open'); renderFans(); };
     $('closeFans').onclick = () => $('fansOverlay').classList.remove('open');
     $('fansOverlay').addEventListener('click', (e) => { if (e.target === $('fansOverlay')) $('fansOverlay').classList.remove('open'); });
+    // 關閉面板時重置表單狀態（含「＋新增聽眾」按鈕顯示），用 addEventListener 避免被後段 script 的 onclick 覆蓋後失效
+    $('closeFans').addEventListener('click', () => clearFanForm());
+    $('fansOverlay').addEventListener('click', (e) => { if (e.target === $('fansOverlay')) clearFanForm(); });
     $('fanSave').onclick = saveFan;
     $('fanClear').onclick = clearFanForm;
     bindFanShots();
@@ -2921,7 +2931,7 @@
   $('trendOverlay').addEventListener('click', (e) => { if (e.target === $('trendOverlay')) $('trendOverlay').classList.remove('open'); });
 
   function bindSettings() {
-    $('settingsBtn').onclick = () => {
+    function openSettingsPanel() {
       const s = store.settings || {};
       $('enableGiftTasks').checked = s.enableGiftTasks !== false;
       $('enableSalesScore').checked = s.enableSalesScore !== false;
@@ -2936,7 +2946,9 @@
       $('salesWeekTarget').value = Number.isFinite(s.salesWeekTarget) ? s.salesWeekTarget : 0;
       $('salesMonthTarget').value = Number.isFinite(s.salesMonthTarget) ? s.salesMonthTarget : 0;
       $('settingsOverlay').classList.add('open');
-    };
+    }
+    $('settingsBtn').onclick = openSettingsPanel;
+    window.openSettingsPanel = openSettingsPanel;
     $('donateBtn').onclick = () => $('donateOverlay').classList.add('open');
   $('closeDonate').onclick = () => $('donateOverlay').classList.remove('open');
   $('donateOverlay').addEventListener('click', (e) => { if (e.target === $('donateOverlay')) $('donateOverlay').classList.remove('open'); });
@@ -3186,37 +3198,19 @@ document.addEventListener('DOMContentLoaded', function () {
     var shotInput = document.getElementById('fanShotInput');
     var preview = document.getElementById('fanShotPreview');
     if (!addToggle || !form || !list) return;
+    // 這些處理改用主程式 IIFE 的正確實作（window.fansUI），避免 closure 函式取不到的問題
     addToggle.onclick = function () {
+      if (window.fansUI) window.fansUI.clearFanForm(); // 先清除（內部 hideFanForm 會把按鈕顯示回來）
       form.classList.add('show');
       addToggle.style.display = 'none';
-      safe(function () { clearFanForm(); });
     };
     if (cancelBtn) cancelBtn.onclick = function () {
-      safe(function () { clearFanForm(); });
-      form.classList.add('show');
-      addToggle.style.display = 'none';
+      if (window.fansUI) { window.fansUI.clearFanForm(); window.fansUI.showFanForm(); }
     };
-    if (clearBtn) clearBtn.onclick = function () { safe(function () { clearFanForm(); }); };
-    if (saveBtn) saveBtn.onclick = function () { safe(function () { saveFan(); }); };
-    if (shotPick && shotInput) {
-      shotPick.onclick = function () { shotInput.click(); };
-      shotInput.onchange = function () {
-        var files = Array.prototype.slice.call(shotInput.files || []).slice(0, Math.max(0, 2 - (window.fanShotDraft || []).length));
-        if (!files.length) { if (typeof toast === 'function') toast('最多只能放 2 張截圖'); return; }
-        files.forEach(function (f) {
-          safe(function () {
-            compressImage(f, function (dataUrl) {
-              if (!window.fanShotDraft) window.fanShotDraft = [];
-              window.fanShotDraft.push(dataUrl);
-              if (preview) preview.innerHTML = window.fanShotDraft.slice(0,2).map(function (src) {
-                return '<img src="' + src + '" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--border);">';
-              }).join('');
-            });
-          });
-        });
-        shotInput.value = '';
-      };
-    }
+    if (clearBtn) clearBtn.onclick = function () { if (window.fansUI) window.fansUI.clearFanForm(); };
+    if (saveBtn) saveBtn.onclick = function () { if (window.fansUI) window.fansUI.saveFan(); };
+    // 截圖上傳由主程式 bindFanShots 以 closure 變數 fanShotDraft 處理，此處不再覆寫，避免狀態不同步
+    if (shotPick && shotInput) { /* 交給主程式處理 */ }
     safe(function () { renderFans(); });
   }
 
@@ -3231,7 +3225,9 @@ document.addEventListener('DOMContentLoaded', function () {
   bindBtn('sfxBtn', 'sfxOverlay', initSfxInner);
   bindBtn('fansBtn', 'fansOverlay', initFansInner);
   bindBtn('donateBtn', 'donateOverlay');
-  bindBtn('settingsBtn', 'settingsOverlay');
+  bindBtn('settingsBtn', 'settingsOverlay', function () {
+    try { if (window.openSettingsPanel) window.openSettingsPanel(); } catch (e) {}
+  });
   ['closeSfx','closeDonate','closeFans','closeSettings'].forEach(function (id) {
     var btn = document.getElementById(id);
     if (!btn) return;
