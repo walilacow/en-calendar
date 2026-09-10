@@ -3014,5 +3014,41 @@
   renderCalendar();
 })();
 </script>
+<div id="__diagBox" style="position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#111;color:#e8e8f0;border-top:2px solid #b794f6;padding:10px;font:12px monospace;white-space:pre-wrap;max-height:45vh;overflow:auto;"></div>
+<script>
+(function(){
+  const logs = [];
+  function log(s){ logs.push(s); document.getElementById('__diagBox').textContent = logs.join('\n'); }
+  window.addEventListener('error', function(e){ log('ERR: ' + e.message + ' @ ' + (e.filename||'') + ':' + (e.lineno||0)); });
+  window.addEventListener('unhandledrejection', function(e){ log('REJ: ' + (e.reason && (e.reason.stack || e.reason.message) || e.reason)); });
+  setTimeout(function(){
+    try {
+      log('INIT OK');
+      ['sfxBtn','donateBtn','fansBtn','settingsBtn'].forEach(id => {
+        const el = document.getElementById(id);
+        log(id + ': ' + (el ? 'EXISTS' : 'MISSING') + (el && el.onclick ? ' / onclick=Y' : ' / onclick=N'));
+      });
+      ['sfxOverlay','donateOverlay','fansOverlay','settingsOverlay'].forEach(id => {
+        const el = document.getElementById(id);
+        log(id + ': ' + (el ? 'EXISTS' : 'MISSING') + (el ? (' / open=' + el.classList.contains('open')) : ''));
+      });
+    } catch (e) { log('DIAG ERR: ' + (e.stack || e.message || e)); }
+  }, 1000);
+  setTimeout(function(){
+    try {
+      ['sfxBtn','donateBtn','fansBtn'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.click();
+      });
+      setTimeout(function(){
+        ['sfxOverlay','donateOverlay','fansOverlay'].forEach(id => {
+          const el = document.getElementById(id);
+          log(id + ' after click open=' + (el ? el.classList.contains('open') : 'MISSING'));
+        });
+      }, 300);
+    } catch (e) { log('CLICK ERR: ' + (e.stack || e.message || e)); }
+  }, 1800);
+})();
+</script>
 </body>
 </html>
