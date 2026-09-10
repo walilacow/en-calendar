@@ -774,7 +774,6 @@
         listeners: store.listeners || [],
         settings: store.settings || {},
         salesLog: store.salesLog || {},
-        profile: store.profile || {},
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }).catch(() => {});
     }, 1500);
@@ -792,7 +791,7 @@
         const snap = await db.collection('users').doc(user.uid).get();
         if (snap.exists) {
           const d = snap.data();
-          const cloud = sanitizeStore({ dates: d.dates, weeks: d.weeks, months: d.months, ranges: d.ranges, scoreLog: d.scoreLog, salesLog: d.salesLog, listeners: d.listeners, settings: d.settings, profile: d.profile });
+          const cloud = sanitizeStore({ dates: d.dates, weeks: d.weeks, months: d.months, ranges: d.ranges, scoreLog: d.scoreLog, salesLog: d.salesLog, listeners: d.listeners, settings: d.settings });
           // 合併保險：本機任務較多的日期保留本機版，避免空/舊雲端清掉九月資料
           try {
             const local = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
@@ -807,7 +806,6 @@
             if ((!cloud.listeners || !cloud.listeners.length) && Array.isArray(local.listeners)) cloud.listeners = local.listeners;
             if ((!cloud.settings || typeof cloud.settings !== 'object') && local.settings) cloud.settings = local.settings;
             if ((!cloud.salesLog || typeof cloud.salesLog !== 'object') && local.salesLog) cloud.salesLog = local.salesLog;
-            if ((!cloud.profile || typeof cloud.profile !== 'object') && local.profile) cloud.profile = local.profile;
           } catch (e) {}
           store = cloud;
           save();
@@ -1041,10 +1039,6 @@
     } else {
       out.listeners = [];
     }
-    out.profile = Object.assign(
-      { nickname: '', alias: '', avatar: 'avatars/cat.png' },
-      (s.profile && typeof s.profile === 'object' && !Array.isArray(s.profile)) ? s.profile : {}
-    );
     out.salesLog = (s.salesLog && typeof s.salesLog === 'object' && !Array.isArray(s.salesLog))
       ? Object.fromEntries(Object.entries(s.salesLog).filter(([k, v]) => /^\d{4}-\d{2}-\d{2}$/.test(k) && Number.isFinite(Number(v))).map(([k, v]) => [k, Number(v)]))
       : {};
@@ -1503,7 +1497,7 @@
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
 
     const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
-    $('verTag').textContent = dayCellCount > 0 ? ('v1.13' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.13 · 日曆異常';
+    $('verTag').textContent = dayCellCount > 0 ? ('v1.08' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.08 · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -2712,7 +2706,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v1.13';
+  $('verTag').textContent = 'v1.08';
 
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
@@ -2995,68 +2989,5 @@
   renderCalendar();
 })();
 </script>
-
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-  function forceOpen(overlayId) {
-    var el = document.getElementById(overlayId);
-    if (el) {
-      el.classList.remove('open');
-      requestAnimationFrame(function () { el.classList.add('open'); });
-    }
-  }
-  function bindBtn(btnId, overlayId, before) {
-    var btn = document.getElementById(btnId);
-    if (!btn) return;
-    btn.onclick = function () {
-      try { if (typeof before === 'function') before(); } catch (e) {}
-      forceOpen(overlayId);
-    };
-  }
-  bindBtn('sfxBtn', 'sfxOverlay', function () {
-    try { if (typeof ensureAudio === 'function') ensureAudio(); } catch (e) {}
-    try { if (typeof setSfxVolume === 'function') setSfxVolume(typeof sfxVolume !== 'undefined' ? sfxVolume : 80); } catch (e) {}
-    try { if (typeof renderSfx === 'function') renderSfx(); } catch (e) {}
-    try { if (typeof bindFanShots === 'function') bindFanShots(); } catch (e) {}
-  });
-  bindBtn('donateBtn', 'donateOverlay');
-  bindBtn('fansBtn', 'fansOverlay', function () {
-    try { if (typeof bindFans === 'function') bindFans(); } catch (e) {}
-    try { if (typeof renderFans === 'function') renderFans(); } catch (e) {}
-    try { if (typeof bindFanShots === 'function') bindFanShots(); } catch (e) {}
-    try { if (typeof renderFanShotPreview === 'function') renderFanShotPreview(); } catch (e) {}
-  });
-  bindBtn('settingsBtn', 'settingsOverlay', function () {
-    try {
-      if (typeof store === 'undefined' || !store) return;
-      var s = store.settings || {};
-      var setChecked = function (id, val) { var el = document.getElementById(id); if (el) el.checked = val !== false; };
-      var setVal = function (id, val) { var el = document.getElementById(id); if (el) el.value = val; };
-      var show = function (id, on) { var el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; };
-      setChecked('enableGiftTasks', s.enableGiftTasks);
-      setChecked('enableSalesScore', s.enableSalesScore);
-      setChecked('enableDragon', s.enableDragon);
-      setChecked('enableCastle', s.enableCastle);
-      setVal('giftCutoffHour', String([0, 8].indexOf(Number(s.giftCutoffHour)) >= 0 ? Number(s.giftCutoffHour) : 0));
-      setVal('salesCutoffHour', String([0, 8].indexOf(Number(s.salesCutoffHour)) >= 0 ? Number(s.salesCutoffHour) : 8));
-      setVal('salesDayTarget', Number.isFinite(s.salesDayTarget) ? s.salesDayTarget : 0);
-      setVal('salesWeekTarget', Number.isFinite(s.salesWeekTarget) ? s.salesWeekTarget : 0);
-      setVal('salesMonthTarget', Number.isFinite(s.salesMonthTarget) ? s.salesMonthTarget : 0);
-      show('giftCutoffRow', document.getElementById('enableGiftTasks') && document.getElementById('enableGiftTasks').checked);
-      show('salesCutoffRow', document.getElementById('enableSalesScore') && document.getElementById('enableSalesScore').checked);
-      show('salesSettingsBox', document.getElementById('enableSalesScore') && document.getElementById('enableSalesScore').checked);
-    } catch (e) {}
-  });
-  ['closeSfx','closeDonate','closeFans','closeSettings'].forEach(function (id) {
-    var btn = document.getElementById(id);
-    if (!btn) return;
-    btn.onclick = function () {
-      var overlay = btn.closest ? btn.closest('.overlay') : null;
-      if (overlay) overlay.classList.remove('open');
-    };
-  });
-});
-</script>
-
 </body>
 </html>
