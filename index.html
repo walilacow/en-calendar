@@ -1609,11 +1609,13 @@
       return;
     }
     if (e.target.classList.contains('slot-start')) {
-      if (/^00:/.test(e.target.value || '')) { toast('開播時間不能是 0 小時'); renderSheet(); return; }
       b.slots[i].start = e.target.value;
+      const sl = b.slots[i];
+      if (sl.start && sl.end && sl.end <= sl.start) { toast('開播時段不能是 0 小時'); renderSheet(); return; }
     } else if (e.target.classList.contains('slot-end')) {
-      if (/^00:/.test(e.target.value || '')) { toast('結束時間不能是 0 小時'); renderSheet(); return; }
       b.slots[i].end = e.target.value;
+      const sl = b.slots[i];
+      if (sl.start && sl.end && sl.end <= sl.start) { toast('開播時段不能是 0 小時'); renderSheet(); return; }
     } else return;
     try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch (err) {}
     save();
@@ -1633,9 +1635,9 @@
     const b = ensureBucket('day', openDate);
     if (!b.slots) b.slots = [];
     const nowH = new Date().getHours();
-    const hh = String(nowH === 0 ? 1 : nowH).padStart(2, '0');
-    const mm = '00';
-    b.slots.push({ start: hh + ':' + mm, end: hh + ':' + mm });
+    const startH = String(nowH).padStart(2, '0');
+    const endH = String((nowH + 1) % 24).padStart(2, '0');
+    b.slots.push({ start: startH + ':00', end: endH + ':00' });
     save(); renderSheet();
   };
   $('clearTimeBtn').onclick = () => {
