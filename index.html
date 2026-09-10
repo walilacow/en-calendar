@@ -1497,7 +1497,7 @@
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
 
     const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
-    $('verTag').textContent = dayCellCount > 0 ? ('v1.10' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.10 · 日曆異常';
+    $('verTag').textContent = dayCellCount > 0 ? ('v1.11' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.11 · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -2415,15 +2415,7 @@
     const overlay = $('sfxOverlay');
     if (overlay) overlay.classList.remove('open');
   }
-  const __sfxBtn = document.getElementById('sfxBtn');
-const __sfxOverlay = document.getElementById('sfxOverlay');
-if (__sfxBtn && __sfxOverlay) {
-  __sfxBtn.onclick = function () {
-    try { ensureAudio(); renderSfx(); } catch (e) {}
-    __sfxOverlay.classList.remove('open');
-    requestAnimationFrame(() => __sfxOverlay.classList.add('open'));
-  };
-}
+  $('sfxBtn').addEventListener('click', openSfxLibrary);
   $('closeSfx').addEventListener('click', closeSfxLibrary);
   $('sfxOverlay').addEventListener('click', (e) => {
     if (e.target === $('sfxOverlay')) closeSfxLibrary();
@@ -2714,7 +2706,7 @@ if (__sfxBtn && __sfxOverlay) {
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v1.10';
+  $('verTag').textContent = 'v1.11';
 
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
@@ -2995,30 +2987,28 @@ if (__sfxBtn && __sfxOverlay) {
   $('safariTipOverlay').addEventListener('click', (e) => { if (e.target === $('safariTipOverlay')) $('safariTipOverlay').classList.remove('open'); });
 
 
-  safeOpenOverlay('sfxBtn', 'sfxOverlay', () => { ensureAudio(); renderSfx(); }, '找不到音效庫');
-  safeOpenOverlay('donateBtn', 'donateOverlay', null, '找不到贊助視窗');
-  safeOpenOverlay('fansBtn', 'fansOverlay', () => { renderFans(); }, '找不到聽眾資料卡');
-  safeCloseOverlay('closeSfx', 'sfxOverlay');
-  safeCloseOverlay('closeDonate', 'donateOverlay');
-  safeCloseOverlay('closeFans', 'fansOverlay');
+  safeBindOpenClose('sfxBtn', 'sfxOverlay', 'closeSfx', () => { ensureAudio(); renderSfx(); }, '找不到音效庫');
+  safeBindOpenClose('donateBtn', 'donateOverlay', 'closeDonate', null, '找不到贊助視窗');
+  safeBindOpenClose('fansBtn', 'fansOverlay', 'closeFans', () => { renderFans(); }, '找不到聽眾資料卡');
 
 
-  // ---------- 首頁主要按鈕安全開關 ----------
-  function safeOpenOverlay(btnId, overlayId, beforeOpen, missingMsg) {
+  // ---------- 首頁 overlay 安全開關 ----------
+  function safeBindOpenClose(btnId, overlayId, closeBtnId, beforeOpen, missingMsg) {
     const btn = document.getElementById(btnId);
     const overlay = document.getElementById(overlayId);
-    if (!btn || !overlay) { toast(missingMsg || '找不到視窗'); return; }
-    btn.onclick = function () {
-      try { if (typeof beforeOpen === 'function') beforeOpen(); } catch (e) {}
-      overlay.classList.remove('open');
-      requestAnimationFrame(() => overlay.classList.add('open'));
-    };
-  }
-  function safeCloseOverlay(btnId, overlayId) {
-    const btn = document.getElementById(btnId);
-    const overlay = document.getElementById(overlayId);
-    if (!btn || !overlay) return;
-    btn.onclick = function () { overlay.classList.remove('open'); };
+    const closeBtn = closeBtnId ? document.getElementById(closeBtnId) : null;
+    if (btn && overlay) {
+      btn.addEventListener('click', function () {
+        try { if (typeof beforeOpen === 'function') beforeOpen(); } catch (e) {}
+        overlay.classList.remove('open');
+        requestAnimationFrame(() => overlay.classList.add('open'));
+      });
+    } else if (btn) {
+      btn.addEventListener('click', function () { toast(missingMsg || '找不到視窗'); });
+    }
+    if (closeBtn && overlay) {
+      closeBtn.addEventListener('click', function () { overlay.classList.remove('open'); });
+    }
   }
 
   renderCalendar();
