@@ -2295,7 +2295,6 @@
   }
   function syncSfxVolumeToAudios() {
     if (masterGain) masterGain.gain.value = sfxVolume / 100;
-    activeAudios.forEach(a => { try { a.volume = sfxVolume / 100; } catch (e) {} });
   }
   function tone(freq, dur, type = 'sine', vol = 0.25, when = 0, slide = 0) {
     if (!ensureAudio()) return;
@@ -2985,6 +2984,12 @@
   $('closeSafariTip').onclick = () => $('safariTipOverlay').classList.remove('open');
   $('safariTipOk').onclick = () => $('safariTipOverlay').classList.remove('open');
   $('safariTipOverlay').addEventListener('click', (e) => { if (e.target === $('safariTipOverlay')) $('safariTipOverlay').classList.remove('open'); });
+
+  // 暴露給後段補丁 script 使用（其以 window.xxx 呼叫）
+  window.renderSfx = renderSfx;
+  window.renderFans = renderFans;
+  window.ensureAudio = ensureAudio;
+  window.setSfxVolume = setSfxVolume;
 
   renderCalendar();
 })();
