@@ -576,6 +576,7 @@
       <span>🔊</span>
       <b id="sfxVolLabel" style="min-width:52px;text-align:right;">80%</b>
       <button class="btn btn-ghost" id="sfxStop" style="padding:10px 12px; white-space:nowrap;">■ 停止</button>
+      <span id="sfxStateDot" style="min-width:70px;text-align:right;font-size:11px;color:var(--muted);"></span>
     </div>
     <div class="sfx-grid" id="sfxList"></div>
   </div>
@@ -1497,7 +1498,7 @@
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
 
     const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
-    $('verTag').textContent = dayCellCount > 0 ? ('v1.16' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.16 · 日曆異常';
+    $('verTag').textContent = dayCellCount > 0 ? ('v1.1.0' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.1.0 · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -2291,6 +2292,8 @@
   ['touchstart', 'touchend', 'click'].forEach(function (ev) {
     document.addEventListener(ev, function () { try { ensureAudio(); } catch (e) {} }, { passive: true });
   });
+  // 音訊狀態燈每秒刷新（不被後段 script 的按鈕覆蓋影響）
+  window.__sfxStateTimer = setInterval(function () { try { updateSfxState(); } catch (e) {} }, 1000);
   function setSfxVolume(v) {
     sfxVolume = Math.max(0, Math.min(100, Number.isFinite(v) ? v : 80));
     syncSfxVolumeToAudios();
@@ -2348,8 +2351,34 @@
     activeSources.forEach(src => { try { src.onended = null; src.stop(0); } catch (e) {} });
     activeSources.length = 0;
   }
+  function updateSfxState() {
+    const el = $('sfxStateDot');
+    if (!el) return;
+    if (!audioCtx) { el.textContent = '音訊:未初始化'; el.style.color = 'var(--muted)'; return; }
+    const map = {
+      running: ['音訊:正常', 'var(--green)'],
+      suspended: ['音訊:被靜音(點一下畫面)', 'var(--accent2)'],
+      closed: ['音訊:關閉', 'var(--red)'],
+      interrupted: ['音訊:中斷', 'var(--red)']
+    };
+    const m = map[audioCtx.state] || ['音訊:' + audioCtx.state, 'var(--muted)'];
+    el.textContent = m[0]; el.style.color = m[1];
+  }
+  window.updateSfxState = updateSfxState;
   async function playSfxFile(file) {
     if (!ensureAudio()) return false;
+    // iOS：ctx 可能仍處於 suspended，等 resume 完成再播，否則無聲
+    if (audioCtx.state === 'suspended') { try { await audioCtx.resume(); } catch (e) {} }
+    // iOS 解鎖失敗（ctx 仍非 running）→ 改用 HTMLAudio 繞過 AudioContext 鎖定
+    if (audioCtx.state !== 'running') {
+      try {
+        const a = new Audio(file); // file 本身已含 sfx/ 前綴（fetch(file) 同路徑）
+        a.volume = sfxVolume / 100;
+        await a.play();
+        updateSfxState();
+        return true;
+      } catch (e) {}
+    }
     try {
       const res = await fetch(file, { cache: 'no-store' });
       if (!res.ok) return false;
@@ -2710,7 +2739,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v1.16';
+  $('verTag').textContent = 'v1.1.0';
 
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
