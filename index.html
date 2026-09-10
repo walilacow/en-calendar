@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="恩恩聲播日曆">
 <meta name="theme-color" content="#14141c">
+<meta name="app-version" content="1.1.1">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
 <title>恩恩聲播日曆</title>
@@ -1498,7 +1499,7 @@
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
 
     const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
-    $('verTag').textContent = dayCellCount > 0 ? ('v1.1.0' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.1.0 · 日曆異常';
+    $('verTag').textContent = dayCellCount > 0 ? ('v1.1.1' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.1.1 · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -2350,10 +2351,13 @@
   function stopAllSfx() {
     activeSources.forEach(src => { try { src.onended = null; src.stop(0); } catch (e) {} });
     activeSources.length = 0;
+    (window.__htmlAudios || []).forEach(a => { try { a.pause(); } catch (e) {} });
+    window.__htmlAudios = [];
   }
   function updateSfxState() {
     const el = $('sfxStateDot');
     if (!el) return;
+    if (window.__sfxLastMode === 'htmlaudio') { el.textContent = '音訊:直接播放'; el.style.color = 'var(--green)'; return; }
     if (!audioCtx) { el.textContent = '音訊:未初始化'; el.style.color = 'var(--muted)'; return; }
     const map = {
       running: ['音訊:正常', 'var(--green)'],
@@ -2361,24 +2365,43 @@
       closed: ['音訊:關閉', 'var(--red)'],
       interrupted: ['音訊:中斷', 'var(--red)']
     };
+    if (window.__sfxLastMode === 'htmlaudio') {
+      el.textContent = '音訊:直接播放(不受靜音鍵影響)'; el.style.color = 'var(--green)'; return;
+    }
     const m = map[audioCtx.state] || ['音訊:' + audioCtx.state, 'var(--muted)'];
     el.textContent = m[0]; el.style.color = m[1];
   }
   window.updateSfxState = updateSfxState;
+  function isIOSDevice() {
+    return /iP(hone|ad|od)/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1);
+  }
+  function playViaHtmlAudio(file) {
+    try {
+      const a = new Audio(file); // file 本身已含 sfx/ 前綴
+      a.volume = sfxVolume / 100;
+      if (!window.__htmlAudios) window.__htmlAudios = [];
+      window.__htmlAudios.push(a);
+      a.addEventListener('ended', () => {
+        window.__htmlAudios = (window.__htmlAudios || []).filter(x => x !== a);
+      });
+      const p = a.play();
+      window.__sfxLastMode = 'htmlaudio';
+      if (p && p.catch) p.catch(() => { if (window.__sfxLastMode === 'htmlaudio') window.__sfxLastMode = ''; });
+      updateSfxState();
+      return true;
+    } catch (e) { return false; }
+  }
   async function playSfxFile(file) {
-    if (!ensureAudio()) return false;
-    // iOS：ctx 可能仍處於 suspended，等 resume 完成再播，否則無聲
+    // 全平台一律先走 WebAudio（音量滑桿經 masterGain 控制，iOS 上 HTMLAudio 的 volume 無法程式控制）
+    if (!ensureAudio()) return playViaHtmlAudio(file); // 無 WebAudio → HTMLAudio
+    // ctx suspended 時等 resume 完成再播
     if (audioCtx.state === 'suspended') { try { await audioCtx.resume(); } catch (e) {} }
-    // iOS 解鎖失敗（ctx 仍非 running）→ 改用 HTMLAudio 繞過 AudioContext 鎖定
+    // 解鎖失敗 → 改用 HTMLAudio 備援
     if (audioCtx.state !== 'running') {
-      try {
-        const a = new Audio(file); // file 本身已含 sfx/ 前綴（fetch(file) 同路徑）
-        a.volume = sfxVolume / 100;
-        await a.play();
-        updateSfxState();
-        return true;
-      } catch (e) {}
+      if (playViaHtmlAudio(file)) return true;
     }
+    window.__sfxLastMode = 'webaudio';
     try {
       const res = await fetch(file, { cache: 'no-store' });
       if (!res.ok) return false;
@@ -2739,7 +2762,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v1.1.0';
+  $('verTag').textContent = 'v1.1.1';
 
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
@@ -3268,5 +3291,37 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
+<script>
+// 新版本自動偵測：以 no-store 抓取自身 HTML 比對版本，發現新版時顯示更新橫幅（不清資料）
+(function () {
+  function showUpdateBanner(ver) {
+    if (document.getElementById('updateBanner')) return;
+    var b = document.createElement('button');
+    b.id = 'updateBanner';
+    b.textContent = '🎉 發現新版本 v' + ver + '，點此更新（資料不會遺失）';
+    b.style.cssText = 'position:fixed;left:50%;bottom:80px;transform:translateX(-50%);z-index:300;background:var(--accent);color:#14141c;border:none;border-radius:99px;padding:12px 20px;font-weight:700;font-size:14px;box-shadow:0 4px 16px rgba(0,0,0,.45);cursor:pointer;font-family:inherit;';
+    b.onclick = function () {
+      try {
+        if ('caches' in window) {
+          caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); }).catch(function () {});
+        }
+      } catch (e) {}
+      location.href = location.pathname + '?_=' + Date.now();
+    };
+    document.body.appendChild(b);
+  }
+  async function checkAppUpdate() {
+    try {
+      var res = await fetch(location.pathname, { cache: 'no-store' });
+      var txt = await res.text();
+      var m = txt.match(/<meta name="app-version" content="([^"]+)">/);
+      var localEl = document.querySelector('meta[name="app-version"]');
+      if (m && localEl && m[1] !== localEl.content) showUpdateBanner(m[1]);
+    } catch (e) {}
+  }
+  checkAppUpdate();
+  setInterval(checkAppUpdate, 30 * 60 * 1000);
+})();
+</script>
 </body>
 </html>
