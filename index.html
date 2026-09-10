@@ -1627,7 +1627,9 @@
     if (!openDate) return;
     const b = ensureBucket('day', openDate);
     if (!b.slots) b.slots = [];
-    b.slots.push({ start: '', end: '' });
+    const hh = String(new Date().getHours()).padStart(2, '0');
+    const mm = '00';
+    b.slots.push({ start: hh + ':' + mm, end: '' });
     save(); renderSheet();
   };
   $('clearTimeBtn').onclick = () => {
@@ -1730,10 +1732,14 @@
       }
       return;
     }
-    const names = { day: '這天', week: '本週', month: '本月' };
-    if (confirm(`確定清空${names[scope]}的所有目標與紀錄？`)) {
-      delete store[BUCKET[scope]][scopeKey(scope, openDate)];
-      save(); renderSheet(); toast('已清空');
+    const names = { day: '每日', week: '每週', month: '每月' };
+    if (confirm(`確定清空${names[scope]}任務清單嗎？（不會清開播時間 / 趣事 / 幸運統計）`)) {
+      const bucket = store[BUCKET[scope]];
+      const key = scopeKey(scope, openDate);
+      const b = bucket[key] || {};
+      b.tasks = [];
+      bucket[key] = b;
+      save(); renderSheet(); renderCalendar(); toast('已清空任務清單');
     }
   };
 
@@ -2373,6 +2379,9 @@
       const btn = e.target.closest('.fan-del');
       if (!btn) return;
       const id = btn.dataset.id;
+      const fan = (store.listeners || []).find(x => x.id === id);
+      const name = fan && fan.nickname ? fan.nickname : id;
+      if (!confirm(`確定要刪除聽眾「${name}」嗎？`)) return;
       store.listeners = (store.listeners || []).filter(x => x.id !== id);
       if (editingFanId === id) clearFanForm();
       save(); renderFans(); toast('已刪除聽眾');
