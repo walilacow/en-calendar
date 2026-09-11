@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="恩恩聲播日曆">
 <meta name="theme-color" content="#14141c">
-<meta name="app-version" content="1.2.1">
+<meta name="app-version" content="1.2.2">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
 <title>恩恩聲播日曆</title>
@@ -434,7 +434,7 @@
       <button class="btn btn-ghost" id="clearDayBtn">🗑 清空這天</button>
     </div>
 
-    <div style="font-size:11px;color:var(--muted);margin:-4px 0 8px;">長按可直接輸入數量</div>
+    <div style="font-size:11px;color:var(--muted);margin:-4px 0 8px;">點名稱可編輯該任務・長按數量可直接輸入</div>
     <div class="task-list" id="taskList" style="margin-top:2px;"></div>
 
     <div style="border-top:1px solid var(--border); margin:16px 0;"></div>
@@ -459,6 +459,11 @@
     <div style="border-top:1px solid var(--border); margin:16px 0;"></div>
     <div class="sales-box" id="salesInlineBox" style="display:none;">
       <div class="sales-line" id="salesInlineLine"></div>
+      <div style="display:flex;gap:8px;align-items:center;margin:6px 0 8px;">
+        <span style="font-size:13px;color:var(--muted);white-space:nowrap;">🎯 業績目標</span>
+        <input id="salesTargetInput" type="number" min="0" placeholder="例如 300" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px;outline:none;">
+        <span id="salesTargetScope" style="font-size:12px;color:var(--muted);white-space:nowrap;"></span>
+      </div>
       <div style="font-size:11px;color:var(--muted);margin:6px 0 8px;">業績分數依設定之每日分界時間結算</div>
       <div class="sales-add">
         <input id="salesAddInput" type="number" min="0" placeholder="輸入本次業績收禮分數">
@@ -633,11 +638,7 @@
           <option value="8">08:00</option>
         </select>
       </div>
-      <div id="salesSettingsBox" style="display:none; margin-top:10px;">
-        <div class="settings-row"><span>日目標</span><input id="salesDayTarget" type="number" min="0" placeholder="例如 300"></div>
-        <div class="settings-row"><span>週目標</span><input id="salesWeekTarget" type="number" min="0" placeholder="例如 2000"></div>
-        <div class="settings-row"><span>月目標</span><input id="salesMonthTarget" type="number" min="0" placeholder="例如 8000"></div>
-      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px;">業績目標已移至日面板的每日/每週/每月分頁設定</div>
     </div>
     <div class="settings-block">
       <div class="settings-title">統計</div>
@@ -1509,7 +1510,7 @@
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
 
     const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
-    $('verTag').textContent = dayCellCount > 0 ? ('v1.2.1' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.2.1 · 日曆異常';
+    $('verTag').textContent = dayCellCount > 0 ? ('v1.2.2' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.2.2 · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -1672,6 +1673,10 @@
         box.style.display = '';
         $('salesInlineLine').innerHTML = `業績分數：<b>${earned}/${target || 0}</b>（尚缺 ${Math.max(0, (target || 0) - earned)}）`;
         $('salesAddInput').value = '';
+        const scopeTag = scope === 'day' ? '每日' : scope === 'week' ? '每週' : scope === 'month' ? '每月' : '自訂';
+        $('salesTargetScope').textContent = '（' + scopeTag + '）';
+        const tIn = $('salesTargetInput');
+        if (tIn && document.activeElement !== tIn) tIn.value = target || '';
       }
     } else if ($('salesInlineBox')) {
       $('salesInlineBox').style.display = 'none';
@@ -1747,7 +1752,7 @@
       div.innerHTML = `
         <div class="task-top">
           <button class="drag-handle" data-idx="${idx}" title="拖曳排序" style="background:none; border:none; color:var(--muted); cursor:grab; padding:10px 8px 10px 0; font-size:15px; letter-spacing:1px; touch-action:none; flex-shrink:0;">☰</button>
-          <span class="task-name"></span>
+          <span class="task-name" data-idx="${idx}" title="點名稱可編輯" style="cursor:pointer;"></span>
           <div class="qty-ctrl">
             <button class="minus" data-idx="${idx}" title="少一個">−</button>
             <input type="number" min="0" value="${t.cur}" data-idx="${idx}" aria-label="完成數量">
@@ -1820,9 +1825,72 @@
   ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => {
     $('taskList').addEventListener(ev, () => clearTimeout(plusPressTimer));
   });
+  // 任務全欄位編輯狀態
+  let editingTaskIdx = null;
+  let editingTaskScope = null;
+  let editingTaskDate = null;
+  function resetAddForm() {
+    $('nameInput').value = '';
+    $('qtyInput').value = '1';
+    $('ptsInput').value = '';
+    refreshDefaultPts();
+    $('iconSelect').value = 'none';
+    $('easyChk').checked = false;
+    $('bonusChk').checked = false;
+    $('addBtn').textContent = '新增';
+    const cb = $('taskEditCancel');
+    if (cb) cb.style.display = 'none';
+  }
+  function ensureTaskEditCancelBtn() {
+    let cb = $('taskEditCancel');
+    if (!cb) {
+      cb = document.createElement('button');
+      cb.id = 'taskEditCancel';
+      cb.className = 'btn btn-ghost';
+      cb.textContent = '取消編輯';
+      cb.style.cssText = 'padding:12px 10px; white-space:nowrap; display:none;';
+      cb.onclick = () => { cancelEditTask(); };
+      $('addBtn').parentNode.insertBefore(cb, $('addBtn'));
+    }
+    cb.style.display = '';
+  }
+  function cancelEditTask() {
+    editingTaskIdx = null;
+    resetAddForm();
+  }
+  function startEditTask(idx) {
+    const tasks = getTasks(scope, openDate);
+    const t = tasks[idx];
+    if (!t) return;
+    if (editingTaskIdx === idx && editingTaskScope === scope && editingTaskDate === openDate) {
+      cancelEditTask();
+      return; // 再點同任務＝取消編輯
+    }
+    editingTaskIdx = idx;
+    editingTaskScope = scope;
+    editingTaskDate = openDate;
+    $('nameInput').value = t.name;
+    $('qtyInput').value = t.target;
+    $('ptsInput').value = t.score || 0;
+    $('iconSelect').value = t.icon || 'none';
+    const tt = taskTypeOf(t);
+    $('easyChk').checked = tt === 'easy';
+    $('bonusChk').checked = tt === 'bonus';
+    $('addBtn').textContent = '💾 儲存';
+    ensureTaskEditCancelBtn();
+    const row = document.querySelector('.add-row');
+    if (row && row.scrollIntoView) row.scrollIntoView({ block: 'nearest' });
+  }
   $('taskList').addEventListener('click', (e) => {
+    if (!openDate) return;
+    // 點任務名稱 → 全欄位編輯
+    const nameEl = e.target.closest('.task-name');
+    if (nameEl && !e.target.closest('button')) {
+      startEditTask(Number(nameEl.dataset.idx));
+      return;
+    }
     const btn = e.target.closest('button');
-    if (!btn || !openDate) return;
+    if (!btn) return;
     const idx = Number(btn.dataset.idx);
     const tasks = getTasks(scope, openDate);
     if (!tasks[idx]) return;
@@ -1934,11 +2002,33 @@
     const pts = parseInt($('ptsInput').value, 10);
     const score = (isNaN(pts) || pts < 0) ? 0 : pts;
     const tasks = ensureBucket(scope, openDate).tasks;
-    if (tasks.some(t => t.name === name)) { toast('這個項目已存在'); return; }
+    if (tasks.some((t, i) => t.name === name && i !== editingTaskIdx)) { toast('這個項目已存在'); return; }
     const iconSel = $('iconSelect').value;
     const isEasy = $('easyChk').checked, isBonus = $('bonusChk').checked;
     if (isEasy && isBonus) { toast('「簡」和「加」請擇一勾選'); return; }
     const taskType = isBonus ? 'bonus' : (isEasy ? 'easy' : '');
+    // 編輯模式：更新既有任務全欄位（cur 完成數保留）
+    if (editingTaskIdx !== null) {
+      if (editingTaskScope !== scope || editingTaskDate !== openDate) {
+        cancelEditTask();
+        toast('編輯目標已變更，請重新點選任務');
+        return;
+      }
+      const et = tasks[editingTaskIdx];
+      if (!et) { cancelEditTask(); return; }
+      if (tasks.some((x, i2) => x.name === name && i2 !== editingTaskIdx)) { toast('這個項目已存在'); return; }
+      et.name = name;
+      et.target = target;
+      et.score = score;
+      et.icon = iconSel || '';
+      if (taskType) et.type = taskType; else delete et.type;
+      editingTaskIdx = null;
+      save();
+      resetAddForm();
+      renderSheet();
+      toast(`已更新「${name}」`);
+      return;
+    }
     const newTask = { name, target, cur: 0, score, icon: iconSel || '' };
     if (taskType) newTask.type = taskType;
     tasks.push(newTask);
@@ -2786,7 +2876,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v1.2.1';
+  $('verTag').textContent = 'v1.2.2';
 
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
@@ -2948,6 +3038,18 @@
   }
   // 供後段補丁 script 委派使用；放在此處確保一定執行得到（IIFE 結尾處另有備份）
   window.fansUI = { clearFanForm: clearFanForm, saveFan: saveFan, showFanForm: showFanForm };
+  // 業績目標：在日面板各分頁直接編輯（事件委派只需綁一次，跟隨當前 scope 寫入對應設定）
+  document.addEventListener('change', (e) => {
+    if (!e.target || e.target.id !== 'salesTargetInput') return;
+    const v = Math.max(0, parseInt(e.target.value, 10) || 0);
+    if (scope === 'day') store.settings.salesDayTarget = v;
+    else if (scope === 'week') store.settings.salesWeekTarget = v;
+    else if (scope === 'month') store.settings.salesMonthTarget = v;
+    else return;
+    save();
+    renderSheet();
+    toast('業績目標已更新');
+  });
   // 初始即依禮物分界刷新首頁副標的週結算時間（renderSheet 時也會再刷新）
   try {
     const _wt = Number((store.settings || {}).giftCutoffHour) === 8 ? '08:00' : '00:00';
@@ -3023,10 +3125,6 @@
       $('salesCutoffRow').style.display = $('enableSalesScore').checked ? '' : 'none';
       $('giftCutoffHour').value = String([0, 8].includes(Number(s.giftCutoffHour)) ? Number(s.giftCutoffHour) : 0);
       $('salesCutoffHour').value = String([0, 8].includes(Number(s.salesCutoffHour)) ? Number(s.salesCutoffHour) : 8);
-      $('salesSettingsBox').style.display = $('enableSalesScore').checked ? '' : 'none';
-      $('salesDayTarget').value = Number.isFinite(s.salesDayTarget) ? s.salesDayTarget : 0;
-      $('salesWeekTarget').value = Number.isFinite(s.salesWeekTarget) ? s.salesWeekTarget : 0;
-      $('salesMonthTarget').value = Number.isFinite(s.salesMonthTarget) ? s.salesMonthTarget : 0;
       $('settingsOverlay').classList.add('open');
     }
     $('settingsBtn').onclick = openSettingsPanel;
@@ -3039,7 +3137,6 @@
     $('enableGiftTasks').addEventListener('change', () => { $('giftCutoffRow').style.display = $('enableGiftTasks').checked ? '' : 'none'; });
     $('enableSalesScore').addEventListener('change', () => {
       $('salesCutoffRow').style.display = $('enableSalesScore').checked ? '' : 'none';
-      $('salesSettingsBox').style.display = $('enableSalesScore').checked ? '' : 'none';
     });
     $('settingsSave').onclick = () => {
       store.settings = {
@@ -3049,9 +3146,9 @@
         enableCastle: $('enableCastle').checked,
         giftCutoffHour: Number($('giftCutoffHour').value) === 8 ? 8 : 0,
         salesCutoffHour: Number($('salesCutoffHour').value) === 0 ? 0 : 8,
-        salesDayTarget: Math.max(0, parseInt($('salesDayTarget').value, 10) || 0),
-        salesWeekTarget: Math.max(0, parseInt($('salesWeekTarget').value, 10) || 0),
-        salesMonthTarget: Math.max(0, parseInt($('salesMonthTarget').value, 10) || 0)
+        salesDayTarget: Math.max(0, parseInt((store.settings || {}).salesDayTarget, 10) || 0),
+        salesWeekTarget: Math.max(0, parseInt((store.settings || {}).salesWeekTarget, 10) || 0),
+        salesMonthTarget: Math.max(0, parseInt((store.settings || {}).salesMonthTarget, 10) || 0)
       };
       save(); renderSheet(); renderCalendar(); applySettingsVisibility(); toast('設定已儲存');
     };
