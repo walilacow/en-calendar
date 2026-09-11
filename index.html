@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="恩恩聲播日曆">
 <meta name="theme-color" content="#14141c">
-<meta name="app-version" content="1.1.3">
+<meta name="app-version" content="1.2.0">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
 <title>恩恩聲播日曆</title>
@@ -331,7 +331,7 @@
         <button class="btn-today" id="settingsBtn" style="background: var(--card); color: var(--text); border:1px solid var(--border); padding:10px 12px; font-size:13px;">⚙️ 設定</button>
       </div>
     </div>
-    <div class="sub">點日期可設定「每日 / 每週 / 每月」收禮目標・每週於禮拜日 00:00 結算並起算・跨結算自動歸屬・歷史完成數保留</div>
+    <div class="sub" id="headerSub">點日期可設定「每日 / 每週 / 每月」收禮目標・每週於禮拜日 00:00 結算並起算・跨結算自動歸屬・歷史完成數保留</div>
   </header>
 
   <div class="month-nav">
@@ -1185,8 +1185,18 @@
     return r;
   }
   // 每天自動記錄分數快照（供週日複製當週明细）
+  function getGiftCutoffHour() {
+    return Number((store.settings || {}).giftCutoffHour) === 8 ? 8 : 0;
+  }
+  // 禮物日：邊界設 08:00 時，0~8 點之間「今天」仍是昨天（9/10 = 9/10 08:00 ~ 9/11 08:00）
+  function giftTodayKey() {
+    const now = new Date();
+    if (now.getHours() >= getGiftCutoffHour()) return todayKey();
+    const y = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    return key(y.getFullYear(), y.getMonth(), y.getDate());
+  }
   function logTodayScores() {
-    const tk = todayKey();
+    const tk = giftTodayKey();
     if (!store.scoreLog) store.scoreLog = {};
     const b = store.dates[tk];
     const sp = splitScores(b && b.tasks);
@@ -1434,7 +1444,7 @@
       const isLeap = ((viewYear % 4 === 0 && viewYear % 100 !== 0) || viewYear % 400 === 0);
       if (viewMonth === 1 && isLeap) daysInMonth = 29;
     }
-    const tKey = todayKey();
+    const tKey = giftTodayKey(); // 禮物日：0~8 點之間「今天」是昨天
 
     for (let i = 0; i < first; i++) {
       const c = document.createElement('div');
@@ -1499,7 +1509,7 @@
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
 
     const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
-    $('verTag').textContent = dayCellCount > 0 ? ('v1.1.3' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.1.3 · 日曆異常';
+    $('verTag').textContent = dayCellCount > 0 ? ('v1.2.0' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.2.0 · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -1532,7 +1542,7 @@
   function renderSheet() {
     if (!openDate) return;
     const [y, m, d] = openDate.split('-').map(Number);
-    const tKey = todayKey();
+    const tKey = giftTodayKey(); // 禮物日：0~8 點之間「今天」是昨天
 
     if (scope === 'day') {
       const week = WEEK[new Date(y, m - 1, d).getDay()];
@@ -1542,7 +1552,8 @@
       const wi = weekInfo(openDate);
       const cur = scopeKey('week', tKey), mine = scopeKey('week', openDate);
       const rel = mine === cur ? '・本週' : (mine < cur ? '・已結算' : '・未來');
-      $('sheetTitle').textContent = `本週 ${fmtMD(wi.start)} 00:00 – ${fmtMD(wi.end)} 00:00${rel}`;
+      const _wt = getGiftCutoffHour() === 8 ? '08:00' : '00:00';
+      $('sheetTitle').textContent = `本週 ${fmtMD(wi.start)} ${_wt} – ${fmtMD(wi.end)} ${_wt}${rel}`;
     } else if (scope === 'custom') {
       const r = customId && store.ranges ? store.ranges[customId] : null;
       $('sheetTitle').textContent = r ? `${r.name}（${r.start}～${r.end}）` : '自訂任務區間';
@@ -1618,9 +1629,15 @@
 
     const giftCut = Number((store.settings || {}).giftCutoffHour) === 8 ? 8 : 0;
     const giftCutTxt = giftCut === 0 ? '午夜 12 點（00:00）' : '08:00';
+    const weekCutTxt = giftCut === 0 ? '00:00' : '08:00';
+    // 首頁副標同步顯示週結算時間
+    (function () {
+      const el = document.getElementById('headerSub');
+      if (el) el.textContent = `點日期可設定「每日 / 每週 / 每月」收禮目標・每週於禮拜日 ${weekCutTxt} 結算並起算・跨結算自動歸屬・歷史完成數保留`;
+    })();
     const notes = {
-      day: `每日於 ${giftCutTxt} 重新結算，新的一天從 0 重新開始。每週於禮拜日 00:00 結算並起算。`,
-      week: '每週從禮拜日 00:00 開始，下個禮拜日 00:00 自動結算並保留紀錄。',
+      day: `每日於 ${giftCutTxt} 重新結算，新的一天從 0 重新開始。每週於禮拜日 ${weekCutTxt} 結算並起算。`,
+      week: `每週從禮拜日 ${weekCutTxt} 開始，下個禮拜日 ${weekCutTxt} 自動結算並保留紀錄。`,
       month: '每月 1 號自動結算上月並重新計算。',
       custom: '自訂區間：進度累計到結束日，結束後保留為紀錄。'
     };
@@ -2716,7 +2733,7 @@
       grand += wPts;
     }
 
-    lines.unshift(`【聲播週分數｜${fmtMD(start)} 00:00–${fmtMD(end)} 00:00】`);
+    lines.unshift(`【聲播週分數｜${fmtMD(start)} ${getGiftCutoffHour() === 8 ? '08:00' : '00:00'}–${fmtMD(end)} ${getGiftCutoffHour() === 8 ? '08:00' : '00:00'}】`);
     lines.push('總分' + grand);
     copyText(lines.join('\n'));
     toast('已複製剛結束週分數');
@@ -2769,7 +2786,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v1.1.3';
+  $('verTag').textContent = 'v1.2.0';
 
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
@@ -2931,6 +2948,12 @@
   }
   // 供後段補丁 script 委派使用；放在此處確保一定執行得到（IIFE 結尾處另有備份）
   window.fansUI = { clearFanForm: clearFanForm, saveFan: saveFan, showFanForm: showFanForm };
+  // 初始即依禮物分界刷新首頁副標的週結算時間（renderSheet 時也會再刷新）
+  try {
+    const _wt = Number((store.settings || {}).giftCutoffHour) === 8 ? '08:00' : '00:00';
+    const _hs = document.getElementById('headerSub');
+    if (_hs) _hs.textContent = `點日期可設定「每日 / 每週 / 每月」收禮目標・每週於禮拜日 ${_wt} 結算並起算・跨結算自動歸屬・歷史完成數保留`;
+  } catch (e) {}
   function bindFans() {
     if (!Array.isArray(store.listeners)) store.listeners = [];
     renderFans();
