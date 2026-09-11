@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="恩恩聲播日曆">
 <meta name="theme-color" content="#14141c">
-<meta name="app-version" content="1.4.7">
+<meta name="app-version" content="1.4.8">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
 <title>恩恩聲播日曆</title>
@@ -268,8 +268,8 @@
   .task.editing { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(183,148,246,.35); }
   .task-edit-btn { background:none; border:none; color:var(--muted); cursor:pointer; font-size:15px; padding:2px 4px; flex-shrink:0; opacity:.75; }
   .task-edit-btn:hover { color:var(--accent); opacity:1; }
-  .add-row.editing { outline: 2px solid rgba(183,148,246,.5); outline-offset: 4px; border-radius: 12px; }
-  .add-row.editing input, .add-row.editing select { border-color: var(--accent) !important; }
+  #taskEditZone.editing { outline: 2px solid rgba(183,148,246,.5); outline-offset: 4px; border-radius: 12px; padding: 6px; margin: -6px; }
+  #taskEditZone.editing .add-row input, #taskEditZone.editing .add-row select { border-color: var(--accent) !important; }
   .toast {
     position: fixed; left: 50%; bottom: 30px; transform: translateX(-50%);
     background: var(--accent); color: #14141c; padding: 10px 20px;
@@ -406,6 +406,7 @@
       <span class="iconHint">圖示</span>
       <span class="btnHint"></span>
     </div>
+    <div id="taskEditZone">
     <div class="add-row">
       <input id="nameInput" type="text" placeholder="任務項目" autocomplete="off">
       <input id="qtyInput" type="number" min="1" value="1" placeholder="數量">
@@ -439,6 +440,7 @@
       <span style="font-size:12px; color:var(--muted); align-self:center;">（✨簡=5 / 🔥加=100 / 普通=10）</span>
     </div>
     <div style="border-top:1px solid var(--border); margin:2px 0 14px;"></div>
+    </div>
     <div class="sheet-foot" style="margin:14px 0;">
       <button class="btn btn-ghost" id="copyPrevBtn">📋 複製前一天任務</button>
       <button class="btn btn-ghost" id="clearDayBtn">🗑 清空這天</button>
@@ -491,10 +493,11 @@
       <label style="font-size:13px; color:var(--muted); display:block; margin-bottom:6px;">📻 當週時數（每滿 1 小時 +5，不滿 1 小時不算分）</label>
       <div id="hoursAuto" style="font-size:16px; font-weight:700; color:var(--accent2); text-align:center; padding:8px 0;">本週 0 小時 → +0 分</div>
     </div>
+    <button class="btn btn-ghost btn-block" id="cardBtn">📸 產生分享圖卡</button>
+    <button class="btn btn-ghost btn-block" id="copyListBtn">📋 複製完成 / 未完成清單</button>
     <button class="btn btn-ghost btn-block" id="trendWeekBtn" style="display:none; border-color: var(--accent2); color: var(--accent2);">📈 產生本週趨勢圖</button>
     <button class="btn btn-ghost btn-block" id="trendMonthBtn" style="display:none; border-color: var(--accent); color: var(--accent);">📈 產生本月趨勢圖</button>
     <button class="btn btn-ghost btn-block" id="weekCopyBtn" style="display:none; border-color: var(--accent2); color: var(--accent2);">📅 複製當週分數</button>
-    <button class="btn btn-ghost btn-block" id="copyListBtn">📋 複製完成 / 未完成清單</button>
 
     <button class="btn btn-ghost btn-block" id="cardBtn">📸 產生分享圖卡</button>
   </div>
@@ -1528,7 +1531,7 @@
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
 
     const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
-    $('verTag').textContent = dayCellCount > 0 ? ('v1.4.7' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.4.7 · 日曆異常';
+    $('verTag').textContent = dayCellCount > 0 ? ('v1.4.8' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.4.8 · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -1861,7 +1864,7 @@
     const er = $('taskEditRow');
     if (er) er.style.display = 'none';
     [...$('taskList').children].forEach(el => el.classList.remove('editing'));
-    const _ar2 = document.querySelector('.add-row');
+    const _ar2 = document.getElementById('taskEditZone');
     if (_ar2) _ar2.classList.remove('editing');
   }
   function ensureTaskEditRow() {
@@ -1914,7 +1917,7 @@
     [...$('taskList').children].forEach(el => el.classList.remove('editing'));
     const _tel = $('taskList').children[idx];
     if (_tel) _tel.classList.add('editing');
-    const _ar = document.querySelector('.add-row');
+    const _ar = document.getElementById('taskEditZone');
     if (_ar) _ar.classList.add('editing');
     const _er = ensureTaskEditRow();
     _er.style.display = 'flex';
@@ -2978,7 +2981,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v1.4.7';
+  $('verTag').textContent = 'v1.4.8';
 
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
