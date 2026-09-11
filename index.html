@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="恩恩聲播日曆">
 <meta name="theme-color" content="#14141c">
-<meta name="app-version" content="1.4.2">
+<meta name="app-version" content="1.4.3">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
 <title>恩恩聲播日曆</title>
@@ -268,6 +268,8 @@
   .task.editing { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(183,148,246,.35); }
   .task-edit-btn { background:none; border:none; color:var(--muted); cursor:pointer; font-size:15px; padding:2px 4px; flex-shrink:0; opacity:.75; }
   .task-edit-btn:hover { color:var(--accent); opacity:1; }
+  .add-row.editing { outline: 2px solid rgba(183,148,246,.5); outline-offset: 4px; border-radius: 12px; }
+  .add-row.editing input, .add-row.editing select { border-color: var(--accent) !important; }
   .toast {
     position: fixed; left: 50%; bottom: 30px; transform: translateX(-50%);
     background: var(--accent); color: #14141c; padding: 10px 20px;
@@ -1523,7 +1525,7 @@
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
 
     const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
-    $('verTag').textContent = dayCellCount > 0 ? ('v1.4.2' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.4.2 · 日曆異常';
+    $('verTag').textContent = dayCellCount > 0 ? ('v1.4.3' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.4.3 · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -1856,6 +1858,8 @@
     const er = $('taskEditRow');
     if (er) er.style.display = 'none';
     [...$('taskList').children].forEach(el => el.classList.remove('editing'));
+    const _ar2 = document.querySelector('.add-row');
+    if (_ar2) _ar2.classList.remove('editing');
   }
   function ensureTaskEditRow() {
     let row = $('taskEditRow');
@@ -1907,6 +1911,8 @@
     [...$('taskList').children].forEach(el => el.classList.remove('editing'));
     const _tel = $('taskList').children[idx];
     if (_tel) _tel.classList.add('editing');
+    const _ar = document.querySelector('.add-row');
+    if (_ar) _ar.classList.add('editing');
     const _er = ensureTaskEditRow();
     _er.style.display = 'flex';
     const row = document.querySelector('.add-row');
@@ -2969,7 +2975,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v1.4.2';
+  $('verTag').textContent = 'v1.4.3';
 
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
