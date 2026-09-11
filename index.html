@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="恩恩聲播日曆">
 <meta name="theme-color" content="#14141c">
-<meta name="app-version" content="1.2.2">
+<meta name="app-version" content="1.2.3">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
 <title>恩恩聲播日曆</title>
@@ -434,7 +434,7 @@
       <button class="btn btn-ghost" id="clearDayBtn">🗑 清空這天</button>
     </div>
 
-    <div style="font-size:11px;color:var(--muted);margin:-4px 0 8px;">點名稱可編輯該任務・長按數量可直接輸入</div>
+    <div style="font-size:11px;color:var(--muted);margin:-4px 0 8px;">點名稱可編輯該任務・長按+1可直接輸入數量</div>
     <div class="task-list" id="taskList" style="margin-top:2px;"></div>
 
     <div style="border-top:1px solid var(--border); margin:16px 0;"></div>
@@ -1510,7 +1510,7 @@
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
 
     const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
-    $('verTag').textContent = dayCellCount > 0 ? ('v1.2.2' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.2.2 · 日曆異常';
+    $('verTag').textContent = dayCellCount > 0 ? ('v1.2.3' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.2.3 · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -2876,7 +2876,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v1.2.2';
+  $('verTag').textContent = 'v1.2.3';
 
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
