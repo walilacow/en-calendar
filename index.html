@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="恩恩聲播日曆">
 <meta name="theme-color" content="#14141c">
-<meta name="app-version" content="1.2.0">
+<meta name="app-version" content="1.2.1">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
 <title>恩恩聲播日曆</title>
@@ -473,7 +473,7 @@
 
     <div style="border-top:1px solid var(--border); margin:16px 0;"></div>
     <div id="hoursBox" style="display:none; margin-top:14px; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px 14px;">
-      <label style="font-size:13px; color:var(--muted); display:block; margin-bottom:6px;">📻 前一週時數（每滿 1 小時 +5，不滿 1 小時不算分）</label>
+      <label style="font-size:13px; color:var(--muted); display:block; margin-bottom:6px;">📻 當週時數（每滿 1 小時 +5，不滿 1 小時不算分）</label>
       <div id="hoursAuto" style="font-size:16px; font-weight:700; color:var(--accent2); text-align:center; padding:8px 0;">本週 0 小時 → +0 分</div>
     </div>
     <button class="btn btn-ghost btn-block" id="trendWeekBtn" style="display:none; border-color: var(--accent2); color: var(--accent2);">📈 產生本週趨勢圖</button>
@@ -1509,7 +1509,7 @@
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
 
     const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
-    $('verTag').textContent = dayCellCount > 0 ? ('v1.2.0' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.2.0 · 日曆異常';
+    $('verTag').textContent = dayCellCount > 0 ? ('v1.2.1' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.2.1 · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -1597,8 +1597,8 @@
     }
 
     const isSunday = new Date(y, m - 1, d).getDay() === 0;
-    $('weekCopyBtn').style.display = (scope === 'day' && isSunday) ? 'block' : 'none';
-    $('hoursBox').style.display = (scope === 'day' && isSunday) ? 'block' : 'none';
+    $('weekCopyBtn').style.display = (scope === 'day' && isSaturday(openDate)) ? 'block' : 'none';
+    $('hoursBox').style.display = (scope === 'day' && isSaturday(openDate)) ? 'block' : 'none';
     const stSettings = store.settings || {};
     const showDragon = stSettings.enableDragon !== false;
     const showCastle = stSettings.enableCastle !== false;
@@ -1608,15 +1608,15 @@
     const trendVisible = stSettings.enableGiftTasks !== false || stSettings.enableSalesScore !== false;
     $('trendWeekBtn').style.display = (scope === 'day' && isSaturday(openDate) && trendVisible) ? 'block' : 'none';
     $('trendMonthBtn').style.display = (scope === 'day' && isLastDayOfMonth(openDate) && trendVisible) ? 'block' : 'none';
-    if (scope === 'day' && isSunday) {
-      // 週日看到的時數，改顯示「剛結束的前一週」，滿 1 小時才 +5
-      const prevStart = addDays(weekInfo(openDate).start, -7);
-      const prevKey = key(prevStart.getFullYear(), prevStart.getMonth(), prevStart.getDate());
-      const mins = weekMinutes(prevKey);
+    if (scope === 'day' && isSaturday(openDate)) {
+      // 週六（每週最後一天）顯示「當週」時數，滿 1 小時才 +5
+      const curWi = weekInfo(openDate);
+      const curKey = key(curWi.start.getFullYear(), curWi.start.getMonth(), curWi.start.getDate());
+      const mins = weekMinutes(curKey);
       const fullHrs = Math.floor(mins / 60);
       const leftover = mins % 60;
       const pts = fullHrs * 5;
-      $('hoursAuto').textContent = '前一週 ' + fullHrs + ' 小時' + (leftover ? ' ' + leftover + ' 分（不滿 1 小時不算）' : '') + ' → +' + pts + ' 分';
+      $('hoursAuto').textContent = '當週 ' + fullHrs + ' 小時' + (leftover ? ' ' + leftover + ' 分（不滿 1 小時不算）' : '') + ' → +' + pts + ' 分';
     }
     const settings = store.settings || { enableGiftTasks: true, enableSalesScore: true, salesDayTarget: 0, salesWeekTarget: 0, salesMonthTarget: 0 };
     const tasks = settings.enableGiftTasks ? getTasks(scope, openDate) : [];
@@ -2667,10 +2667,10 @@
     if (!openDate) return;
     logTodayScores();
 
-    // 新制：禮拜日是每週第一天。週日看到的「複製當週分數」= 複製剛結束的前一週（上週日 00:00 – 本週日 00:00）
+    // 禮拜六（每週最後一天）複製「本週」成績：本週日起算至下週日，含週六當下進度
     const curWi = weekInfo(openDate);
-    const start = addDays(curWi.start, -7);
-    const end = curWi.start;
+    const start = curWi.start;
+    const end = addDays(curWi.start, 7);
     const targetKey = key(start.getFullYear(), start.getMonth(), start.getDate());
 
     const log = store.scoreLog || {};
@@ -2786,7 +2786,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v1.2.0';
+  $('verTag').textContent = 'v1.2.1';
 
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
