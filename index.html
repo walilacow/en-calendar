@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="恩恩聲播日曆">
 <meta name="theme-color" content="#14141c">
-<meta name="app-version" content="1.4.5">
+<meta name="app-version" content="1.4.6">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
 <title>恩恩聲播日曆</title>
@@ -333,10 +333,12 @@
         <h1 id="appTitle">🎁 聲播日曆</h1>
         <button id="editNickBtn" title="修改暱稱 / 馬甲 / 頭像" style="background:none; border:none; font-size:16px; cursor:pointer; padding:4px; opacity:.8;">✏️</button>
       </div>
-      <div style="display:flex; gap:8px; align-items:center; flex-shrink:0;">
-        <button class="btn-today" id="donateBtn" style="background: var(--accent2); padding:10px 12px; font-size:13px;">☕ 小額贊助</button>
-        <a href="user-manual.html" target="_blank" class="btn-today" style="background: var(--card); color: var(--text); border:1px solid var(--border); padding:10px 12px; font-size:13px; text-decoration:none; display:inline-flex; align-items:center;">📖 手冊</a>
-        <button class="btn-today" id="settingsBtn" style="background: var(--card); color: var(--text); border:1px solid var(--border); padding:10px 12px; font-size:13px;">⚙️ 設定</button>
+      <div style="display:flex; flex-direction:column; gap:6px; flex-shrink:0;">
+        <div style="display:flex; gap:6px;">
+          <button class="btn-today" id="donateBtn" style="background: var(--accent2); padding:9px 10px; font-size:12px;">☕ 小額贊助</button>
+          <a href="user-manual.html" target="_blank" class="btn-today" style="background: var(--card); color: var(--text); border:1px solid var(--border); padding:9px 10px; font-size:12px; text-decoration:none; display:inline-flex; align-items:center;">📖 手冊</a>
+        </div>
+        <button class="btn-today" id="settingsBtn" style="background: var(--card); color: var(--text); border:1px solid var(--border); padding:9px 10px; font-size:12px;">⚙️ 設定</button>
       </div>
     </div>
     <div class="sub" id="headerSub">點日期可設定「每日 / 每週 / 每月」收禮目標・每週於禮拜日 00:00 結算並起算・跨結算自動歸屬・歷史完成數保留</div>
@@ -1526,7 +1528,7 @@
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
 
     const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
-    $('verTag').textContent = dayCellCount > 0 ? ('v1.4.5' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.4.5 · 日曆異常';
+    $('verTag').textContent = dayCellCount > 0 ? ('v1.4.6' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.4.6 · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -2976,7 +2978,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v1.4.5';
+  $('verTag').textContent = 'v1.4.6';
 
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
