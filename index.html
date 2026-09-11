@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="恩恩聲播日曆">
 <meta name="theme-color" content="#14141c">
-<meta name="app-version" content="1.4.6">
+<meta name="app-version" content="1.4.7">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
 <title>恩恩聲播日曆</title>
@@ -1528,7 +1528,7 @@
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
 
     const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
-    $('verTag').textContent = dayCellCount > 0 ? ('v1.4.6' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.4.6 · 日曆異常';
+    $('verTag').textContent = dayCellCount > 0 ? ('v1.4.7' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.4.7 · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -2978,7 +2978,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v1.4.6';
+  $('verTag').textContent = 'v1.4.7';
 
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
