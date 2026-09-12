@@ -15,6 +15,7 @@
   .login-box { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:24px; max-width:340px; margin:60px auto; text-align:center; }
   .btn { border:none; border-radius:10px; padding:12px 18px; font-size:15px; cursor:pointer; font-weight:700; background:var(--accent); color:#14141c; width:100%; font-family:inherit; }
   .err { color:var(--red); font-size:13px; margin-top:10px; min-height:18px; }
+  .logging { color:var(--accent2); font-size:13px; margin-top:10px; }
   #who { color:var(--green); font-size:13px; margin-bottom:14px; }
   .period-tabs { display:flex; gap:8px; margin-bottom:14px; }
   .period-tabs button { flex:1; padding:10px; border-radius:10px; border:1px solid var(--border); background:var(--card); color:var(--muted); font-size:14px; cursor:pointer; font-family:inherit; font-weight:700; }
@@ -40,6 +41,7 @@
   .muted { color:var(--muted); font-size:12px; }
   .updated { color:var(--muted); font-size:11px; margin-top:4px; }
 </style>
+<base target="_blank">
 </head>
 <body>
 <div class="wrap" id="appWrap" style="display:none;">
@@ -58,6 +60,7 @@
   <h1 style="margin-bottom:8px;">🔐 後台登入</h1>
   <div class="sub" style="margin-bottom:16px;">請用管理者 Google 帳號登入</div>
   <button class="btn" id="loginBtn">使用 Google 帳號登入</button>
+  <div class="logging" id="loggingTip" style="display:none;">登入處理中…（如跳轉後回到此畫面，請再按一次）</div>
   <div class="err" id="err"></div>
 </div>
 
@@ -73,13 +76,24 @@ var unsubscribe = null;
 
 document.getElementById('loginBtn').onclick = function(){
   document.getElementById('err').textContent = '';
+  document.getElementById('loggingTip').style.display = 'block';
   var provider = new firebase.auth.GoogleAuthProvider();
-  if ((navigator.userAgent.match(/iP(hone|ad|od)/) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))) {
-    auth.signInWithRedirect(provider).catch(function(e){ document.getElementById('err').textContent = e.message || '登入失敗'; });
-  } else {
-    auth.signInWithPopup(provider).catch(function(e){ document.getElementById('err').textContent = e.message || '登入失敗'; });
-  }
+  // PWA（主畫面模式）popup 會跳去 Safari 導致登入狀態遺失 → 一律用 redirect 同視窗完成
+  auth.signInWithRedirect(provider).catch(function(e){
+    document.getElementById('loggingTip').style.display = 'none';
+    document.getElementById('err').textContent = e.message || '登入失敗';
+  });
 };
+// 若 redirect 跳轉回來（URL 帶結果），完成登入
+auth.getRedirectResult().then(function(res){
+  if (res && res.user) {
+    document.getElementById('loginBtn').disabled = true;
+    document.getElementById('loginBtn').textContent = '✅ 登入成功，載入中…';
+  }
+}).catch(function(e){
+  document.getElementById('loggingTip').style.display = 'none';
+  document.getElementById('err').textContent = (e && e.message) ? e.message : '登入失敗';
+});
 
 document.getElementById('tabWeek').onclick = function(){ setPeriod('week'); };
 document.getElementById('tabMonth').onclick = function(){ setPeriod('month'); };
