@@ -118,12 +118,16 @@ function rangeOf(period){
 var cache = {};
 function startListen(){
   if (unsubscribe) unsubscribe();
+  var cards = document.getElementById('cards');
+  cards.innerHTML = '<div class="empty">連線中…</div>';
   unsubscribe = db.collection('users').onSnapshot(function(snap){
     cache = {};
     snap.forEach(function(doc){ cache[doc.id] = doc.data() || {}; });
     render();
   }, function(err){
-    document.getElementById('err').textContent = '讀取失敗：' + err.message;
+    var msg = (err && err.message) ? err.message : String(err);
+    document.getElementById('err').textContent = '讀取失敗：' + msg;
+    cards.innerHTML = '<div class="empty" style="color:var(--red);">❌ 讀取 users 集合被拒絕<br><span style="font-size:12px;">' + esc(msg) + '</span><br><br><span style="color:var(--muted);font-size:12px;">這通常是 Firestore 安全規則擋住，請到 Firebase Console → Firestore → 規則，暫時改成：<br><code style="color:#f6ad55;">rules_version = \'2\';<br>service cloud.firestore {<br>&nbsp;&nbsp;match /databases/{database}/documents {<br>&nbsp;&nbsp;&nbsp;&nbsp;match /{document=**} {<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;allow read, write: if true;<br>&nbsp;&nbsp;&nbsp;&nbsp;}<br>&nbsp;&nbsp;}<br>}</code></span></div>';
   });
 }
 
@@ -160,7 +164,6 @@ function taskScoreForDay(d, dk){
 
 function render(){
   var r = rangeOf(period);
-  var cards = document.getElementById('cards');
   var html = '';
   var count = 0;
   for (var uid in cache) {
@@ -197,7 +200,7 @@ function render(){
       + '<div class="bar-wrap">' + bars + '</div></div>';
     count++;
   }
-  if (!count) html = '<div class="empty">目前沒有資料<br>主播在 App 打卡 / 記業績後，這裡會即時出現</div>';
+  if (!count) html = '<div class="empty">讀取成功，但目前 users 集合是空的（0 筆）<br>可能原因：<br>① Firestore 規則擋住讀取（上方應有紅字錯誤）<br>② 主播們還沒在新版 App 登入過（資料要登入後才會上雲）<br>③ 你登後台用的 Google 帳號跟 App 是不同專案？（apiKey 必須一致）</div>';
   cards.innerHTML = html;
 }
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
