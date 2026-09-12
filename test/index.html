@@ -6,12 +6,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="聲播日曆測試">
+<meta name="apple-mobile-web-app-title" content="恩恩聲播日曆">
 <meta name="theme-color" content="#14141c">
-<meta name="app-version" content="1.4.8">
+<meta name="app-version" content="1.5.0">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
-<title>恩恩聲播日曆【測試版】</title>
+<title>恩恩聲播日曆</title>
 <style>
   :root {
     --bg: #14141c;
@@ -326,12 +326,11 @@
 </div>
 
 <div class="container" id="mainContent" style="display:none;">
-  <div style="background:var(--accent2);color:#14141c;font-size:12px;font-weight:700;text-align:center;padding:6px 8px;border-radius:8px;margin-bottom:10px;">⚠️ 這是測試環境・資料與正式版即時互通・勿當沙盒亂刪</div>
   <header>
     <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
       <div style="display:flex; align-items:center; gap:10px; min-width:0;">
         <img id="titleAvatar" src="avatars/cat.png" alt="頭像" style="width:38px; height:38px; border-radius:50%; border:2px solid var(--accent); object-fit:cover;">
-        <h1 id="appTitle">🎁 聲播日曆<span style="color:var(--accent2);font-size:14px;"> ・測試版</span></h1>
+        <h1 id="appTitle">🎁 聲播日曆</h1>
         <button id="editNickBtn" title="修改暱稱 / 馬甲 / 頭像" style="background:none; border:none; font-size:16px; cursor:pointer; padding:4px; opacity:.8;">✏️</button>
       </div>
       <div style="display:flex; flex-direction:column; gap:6px; flex-shrink:0;">
@@ -397,6 +396,7 @@
       </div>
       <div id="slotList"></div>
       <button id="addSlotBtn" style="width:100%; background:var(--card); border:1px dashed var(--border); color:var(--muted); border-radius:10px; padding:10px; font-size:14px; cursor:pointer; font-family:inherit;">＋ 新增時段</button>
+      <button id="exportCalendarBtn" style="width:100%; background:var(--card); border:1px solid var(--accent); color:var(--accent); border-radius:10px; padding:10px; font-size:14px; cursor:pointer; font-family:inherit; margin-top:8px;">📅 同步到行事曆（iPhone 到點推播提醒）</button>
     </div>
     <div style="border-top:1px solid var(--border); margin:30px 0 14px;"></div>
 
@@ -1532,7 +1532,7 @@
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
 
     const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
-    $('verTag').textContent = dayCellCount > 0 ? ('v-test' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v-test · 日曆異常';
+    $('verTag').textContent = dayCellCount > 0 ? ('v1.5.0' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.5.0 · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -2144,6 +2144,44 @@
     if (!b.slots.length) delete b.slots;
     save(); renderSheet(); renderCalendar();
   });
+  // ===== 行事曆匯出（方案 C：到點由 iPhone 系統推播）=====
+  $('exportCalendarBtn').onclick = () => {
+    if (!openDate) return;
+    const b = store.dates[openDate];
+    const slots = (b && b.slots) || [];
+    const valid = slots.filter(s => s && s.start && s.end);
+    if (!valid.length) { toast('這天還沒設定開播時段'); return; }
+    const [yy, mm, dd] = openDate.split('-').map(Number);
+    const pad = (n) => String(n).padStart(2, '0');
+    const icsDate = (t) => `${yy}${pad(mm)}${pad(dd)}T${String(t).replace(':', '')}00`;
+    const escIcs = (s) => String(s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,');
+    const nick = (function(){ try { return localStorage.getItem('nick_v1') || ''; } catch(e){ return ''; } })();
+    const title = '🎙️ 開播提醒' + (nick ? '・' + nick : '');
+    let vevents = '';
+    valid.forEach((s, i) => {
+      vevents += 'BEGIN:VEVENT\r\n'
+        + 'UID:' + openDate + '-' + i + '@voicehost\r\n'
+        + 'DTSTAMP:' + icsDate(s.start) + '\r\n'
+        + 'DTSTART:' + icsDate(s.start) + '\r\n'
+        + 'DTEND:' + icsDate(s.end) + '\r\n'
+        + 'SUMMARY:' + escIcs(title) + '\r\n'
+        + 'BEGIN:VALARM\r\n'
+        + 'TRIGGER:-PT5M\r\n'
+        + 'ACTION:DISPLAY\r\n'
+        + 'DESCRIPTION:' + escIcs(title) + '\r\n'
+        + 'END:VALARM\r\n'
+        + 'END:VEVENT\r\n';
+    });
+    const ics = 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//VoiceHost//EN\r\nCALSCALE:GREGORIAN\r\n' + vevents + 'END:VCALENDAR\r\n';
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'voicehost-' + openDate + '.ics';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    toast('已下載行事曆檔，點它即可加入提醒');
+  };
   $('addSlotBtn').onclick = () => {
     if (!openDate) return;
     const b = ensureBucket('day', openDate);
@@ -2982,7 +3020,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v-test';
+  $('verTag').textContent = 'v1.5.0';
 
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
