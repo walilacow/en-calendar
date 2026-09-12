@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#14141c">
+<title>主播收禮狀況・後台</title>
+<style>
+  :root { --bg:#14141c; --card:#1e1e2a; --border:#2e2e40; --accent:#b794f6; --accent2:#f6ad55; --green:#48bb78; --blue:#63b3ed; --red:#fc8181; --text:#e8e8f0; --muted:#8b8b9e; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:"PingFang TC","Noto Sans TC",sans-serif; min-height:100vh; padding:20px 14px 60px; }
+  .wrap { max-width:880px; margin:0 auto; }
+  h1 { font-size:20px; margin-bottom:4px; }
+  .sub { color:var(--muted); font-size:13px; margin-bottom:16px; }
+  .login-box { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:24px; max-width:340px; margin:60px auto; text-align:center; }
+  .btn { border:none; border-radius:10px; padding:12px 18px; font-size:15px; cursor:pointer; font-weight:700; background:var(--accent); color:#14141c; width:100%; font-family:inherit; }
+  .err { color:var(--red); font-size:13px; margin-top:10px; min-height:18px; }
+  #who { color:var(--green); font-size:13px; margin-bottom:14px; }
+  .period-tabs { display:flex; gap:8px; margin-bottom:14px; }
+  .period-tabs button { flex:1; padding:10px; border-radius:10px; border:1px solid var(--border); background:var(--card); color:var(--muted); font-size:14px; cursor:pointer; font-family:inherit; font-weight:700; }
+  .period-tabs button.on { background:var(--accent); color:#14141c; border-color:transparent; }
+  .cards { display:flex; flex-direction:column; gap:14px; }
+  .host-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px; }
+  .host-card h3 { font-size:17px; margin-bottom:2px; }
+  .host-card .email { color:var(--muted); font-size:12px; margin-bottom:12px; }
+  .nums { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+  .num { flex:1; min-width:120px; background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:10px 12px; }
+  .num .v { font-size:20px; font-weight:800; }
+  .num .l { font-size:11px; color:var(--muted); margin-top:2px; }
+  .c-sales { color:var(--accent2); } .c-tasks { color:var(--accent); } .c-total { color:var(--green); }
+  .bar-wrap { margin-top:6px; }
+  .bar-row { display:flex; align-items:center; gap:8px; font-size:11px; color:var(--muted); margin-top:4px; }
+  .bar-row .track { flex:1; height:8px; background:var(--border); border-radius:99px; overflow:hidden; }
+  .bar-row .fill { height:100%; border-radius:99px; }
+  .f-s { background:var(--accent2); } .f-t { background:var(--accent); }
+  .empty { text-align:center; color:var(--muted); padding:40px 0; font-size:14px; line-height:2; }
+  .muted { color:var(--muted); font-size:12px; }
+  .updated { color:var(--muted); font-size:11px; margin-top:4px; }
+</style>
+</head>
+<body>
+<div class="wrap" id="appWrap" style="display:none;">
+  <h1>🎁 主播收禮狀況</h1>
+  <div class="sub">聲播日曆・測試環境後台（資料即時同步自各主播的 App・業績＋任務分數）</div>
+  <div id="who"></div>
+  <div class="period-tabs">
+    <button id="tabWeek" class="on">本週</button>
+    <button id="tabMonth">本月</button>
+  </div>
+  <div class="cards" id="cards"></div>
+  <div style="margin-top:18px;"><button class="btn" onclick="location.reload()">🔄 重新整理</button></div>
+</div>
+
+<div class="login-box" id="loginBox">
+  <h1 style="margin-bottom:8px;">🔐 後台登入</h1>
+  <div class="sub" style="margin-bottom:16px;">請用管理者 Google 帳號登入</div>
+  <button class="btn" id="loginBtn">使用 Google 帳號登入</button>
+  <div class="err" id="err"></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+var FB_CONFIG = {"apiKey":"AIzaSyCQ0UKn0i4QwedbRhiE4CZdrUK_dWPH6D4","authDomain":"voice-host-calendar.firebaseapp.com","projectId":"voice-host-calendar","storageBucket":"voice-host-calendar.appspot.com","messagingSenderId":"581805722250","appId":"1:581805722250:web:0c7b87b056d9b1d14ee9f9"};
+firebase.initializeApp(FB_CONFIG);
+var auth = firebase.auth(), db = firebase.firestore();
+var period = 'week';
+var unsubscribe = null;
+
+document.getElementById('loginBtn').onclick = function(){
+  document.getElementById('err').textContent = '';
+  var provider = new firebase.auth.GoogleAuthProvider();
+  if ((navigator.userAgent.match(/iP(hone|ad|od)/) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))) {
+    auth.signInWithRedirect(provider).catch(function(e){ document.getElementById('err').textContent = e.message || '登入失敗'; });
+  } else {
+    auth.signInWithPopup(provider).catch(function(e){ document.getElementById('err').textContent = e.message || '登入失敗'; });
+  }
+};
+
+document.getElementById('tabWeek').onclick = function(){ setPeriod('week'); };
+document.getElementById('tabMonth').onclick = function(){ setPeriod('month'); };
+function setPeriod(p){
+  period = p;
+  document.getElementById('tabWeek').className = p === 'week' ? 'on' : '';
+  document.getElementById('tabMonth').className = p === 'month' ? 'on' : '';
+  render();
+}
+
+auth.onAuthStateChanged(function(user){
+  if (!user) return;
+  document.getElementById('loginBox').style.display = 'none';
+  document.getElementById('appWrap').style.display = 'block';
+  document.getElementById('who').textContent = '已登入：' + (user.email || user.uid);
+  startListen();
+});
+
+function key(d){ return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+function monthKey(d){ return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); }
+
+function rangeOf(period){
+  var now = new Date();
+  if (period === 'month') {
+    var days = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+    var labels = [];
+    for (var i = 1; i <= days; i++) labels.push(String(i));
+    return { days: days, labels: labels };
+  }
+  var start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+  var labels = [];
+  for (var i = 0; i < 7; i++) {
+    var d = new Date(start); d.setDate(start.getDate() + i);
+    labels.push((d.getMonth()+1) + '/' + d.getDate());
+  }
+  return { start: start, days: 7, labels: labels };
+}
+
+var cache = {};
+function startListen(){
+  if (unsubscribe) unsubscribe();
+  unsubscribe = db.collection('users').onSnapshot(function(snap){
+    cache = {};
+    snap.forEach(function(doc){ cache[doc.id] = doc.data() || {}; });
+    render();
+  }, function(err){
+    document.getElementById('err').textContent = '讀取失敗：' + err.message;
+  });
+}
+
+function salesScoreForDay(d, dk){
+  var settings = d.settings || {};
+  var cutoff = Number(settings.salesCutoffHour) === 8 ? 8 : 0;
+  var log = d.salesLog || {};
+  if (cutoff === 8) {
+    var next = new Date(dk); next.setDate(next.getDate() + 1);
+    var nk = key(next);
+    return (log[dk] || 0) + (log[nk] || 0);
+  }
+  return log[dk] || 0;
+}
+function taskScoreForDay(d, dk){
+  var total = 0;
+  var buckets = [d.dates, d.weeks, d.months];
+  for (var bi = 0; bi < buckets.length; bi++) {
+    var bk = buckets[bi]; if (!bk) continue;
+    var tasks = null;
+    if (d.dates === bk) tasks = (bk[dk] || {}).tasks;
+    else {
+      var prefix = (d.weeks === bk) ? dk.slice(0,7) : dk.slice(0,7);
+      for (var k in bk) { if (k.indexOf(prefix.slice(0,7)) === 0 || (d.weeks === bk && k <= dk) || (d.months === bk && k === dk.slice(0,7))) tasks = (bk[k] || {}).tasks; }
+    }
+    if (!tasks) continue;
+    tasks.forEach(function(t){
+      var full = Number(t.target) > 0 && Number(t.cur) >= Number(t.target);
+      if (full) total += Number(t.score) || 0;
+    });
+  }
+  return total;
+}
+
+function render(){
+  var r = rangeOf(period);
+  var cards = document.getElementById('cards');
+  var html = '';
+  var count = 0;
+  for (var uid in cache) {
+    var d = cache[uid];
+    var salesArr = [], tasksArr = [];
+    for (var i = 0; i < r.days; i++) {
+      var dk;
+      if (period === 'month') { var now0 = new Date(); dk = key(new Date(now0.getFullYear(), now0.getMonth(), i+1)); }
+      else { var dd = new Date(r.start); dd.setDate(r.start.getDate() + i); dk = key(dd); }
+      salesArr.push(salesScoreForDay(d, dk));
+      tasksArr.push(taskScoreForDay(d, dk));
+    }
+    var sSum = salesArr.reduce(function(a,b){ return a+b; }, 0);
+    var tSum = tasksArr.reduce(function(a,b){ return a+b; }, 0);
+    var name = d.nickname || '（未設暱稱）';
+    var alias = d.alias ? ' ' + d.alias : '';
+    var sMax = Math.max.apply(null, salesArr.concat([1]));
+    var tMax = Math.max.apply(null, tasksArr.concat([1]));
+    var bars = '';
+    for (var i2 = 0; i2 < r.days; i2++) {
+      bars += '<div class="bar-row"><span style="min-width:34px;">' + r.labels[i2] + '</span>'
+        + '<div class="track"><div class="fill f-s" style="width:' + Math.round(salesArr[i2]/sMax*100) + '%"></div></div>'
+        + '<div class="track"><div class="fill f-t" style="width:' + Math.round(tasksArr[i2]/tMax*100) + '%"></div></div>'
+        + '<span style="min-width:64px;text-align:right;">' + (salesArr[i2] || tasksArr[i2] ? (salesArr[i2] + '/' + tasksArr[i2]) : '') + '</span></div>';
+    }
+    html += '<div class="host-card"><h3>' + esc(name) + esc(alias) + '</h3>'
+      + '<div class="email">' + esc(d.email || '') + '</div>'
+      + '<div class="nums">'
+      + '<div class="num"><div class="v c-sales">' + sSum + '</div><div class="l">' + (period === 'week' ? '本週' : '本月') + '業績分數</div></div>'
+      + '<div class="num"><div class="v c-tasks">' + tSum + '</div><div class="l">' + (period === 'week' ? '本週' : '本月') + '任務分數</div></div>'
+      + '<div class="num"><div class="v c-total">' + (sSum + tSum) + '</div><div class="l">合計</div></div>'
+      + '</div>'
+      + '<div class="muted">每日：橘＝業績　紫＝任務</div>'
+      + '<div class="bar-wrap">' + bars + '</div></div>';
+    count++;
+  }
+  if (!count) html = '<div class="empty">目前沒有資料<br>主播在 App 打卡 / 記業績後，這裡會即時出現</div>';
+  cards.innerHTML = html;
+}
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+</script>
+</body>
+</html>
