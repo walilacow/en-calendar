@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="恩恩聲播日曆">
 <meta name="theme-color" content="#14141c">
-<meta name="app-version" content="1.5.1">
+<meta name="app-version" content="1.5.3">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
 <title>恩恩聲播日曆</title>
@@ -1532,7 +1532,7 @@
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
 
     const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
-    $('verTag').textContent = dayCellCount > 0 ? ('v1.5.1' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.5.1 · 日曆異常';
+    $('verTag').textContent = dayCellCount > 0 ? ('v1.5.3' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.5.3 · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -2145,7 +2145,7 @@
     save(); renderSheet(); renderCalendar();
   });
   // ===== 行事曆匯出（方案 C：到點由 iPhone 系統推播）=====
-  $('exportCalendarBtn').onclick = () => {
+  function exportICS() {
     if (!openDate) return;
     const b = store.dates[openDate];
     const slots = (b && b.slots) || [];
@@ -2186,7 +2186,8 @@
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
     toast('已下載行事曆檔，點它即可加入提醒');
-  };
+  }
+  $('exportCalendarBtn').onclick = exportICS;
   $('addSlotBtn').onclick = () => {
     if (!openDate) return;
     const b = ensureBucket('day', openDate);
@@ -3025,7 +3026,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v1.5.1';
+  $('verTag').textContent = 'v1.5.3';
 
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
