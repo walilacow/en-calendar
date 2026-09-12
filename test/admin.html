@@ -59,11 +59,12 @@
 <div class="login-box" id="loginBox">
   <h1 style="margin-bottom:8px;">🔐 後台登入</h1>
   <div class="sub" style="margin-bottom:16px;">請用管理者 Google 帳號登入</div>
-  <button class="btn" id="loginBtn">使用 Google 帳號登入</button>
-  <div class="logging" id="loggingTip" style="display:none;">登入處理中…（如跳轉後回到此畫面，請再按一次）</div>
+  <div style="display:flex;justify-content:center;min-height:44px;"><div id="gsiBtn"></div></div>
+  <div class="logging" id="loggingTip" style="display:none;margin-top:10px;">登入處理中…</div>
   <div class="err" id="err"></div>
 </div>
 
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -74,26 +75,28 @@ var auth = firebase.auth(), db = firebase.firestore();
 var period = 'week';
 var unsubscribe = null;
 
-document.getElementById('loginBtn').onclick = function(){
-  document.getElementById('err').textContent = '';
-  document.getElementById('loggingTip').style.display = 'block';
-  var provider = new firebase.auth.GoogleAuthProvider();
-  // PWA（主畫面模式）popup 會跳去 Safari 導致登入狀態遺失 → 一律用 redirect 同視窗完成
-  auth.signInWithRedirect(provider).catch(function(e){
-    document.getElementById('loggingTip').style.display = 'none';
-    document.getElementById('err').textContent = e.message || '登入失敗';
-  });
-};
-// 若 redirect 跳轉回來（URL 帶結果），完成登入
-auth.getRedirectResult().then(function(res){
-  if (res && res.user) {
-    document.getElementById('loginBtn').disabled = true;
-    document.getElementById('loginBtn').textContent = '✅ 登入成功，載入中…';
+// Google 一鍵登入（PWA 主畫面模式唯一可靠做法：不跳轉、不彈窗）
+function renderGISButton(){
+  if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) {
+    setTimeout(renderGISButton, 500); return;
   }
-}).catch(function(e){
-  document.getElementById('loggingTip').style.display = 'none';
-  document.getElementById('err').textContent = (e && e.message) ? e.message : '登入失敗';
-});
+  google.accounts.id.initialize({
+    client_id: '759675780359-h4ef56v4qgagqt9m4r58vn8c8r0dh7t1.apps.googleusercontent.com',
+    callback: function(resp){
+      document.getElementById('err').textContent = '';
+      document.getElementById('loggingTip').style.display = 'block';
+      var cred = firebase.auth.GoogleAuthProvider.credential(resp.credential);
+      auth.signInWithCredential(cred).catch(function(e){
+        document.getElementById('loggingTip').style.display = 'none';
+        document.getElementById('err').textContent = (e && e.message) ? e.message : '登入失敗';
+      });
+    }
+  });
+  google.accounts.id.renderButton(document.getElementById('gsiBtn'), {
+    theme: 'filled_black', size: 'large', shape: 'pill', text: 'signin_with'
+  });
+}
+renderGISButton();
 
 document.getElementById('tabWeek').onclick = function(){ setPeriod('week'); };
 document.getElementById('tabMonth').onclick = function(){ setPeriod('month'); };
