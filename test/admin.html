@@ -32,7 +32,10 @@
   .bar-row { display:flex; align-items:center; gap:8px; font-size:11px; color:var(--muted); margin-top:4px; }
   .bar-row .track { flex:1; height:8px; background:var(--border); border-radius:99px; overflow:hidden; }
   .bar-row .fill { height:100%; border-radius:99px; }
-  .f-s { background:var(--accent2); } .f-t { background:var(--accent); }
+  .f-s { background:var(--accent2); } .f-t { background:var(--accent); } .f-h { background:var(--blue); }
+  .hours-line { margin-top:10px; padding-top:10px; border-top:1px dashed var(--border); font-size:13px; }
+  .hours-line b.h { color:var(--blue); font-size:16px; }
+  .hours-line b.p { color:var(--green); font-size:16px; }
   .empty { text-align:center; color:var(--muted); padding:40px 0; font-size:14px; line-height:2; }
   .muted { color:var(--muted); font-size:12px; }
   .updated { color:var(--muted); font-size:11px; margin-top:4px; }
@@ -182,10 +185,34 @@ function render(){
     var alias = d.alias ? ' ' + d.alias : '';
     var sMax = Math.max.apply(null, salesArr.concat([1]));
     var tMax = Math.max.apply(null, tasksArr.concat([1]));
+    // 開播時數（每日分鐘 → 小時）＋ 滿時加分（每小時 +5）
+    var hoursArr = [];
+    for (var hi = 0; hi < r.days; hi++) {
+      var hdk;
+      if (period === 'month') { var hn0 = new Date(); hdk = key(new Date(hn0.getFullYear(), hn0.getMonth(), hi+1)); }
+      else { var hd = new Date(r.start); hd.setDate(r.start.getDate() + hi); hdk = key(hd); }
+      var daySlots = ((d.dates || {})[hdk] || {}).slots;
+      var mins = 0;
+      (daySlots || []).forEach(function(sl){
+        if (!sl || !sl.start || !sl.end) return;
+        var p = String(sl.start).split(':').map(Number), q = String(sl.end).split(':').map(Number);
+        if (!Number.isFinite(p[0]) || !Number.isFinite(q[0])) return;
+        var st = new Date(2000,0,1,p[0],p[1]||0), en = new Date(2000,0,1,q[0],q[1]||0);
+        if (en > st) mins += Math.round((en - st) / 60000);
+      });
+      hoursArr.push(mins / 60);
+    }
+    var hTotal = hoursArr.reduce(function(a,b){ return a+b; }, 0);
+    var hFull = Math.floor(hTotal);
+    var hLeft = Math.round((hTotal - hFull) * 60);
+    var hPts = hFull * 5;
     var bars = '';
     for (var i2 = 0; i2 < r.days; i2++) {
       var hasAny = salesArr[i2] > 0 || tasksArr[i2] > 0;
+      var hVal = hoursArr[i2];
       bars += '<div class="bar-row"><span style="min-width:34px;">' + r.labels[i2] + '</span>'
+        + '<div class="track"><div class="fill f-h" style="width:' + Math.min(100, Math.round(hVal/12*100)) + '%"></div></div>'
+        + '<span style="min-width:36px;color:var(--blue);font-weight:700;">' + (hVal > 0 ? (Math.round(hVal*10)/10) + 'h' : '') + '</span>'
         + '<div class="track"><div class="fill f-s" style="width:' + Math.round(salesArr[i2]/sMax*100) + '%"></div></div>'
         + '<span style="min-width:36px;color:var(--accent2);font-weight:700;">' + (hasAny ? salesArr[i2] : '') + '</span>'
         + '<div class="track"><div class="fill f-t" style="width:' + Math.round(tasksArr[i2]/tMax*100) + '%"></div></div>'
@@ -197,7 +224,9 @@ function render(){
       + '<div class="num"><div class="v c-sales">' + sSum + '</div><div class="l">' + (period === 'week' ? '本週' : '本月') + '業績分數</div></div>'
       + '<div class="num"><div class="v c-tasks">' + tSum + '</div><div class="l">' + (period === 'week' ? '本週' : '本月') + '任務分數</div></div>'
       + '</div>'
-      + '<div class="muted">每日：橘＝業績　紫＝任務</div>'
+      + '<div class="hours-line">📻 開播時數 <b class="h">' + hFull + ' 小時' + (hLeft ? ' ' + hLeft + ' 分' : '') + '</b>'
+      + '　→　時數分數 <b class="p">+' + hPts + '</b><span class="muted">（每滿 1 小時 +5）</span></div>'
+      + '<div class="muted" style="margin-top:8px;">每日：橘＝業績　紫＝任務　藍＝時數</div>'
       + '<div class="bar-wrap">' + bars + '</div></div>';
     count++;
   }
