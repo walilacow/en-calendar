@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="恩恩聲播日曆">
 <meta name="theme-color" content="#14141c">
-<meta name="app-version" content="1.5.3">
+<meta name="app-version" content="1.5.4">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
 <title>恩恩聲播日曆</title>
@@ -1532,7 +1532,7 @@
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
 
     const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
-    $('verTag').textContent = dayCellCount > 0 ? ('v1.5.3' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.5.3 · 日曆異常';
+    $('verTag').textContent = dayCellCount > 0 ? ('v1.5.4' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.5.4 · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -2168,7 +2168,7 @@
         + 'BEGIN:VALARM\r\n'
         + 'TRIGGER:-PT5M\r\n'
         + 'ACTION:DISPLAY\r\n'
-        + 'DESCRIPTION:' + escIcs(title) + '\r\n'
+        + 'DESCRIPTION:' + escIcs('🎙️ 開播前 5 分鐘' + (nick ? '・' + nick : '')) + '\r\n'
         + 'END:VALARM\r\n'
         + 'BEGIN:VALARM\r\n'
         + 'TRIGGER:-PT5M\r\n'
@@ -3026,7 +3026,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v1.5.3';
+  $('verTag').textContent = 'v1.5.4';
 
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
