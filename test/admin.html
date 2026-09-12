@@ -41,7 +41,6 @@
   .muted { color:var(--muted); font-size:12px; }
   .updated { color:var(--muted); font-size:11px; margin-top:4px; }
 </style>
-<base target="_blank">
 </head>
 <body>
 <div class="wrap" id="appWrap" style="display:none;">
@@ -62,6 +61,8 @@
   <div style="display:flex;justify-content:center;min-height:44px;"><div id="gsiBtn"></div></div>
   <div class="logging" id="loggingTip" style="display:none;margin-top:10px;">登入處理中…</div>
   <div class="err" id="err"></div>
+  <button class="btn" id="fallbackBtn" style="margin-top:12px;background:var(--card);color:var(--text);border:1px solid var(--border);font-size:13px;padding:10px;">🔁 改用傳統登入（跳轉 Safari）</button>
+  <div class="muted" style="margin-top:10px;font-size:11px;line-height:1.6;">若持續「已封鎖存取權」→ Firebase Console → Authentication → Settings → Authorized domains 加入此網域</div>
 </div>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -97,6 +98,26 @@ function renderGISButton(){
   });
 }
 renderGISButton();
+// 備用：傳統 redirect 登入（PWA 可能跳去 Safari，但 Safari 登完能跳回來）
+document.getElementById('fallbackBtn').onclick = function(){
+  document.getElementById('err').textContent = '';
+  document.getElementById('loggingTip').style.display = 'block';
+  document.getElementById('loggingTip').textContent = '即將跳轉到 Google 登入…完成後會自動跳回';
+  var provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithRedirect(provider).catch(function(e){
+    document.getElementById('loggingTip').style.display = 'none';
+    document.getElementById('err').textContent = e.message || '登入失敗';
+  });
+};
+auth.getRedirectResult().then(function(res){
+  if (res && res.user) {
+    document.getElementById('fallbackBtn').disabled = true;
+    document.getElementById('fallbackBtn').textContent = '✅ 登入成功，載入中…';
+  }
+}).catch(function(e){
+  document.getElementById('loggingTip').style.display = 'none';
+  document.getElementById('err').textContent = (e && e.message) ? e.message : '登入失敗';
+});
 
 document.getElementById('tabWeek').onclick = function(){ setPeriod('week'); };
 document.getElementById('tabMonth').onclick = function(){ setPeriod('month'); };
