@@ -6,12 +6,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="恩恩聲播日曆">
+<meta name="apple-mobile-web-app-title" content="聲播日曆測試">
 <meta name="theme-color" content="#14141c">
-<meta name="app-version" content="1.5.4">
+<meta name="app-version" content="1.4.8">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
-<title>恩恩聲播日曆</title>
+<title>恩恩聲播日曆【測試版】</title>
 <style>
   :root {
     --bg: #14141c;
@@ -300,6 +300,18 @@
   .pwd-box input:focus { border-color: var(--accent); }
   .pwd-box .btn { width: 100%; padding: 14px; font-size: 16px; }
   .pwd-err { color: var(--red); font-size: 13px; margin-top: 10px; min-height: 20px; }
+  /* 註冊表單 */
+  .reg-box { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 20px; width: 88%; max-width: 400px; text-align: left; }
+  .reg-box h2 { font-size: 20px; text-align: center; margin-bottom: 6px; }
+  .reg-box .sub { color: var(--muted); font-size: 13px; text-align: center; margin-bottom: 16px; line-height: 1.6; }
+  .reg-field { margin-bottom: 12px; }
+  .reg-field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .reg-field input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; color: var(--text); padding: 12px; font-size: 16px; outline: none; font-family: inherit; }
+  .reg-field input:focus { border-color: var(--accent); }
+  .reg-radio-row { display: flex; gap: 10px; }
+  .reg-radio-row label { flex: 1; display: flex; align-items: center; gap: 6px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-size: 14px; cursor: pointer; }
+  .reg-radio-row input { width: 16px; height: 16px; accent-color: var(--accent); }
+  .reg-err { color: var(--red); font-size: 12px; min-height: 16px; margin: 4px 0 8px; }
 </style>
 </head>
 <body>
@@ -313,6 +325,12 @@
       使用 Google 帳號登入
     </button>
     <div class="pwd-err" id="loginErr"></div>
+    <div style="margin-top:14px; text-align:left;">
+      <div style="font-size:12px; color:var(--muted); margin-bottom:6px; text-align:center;">— 或使用 Email 登入（免密碼）—</div>
+      <input id="emailInput" type="email" placeholder="輸入你的 Email" autocomplete="email" style="width:100%; background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px; font-size:15px; outline:none; font-family:inherit; margin-bottom:8px;">
+      <button class="btn btn-primary" id="emailLoginBtn" style="width:100%; background:var(--card); color:var(--text); border:1px solid var(--border);">📧 寄登入信</button>
+      <div id="emailSentTip" style="display:none; font-size:12px; color:var(--green); margin-top:8px; line-height:1.6;">✉️ 登入信已寄出！<br>請到信箱點連結完成登入<br><span style="color:var(--muted);">（沒收到請看垃圾郵件夾）</span></div>
+    </div>
     <div id="iosTip" style="margin-top:16px; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px; text-align:left; display:none;">
       <div style="display:flex; justify-content:space-between; align-items:flex-start;">
         <div style="font-size:13px; font-weight:700; color:var(--accent2);">💡 iPhone 使用建議</div>
@@ -326,11 +344,12 @@
 </div>
 
 <div class="container" id="mainContent" style="display:none;">
+  <div style="background:var(--accent2);color:#14141c;font-size:12px;font-weight:700;text-align:center;padding:6px 8px;border-radius:8px;margin-bottom:10px;">⚠️ 這是測試環境・資料與正式版即時互通・勿當沙盒亂刪</div>
   <header>
     <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
       <div style="display:flex; align-items:center; gap:10px; min-width:0;">
         <img id="titleAvatar" src="avatars/cat.png" alt="頭像" style="width:38px; height:38px; border-radius:50%; border:2px solid var(--accent); object-fit:cover;">
-        <h1 id="appTitle">🎁 聲播日曆</h1>
+        <h1 id="appTitle">🎁 聲播日曆<span style="color:var(--accent2);font-size:14px;"> ・測試版</span></h1>
         <button id="editNickBtn" title="修改暱稱 / 馬甲 / 頭像" style="background:none; border:none; font-size:16px; cursor:pointer; padding:4px; opacity:.8;">✏️</button>
       </div>
       <div style="display:flex; flex-direction:column; gap:6px; flex-shrink:0;">
@@ -396,7 +415,6 @@
       </div>
       <div id="slotList"></div>
       <button id="addSlotBtn" style="width:100%; background:var(--card); border:1px dashed var(--border); color:var(--muted); border-radius:10px; padding:10px; font-size:14px; cursor:pointer; font-family:inherit;">＋ 新增時段</button>
-      <button id="exportCalendarBtn" style="width:100%; background:var(--card); border:1px solid var(--accent); color:var(--accent); border-radius:10px; padding:10px; font-size:14px; cursor:pointer; font-family:inherit; margin-top:8px;">📅 同步到行事曆（iPhone 到點推播提醒）</button>
     </div>
     <div style="border-top:1px solid var(--border); margin:30px 0 14px;"></div>
 
@@ -804,6 +822,7 @@
         const snap = await db.collection('users').doc(user.uid).get();
         if (snap.exists) {
           const d = snap.data();
+          // （註冊流程已撤除，維持原有登入直進）
           const cloud = sanitizeStore({ dates: d.dates, weeks: d.weeks, months: d.months, ranges: d.ranges, scoreLog: d.scoreLog, salesLog: d.salesLog, listeners: d.listeners, settings: d.settings });
           // 合併保險：本機任務較多的日期保留本機版，避免空/舊雲端清掉九月資料
           try {
@@ -863,6 +882,41 @@
       }
     });
     auth.getRedirectResult().catch(() => {});
+    // Email 連結登入（免密碼）
+    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
+    var emailForSignInKey = 'emailForSignIn_v1';
+    $('emailLoginBtn').onclick = function(){
+      var em = ($('emailInput').value || '').trim();
+      $('loginErr').textContent = '';
+      if (!em || em.indexOf('@') < 0) { $('loginErr').textContent = '請輸入正確的 Email'; return; }
+      var actionCodeSettings = { url: location.href, handleCodeInApp: true };
+      $('emailLoginBtn').disabled = true;
+      $('emailLoginBtn').textContent = '寄送中…';
+      auth.sendSignInLinkToEmail(em, actionCodeSettings).then(function(){
+        try { localStorage.setItem(emailForSignInKey, em); } catch(e) {}
+        $('emailSentTip').style.display = 'block';
+        $('emailLoginBtn').textContent = '✅ 已寄出，請去信箱點連結';
+      }).catch(function(e){
+        $('loginErr').textContent = '寄信失敗：' + (e.message || e.code || '未知錯誤');
+        $('emailLoginBtn').disabled = false;
+        $('emailLoginBtn').textContent = '📧 寄登入信';
+      });
+    };
+    // 從信件點連結回來 → 完成登入
+    if (auth.isSignInWithEmailLink(location.href)) {
+      var em = null;
+      try { em = localStorage.getItem(emailForSignInKey); } catch(e) {}
+      if (!em) { em = window.prompt('請輸入你剛才用來收信的 Email：'); }
+      if (em) {
+        $('loginErr').textContent = '登入中…';
+        auth.signInWithEmailLink(em, location.href).then(function(){
+          try { localStorage.removeItem(emailForSignInKey); } catch(e) {}
+          history.replaceState(null, '', location.pathname);
+        }).catch(function(e){
+          $('loginErr').textContent = '登入失敗：' + (e.message || e.code || '未知錯誤');
+        });
+      }
+    }
 
     $('googleLoginBtn').onclick = () => {
       $('loginErr').textContent = '登入中…';
@@ -1532,7 +1586,7 @@
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
 
     const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
-    $('verTag').textContent = dayCellCount > 0 ? ('v1.5.4' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.5.4 · 日曆異常';
+    $('verTag').textContent = dayCellCount > 0 ? ('v-test' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v-test · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -2144,50 +2198,6 @@
     if (!b.slots.length) delete b.slots;
     save(); renderSheet(); renderCalendar();
   });
-  // ===== 行事曆匯出（方案 C：到點由 iPhone 系統推播）=====
-  function exportICS() {
-    if (!openDate) return;
-    const b = store.dates[openDate];
-    const slots = (b && b.slots) || [];
-    const valid = slots.filter(s => s && s.start && s.end);
-    if (!valid.length) { toast('這天還沒設定開播時段'); return; }
-    const [yy, mm, dd] = openDate.split('-').map(Number);
-    const pad = (n) => String(n).padStart(2, '0');
-    const icsDate = (t) => `${yy}${pad(mm)}${pad(dd)}T${String(t).replace(':', '')}00`;
-    const escIcs = (s) => String(s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,');
-    const nick = (function(){ try { return localStorage.getItem('nick_v1') || ''; } catch(e){ return ''; } })();
-    const title = '🎙️ 開播提醒' + (nick ? '・' + nick : '');
-    let vevents = '';
-    valid.forEach((s, i) => {
-      vevents += 'BEGIN:VEVENT\r\n'
-        + 'UID:' + openDate + '-' + i + '@voicehost\r\n'
-        + 'DTSTAMP:' + icsDate(s.start) + '\r\n'
-        + 'DTSTART:' + icsDate(s.start) + '\r\n'
-        + 'DTEND:' + icsDate(s.end) + '\r\n'
-        + 'SUMMARY:' + escIcs(title) + '\r\n'
-        + 'BEGIN:VALARM\r\n'
-        + 'TRIGGER:-PT5M\r\n'
-        + 'ACTION:DISPLAY\r\n'
-        + 'DESCRIPTION:' + escIcs('🎙️ 開播前 5 分鐘' + (nick ? '・' + nick : '')) + '\r\n'
-        + 'END:VALARM\r\n'
-        + 'BEGIN:VALARM\r\n'
-        + 'TRIGGER:-PT5M\r\n'
-        + 'ACTION:DISPLAY\r\n'
-        + 'DESCRIPTION:' + escIcs('⏰ 下播前 5 分鐘・準備打卡') + '\r\n'
-        + 'END:VALARM\r\n'
-        + 'END:VEVENT\r\n';
-    });
-    const ics = 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//VoiceHost//EN\r\nCALSCALE:GREGORIAN\r\n' + vevents + 'END:VCALENDAR\r\n';
-    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'voicehost-' + openDate + '.ics';
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 5000);
-    toast('已下載行事曆檔，點它即可加入提醒');
-  }
-  $('exportCalendarBtn').onclick = exportICS;
   $('addSlotBtn').onclick = () => {
     if (!openDate) return;
     const b = ensureBucket('day', openDate);
@@ -3026,7 +3036,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v1.5.4';
+  $('verTag').textContent = 'v-test';
 
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
