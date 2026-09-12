@@ -233,6 +233,7 @@ function render(){
       var mins = 0;
       (daySlots || []).forEach(function(sl){
         if (!sl || !sl.start || !sl.end) return;
+        if (!sl.done) return; // 只計算「完成開播」打勾的時段
         var p = String(sl.start).split(':').map(Number), q = String(sl.end).split(':').map(Number);
         if (!Number.isFinite(p[0]) || !Number.isFinite(q[0])) return;
         var st = new Date(2000,0,1,p[0],p[1]||0), en = new Date(2000,0,1,q[0],q[1]||0);
