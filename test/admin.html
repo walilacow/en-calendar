@@ -184,17 +184,18 @@ function render(){
     var tMax = Math.max.apply(null, tasksArr.concat([1]));
     var bars = '';
     for (var i2 = 0; i2 < r.days; i2++) {
+      var hasAny = salesArr[i2] > 0 || tasksArr[i2] > 0;
       bars += '<div class="bar-row"><span style="min-width:34px;">' + r.labels[i2] + '</span>'
         + '<div class="track"><div class="fill f-s" style="width:' + Math.round(salesArr[i2]/sMax*100) + '%"></div></div>'
+        + '<span style="min-width:36px;color:var(--accent2);font-weight:700;">' + (hasAny ? salesArr[i2] : '') + '</span>'
         + '<div class="track"><div class="fill f-t" style="width:' + Math.round(tasksArr[i2]/tMax*100) + '%"></div></div>'
-        + '<span style="min-width:64px;text-align:right;">' + (salesArr[i2] || tasksArr[i2] ? (salesArr[i2] + '/' + tasksArr[i2]) : '') + '</span></div>';
+        + '<span style="min-width:36px;color:var(--accent);font-weight:700;">' + (hasAny ? tasksArr[i2] : '') + '</span></div>';
     }
     html += '<div class="host-card"><h3>' + esc(name) + esc(alias) + '</h3>'
       + '<div class="email">' + esc(d.email || '') + '</div>'
       + '<div class="nums">'
       + '<div class="num"><div class="v c-sales">' + sSum + '</div><div class="l">' + (period === 'week' ? '本週' : '本月') + '業績分數</div></div>'
       + '<div class="num"><div class="v c-tasks">' + tSum + '</div><div class="l">' + (period === 'week' ? '本週' : '本月') + '任務分數</div></div>'
-      + '<div class="num"><div class="v c-total">' + (sSum + tSum) + '</div><div class="l">合計</div></div>'
       + '</div>'
       + '<div class="muted">每日：橘＝業績　紫＝任務</div>'
       + '<div class="bar-wrap">' + bars + '</div></div>';
