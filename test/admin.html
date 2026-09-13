@@ -185,27 +185,21 @@ function salesScoreForDay(d, dk){
 }
 function taskScoreForDay(d, dk){
   var total = 0;
-  // 每日任務：只算這一天自己的桶
-  var dayTasks = ((d.dates || {})[dk] || {}).tasks;
-  (dayTasks || []).forEach(function(t){
-    if (Number(t.target) > 0 && Number(t.cur) >= Number(t.target)) total += Number(t.score) || 0;
-  });
-  // 每週/月任務：用分數快照差額歸到「實際達標的那一天」（跟 App 週分數複製同一邏輯）
   var dt = new Date(dk + 'T00:00:00');
   var prevD = new Date(dt); prevD.setDate(dt.getDate() - 1);
   var prevKey = key(prevD);
-  var mk = dk.slice(0, 7);
   var snap = ((d.scoreLog || {})[dk] || {});
   var prevSnap = ((d.scoreLog || {})[prevKey] || {});
-  if (d.weeks) {
-    var wGain = Math.max(0, (Number(snap.week) || 0) - (Number(prevSnap.week) || 0));
-    if (wGain > 0) total += wGain;
-  }
-  if (d.months) {
-    var mPrev = (prevKey.slice(0,7) === mk) ? (Number(prevSnap.month) || 0) : 0;
-    var mGain = Math.max(0, (Number(snap.month) || 0) - mPrev);
-    if (mGain > 0) total += mGain;
-  }
+  var mk = dk.slice(0, 7);
+  // 每日分數（簡/加碼）：快照差額，避免跨日累計重複計算
+  total += Math.max(0, (Number(snap.day) || 0) - (Number(prevSnap.day) || 0));
+  total += Math.max(0, (Number(snap.easy) || 0) - (Number(prevSnap.easy) || 0));
+  total += Math.max(0, (Number(snap.bonus) || 0) - (Number(prevSnap.bonus) || 0));
+  // 每週任務：快照差額歸到「實際達標的那一天」
+  total += Math.max(0, (Number(snap.week) || 0) - (Number(prevSnap.week) || 0));
+  // 每月任務：跨月時前一天的累計屬於上個月，歸零重算
+  var mPrev = (prevKey.slice(0,7) === mk) ? (Number(prevSnap.month) || 0) : 0;
+  total += Math.max(0, (Number(snap.month) || 0) - mPrev);
   return total;
 }
 
