@@ -325,12 +325,6 @@
       使用 Google 帳號登入
     </button>
     <div class="pwd-err" id="loginErr"></div>
-    <div style="margin-top:14px; text-align:left;">
-      <div style="font-size:12px; color:var(--muted); margin-bottom:6px; text-align:center;">— 或使用 Email 登入（免密碼）—</div>
-      <input id="emailInput" type="email" placeholder="輸入你的 Email" autocomplete="email" style="width:100%; background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:12px; font-size:15px; outline:none; font-family:inherit; margin-bottom:8px;">
-      <button class="btn btn-primary" id="emailLoginBtn" style="width:100%; background:var(--card); color:var(--text); border:1px solid var(--border);">📧 寄登入信</button>
-      <div id="emailSentTip" style="display:none; font-size:12px; color:var(--green); margin-top:8px; line-height:1.6;">✉️ 登入信已寄出！<br>請到信箱點連結完成登入<br><span style="color:var(--muted);">（沒收到請看垃圾郵件夾）</span></div>
-    </div>
     <div id="iosTip" style="margin-top:16px; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px; text-align:left; display:none;">
       <div style="display:flex; justify-content:space-between; align-items:flex-start;">
         <div style="font-size:13px; font-weight:700; color:var(--accent2);">💡 iPhone 使用建議</div>
@@ -841,6 +835,10 @@
           } catch (e) {}
           store = cloud;
           save();
+          // 所屬廳房（後台設定，預設未知）
+          try {
+            if (typeof d.room === 'string') hostRoom = d.room;
+          } catch (e) {}
           if (d.nickname) {
             nickname = d.nickname;
             lsSetRaw('nick_v1', nickname);
@@ -882,42 +880,6 @@
       }
     });
     auth.getRedirectResult().catch(() => {});
-    // Email 連結登入（免密碼）
-    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
-    var emailForSignInKey = 'emailForSignIn_v1';
-    $('emailLoginBtn').onclick = function(){
-      var em = ($('emailInput').value || '').trim();
-      $('loginErr').textContent = '';
-      if (!em || em.indexOf('@') < 0) { $('loginErr').textContent = '請輸入正確的 Email'; return; }
-      var actionCodeSettings = { url: location.href, handleCodeInApp: true };
-      $('emailLoginBtn').disabled = true;
-      $('emailLoginBtn').textContent = '寄送中…';
-      auth.sendSignInLinkToEmail(em, actionCodeSettings).then(function(){
-        try { localStorage.setItem(emailForSignInKey, em); } catch(e) {}
-        $('emailSentTip').style.display = 'block';
-        $('emailLoginBtn').textContent = '✅ 已寄出，請去信箱點連結';
-      }).catch(function(e){
-        $('loginErr').textContent = '寄信失敗：' + (e.message || e.code || '未知錯誤');
-        $('emailLoginBtn').disabled = false;
-        $('emailLoginBtn').textContent = '📧 寄登入信';
-      });
-    };
-    // 從信件點連結回來 → 完成登入
-    if (auth.isSignInWithEmailLink(location.href)) {
-      var em = null;
-      try { em = localStorage.getItem(emailForSignInKey); } catch(e) {}
-      if (!em) { em = window.prompt('請輸入你剛才用來收信的 Email：'); }
-      if (em) {
-        $('loginErr').textContent = '登入中…';
-        auth.signInWithEmailLink(em, location.href).then(function(){
-          try { localStorage.removeItem(emailForSignInKey); } catch(e) {}
-          history.replaceState(null, '', location.pathname);
-        }).catch(function(e){
-          $('loginErr').textContent = '登入失敗：' + (e.message || e.code || '未知錯誤');
-        });
-      }
-    }
-
     $('googleLoginBtn').onclick = () => {
       $('loginErr').textContent = '登入中…';
       const provider = new firebase.auth.GoogleAuthProvider();
@@ -1018,10 +980,12 @@
       row.appendChild(c);
     }
   }
+  let hostRoom = '';
   function applyNick() {
     const n = nickname;
     document.title = n ? n + '聲播日曆' : '聲播日曆';
-    $('appTitle').textContent = n ? '🎁 ' + n + '聲播日曆' : '🎁 聲播日曆';
+    const roomTag = hostRoom ? ' [' + hostRoom + ']' : '';
+    $('appTitle').textContent = (n ? '🎁 ' + n + '聲播日曆' : '🎁 聲播日曆') + roomTag;
     $('loginTitle').textContent = n ? '🔐 ' + n + '聲播日曆' : '🔐 聲播日曆';
     $('titleAvatar').src = avatarURL();
   }
