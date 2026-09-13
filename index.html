@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="恩恩聲播日曆">
 <meta name="theme-color" content="#14141c">
-<meta name="app-version" content="1.5.5">
+<meta name="app-version" content="1.5.6">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
 <title>恩恩聲播日曆</title>
@@ -972,8 +972,17 @@
   function applyNick() {
     const n = nickname;
     document.title = n ? n + '聲播日曆' : '聲播日曆';
-    const roomTag = hostRoom ? ' [' + hostRoom + ']' : '';
-    $('appTitle').textContent = (n ? '🎁 ' + n + '聲播日曆' : '🎁 聲播日曆') + roomTag;
+    $('appTitle').textContent = n ? '🎁 ' + n + '聲播日曆' : '🎁 聲播日曆';
+    // 廳房名獨立一行顯示（在標題下方）
+    var roomEl = document.getElementById('roomBadge');
+    if (!roomEl) {
+      roomEl = document.createElement('div');
+      roomEl.id = 'roomBadge';
+      roomEl.style.cssText = 'font-size:12px;color:var(--accent2);margin-top:2px;letter-spacing:1px;';
+      $('appTitle').parentNode.appendChild(roomEl);
+    }
+    roomEl.textContent = hostRoom ? '🏠 ' + hostRoom : '';
+    roomEl.style.display = hostRoom ? 'block' : 'none';
     $('loginTitle').textContent = n ? '🔐 ' + n + '聲播日曆' : '🔐 聲播日曆';
     $('titleAvatar').src = avatarURL();
   }
@@ -1538,7 +1547,7 @@
     $('statMonth').textContent = mr.total ? `${mr.doneCnt}/${mr.total}` : '–';
 
     const dayCellCount = grid.querySelectorAll('.cell:not(.other)').length;
-    $('verTag').textContent = dayCellCount > 0 ? ('v1.5.5' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.5.5 · 日曆異常';
+    $('verTag').textContent = dayCellCount > 0 ? ('v1.5.6' + (firstCalErr ? ' · ' + firstCalErr : '')) : 'v1.5.6 · 日曆異常';
   }
 
   // ---------- 日面板 ----------
@@ -3032,7 +3041,7 @@
   $('closeCard').onclick = () => $('cardOverlay').classList.remove('open');
   $('cardOverlay').addEventListener('click', (e) => { if (e.target === $('cardOverlay')) $('cardOverlay').classList.remove('open'); });
 
-  $('verTag').textContent = 'v1.5.5';
+  $('verTag').textContent = 'v1.5.6';
 
   function escapeHtml(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
