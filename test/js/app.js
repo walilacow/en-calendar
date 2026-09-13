@@ -1789,22 +1789,22 @@
   let audioCtx = null, masterGain = null;
   let sfxVolume = Math.max(0, Math.min(100, parseInt(localStorage.getItem('sfxVolume') || '80', 10) || 80));
   const SFX = [
-    { id: 'applause', label: '👏 掌聲', file: 'sfx/applause.mp3', fallback: 'applause' },
-    { id: 'celebrate', label: '🎉 歡呼慶祝', file: 'sfx/celebrate.mp3', fallback: 'fanfare' },
-    { id: 'airhorn', label: '📣 氣氛喇叭', file: 'sfx/airhorn.mp3', fallback: 'airhorn' },
-    { id: 'cash', label: '💰 收款', file: 'sfx/cash.mp3', fallback: 'coin' },
-    { id: 'drumroll', label: '🥁 鼓動人心', file: 'sfx/drumroll.mp3', fallback: 'drum' },
-    { id: 'ding', label: '✨ 叮咚', file: 'sfx/ding.mp3', fallback: 'ding' },
-    { id: 'win', label: '🏆 勝利', file: 'sfx/win.mp3', fallback: 'fanfare' },
-    { id: 'fail', label: '😵 糗了', file: 'sfx/fail.mp3', fallback: 'fail' },
-    { id: 'scratch', label: '📀 尷尬刮碟', file: 'sfx/scratch.mp3', fallback: 'whoosh' },
-    { id: 'clap', label: '👏 高爾夫鼓掌', file: 'sfx/clap.mp3', fallback: 'applause' },
-    { id: 'thanks', label: '🙏 觀眾感謝', file: 'sfx/thanks.mp3', fallback: 'fanfare' },
-    { id: 'laugh', label: '😂 觀眾笑聲', file: 'sfx/laugh.mp3', fallback: 'surprise' },
-    { id: 'gasp', label: '😮 驚訝倒抽氣', file: 'sfx/gasp.mp3', fallback: 'surprise' },
-    { id: 'crickets', label: '🦗 冷場蟋蟀', file: 'sfx/crickets.mp3', fallback: 'fail' },
-    { id: 'timpani', label: '🎬 緊張定音鼓', file: 'sfx/timpani.mp3', fallback: 'drum' },
-    { id: 'shush', label: '🤫 安靜噓聲', file: 'sfx/shush.mp3', fallback: 'ding' }
+    { id: 'applause', label: '👏 掌聲', file: '../sfx/applause.mp3', fallback: 'applause' },
+    { id: 'celebrate', label: '🎉 歡呼慶祝', file: '../sfx/celebrate.mp3', fallback: 'fanfare' },
+    { id: 'airhorn', label: '📣 氣氛喇叭', file: '../sfx/airhorn.mp3', fallback: 'airhorn' },
+    { id: 'cash', label: '💰 收款', file: '../sfx/cash.mp3', fallback: 'coin' },
+    { id: 'drumroll', label: '🥁 鼓動人心', file: '../sfx/drumroll.mp3', fallback: 'drum' },
+    { id: 'ding', label: '✨ 叮咚', file: '../sfx/ding.mp3', fallback: 'ding' },
+    { id: 'win', label: '🏆 勝利', file: '../sfx/win.mp3', fallback: 'fanfare' },
+    { id: 'fail', label: '😵 糗了', file: '../sfx/fail.mp3', fallback: 'fail' },
+    { id: 'scratch', label: '📀 尷尬刮碟', file: '../sfx/scratch.mp3', fallback: 'whoosh' },
+    { id: 'clap', label: '👏 高爾夫鼓掌', file: '../sfx/clap.mp3', fallback: 'applause' },
+    { id: 'thanks', label: '🙏 觀眾感謝', file: '../sfx/thanks.mp3', fallback: 'fanfare' },
+    { id: 'laugh', label: '😂 觀眾笑聲', file: '../sfx/laugh.mp3', fallback: 'surprise' },
+    { id: 'gasp', label: '😮 驚訝倒抽氣', file: '../sfx/gasp.mp3', fallback: 'surprise' },
+    { id: 'crickets', label: '🦗 冷場蟋蟀', file: '../sfx/crickets.mp3', fallback: 'fail' },
+    { id: 'timpani', label: '🎬 緊張定音鼓', file: '../sfx/timpani.mp3', fallback: 'drum' },
+    { id: 'shush', label: '🤫 安靜噓聲', file: '../sfx/shush.mp3', fallback: 'ding' }
   ];
   function ensureAudio() {
     const AC = window.AudioContext || window.webkitAudioContext;
