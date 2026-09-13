@@ -104,7 +104,8 @@
    * 避免空白或較舊的雲端資料蓋掉本機較新的資料；
    * 雲端缺 listeners / settings / salesLog 時用本機補上。 */
   function mergeLocalIntoCloud(cloud) {
-    const local = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
+    // 本機資料先消毒再合併：raw localStorage 可能含壞分數/字串數字，直接蓋回 store 會污染分數計算
+    const local = sanitizeStore(JSON.parse(localStorage.getItem(STORE_KEY) || '{}'));
     ['dates', 'weeks', 'months'].forEach(function (bk) {
       const lb = (local && local[bk]) || {};
       Object.keys(lb).forEach(function (k) {
@@ -499,11 +500,12 @@
     return store[BUCKET[sc]][k];
   }
   function calc(tasks) {
-    const doneCnt = tasks.filter(t => t.cur >= t.target).length;
-    const totUnits = tasks.reduce((s, t) => s + t.target, 0);
-    const doneUnits = tasks.reduce((s, t) => s + Math.min(t.cur, t.target), 0);
-    const scoreTotal = tasks.reduce((s, t) => s + (t.score || 0), 0);
-    const scoreEarned = tasks.reduce((s, t) => s + (t.cur >= t.target ? (t.score || 0) : 0), 0);
+    const num = (v, d) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
+    const doneCnt = tasks.filter(t => num(t.cur, 0) >= num(t.target, 0)).length;
+    const totUnits = tasks.reduce((s, t) => s + Math.max(0, num(t.target, 0)), 0);
+    const doneUnits = tasks.reduce((s, t) => s + Math.min(Math.max(num(t.cur, 0), 0), Math.max(num(t.target, 0), 0)), 0);
+    const scoreTotal = tasks.reduce((s, t) => s + Math.max(0, num(t.score, 0)), 0);
+    const scoreEarned = tasks.reduce((s, t) => s + (num(t.cur, 0) >= num(t.target, 0) ? Math.max(0, num(t.score, 0)) : 0), 0);
     const pct = totUnits ? Math.round(doneUnits / totUnits * 100) : 0;
     return { doneCnt, total: tasks.length, totUnits, doneUnits, pct, scoreTotal, scoreEarned, allDone: tasks.length > 0 && doneCnt === tasks.length };
   }
@@ -530,7 +532,8 @@
   function splitScores(tasks) {
     const r = { day: 0, easy: 0, bonus: 0 };
     (tasks || []).forEach(t => {
-      const s = t.cur >= t.target ? (t.score || 0) : 0;
+      const cur = Number(t.cur), target = Number(t.target), sc = Number(t.score);
+      const s = (Number.isFinite(cur) && Number.isFinite(target) && cur >= target && Number.isFinite(sc)) ? sc : 0;
       r[taskTypeOf(t)] += s;
     });
     return r;
@@ -681,7 +684,11 @@
   function taskScoreForDay(ds) {
     const b = store.dates && store.dates[ds];
     const tasks = b && Array.isArray(b.tasks) ? b.tasks : [];
-    return tasks.reduce((a, t) => a + Math.min(Math.max(t.cur || 0, 0), Math.max(t.target || 0, 0)) * (t.score || 0), 0);
+    return tasks.reduce((a, t) => {
+      const cur = Number(t.cur), target = Number(t.target), sc = Number(t.score);
+      const u = (Number.isFinite(cur) && Number.isFinite(target)) ? Math.min(Math.max(cur, 0), Math.max(target, 0)) : 0;
+      return a + u * (Number.isFinite(sc) ? sc : 0);
+    }, 0);
   }
   function salesScoreForDay(ds) {
     const log = store.salesLog || {};
