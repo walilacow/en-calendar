@@ -257,7 +257,11 @@ function render(){
         + '<div class="track"><div class="fill f-t" style="width:' + Math.round(tasksArr[i2]/tMax*100) + '%"></div></div>'
         + '<span style="min-width:36px;color:var(--accent);font-weight:700;">' + (hasAny ? tasksArr[i2] : '') + '</span></div>';
     }
-    html += '<div class="host-card"><h3>' + esc(name) + esc(alias) + '</h3>'
+    var roomSel = '<select data-room-uid="' + uid + '" class="room-select" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:4px 8px;font-size:12px;outline:none;margin-left:auto;">'
+      + '<option value="未知"' + ((d.room || '未知') === '未知' ? ' selected' : '') + '>未知</option>'
+      + '<option value="野蠻女友"' + (d.room === '野蠻女友' ? ' selected' : '') + '>野蠻女友</option>'
+      + '</select>';
+    html += '<div class="host-card"><h3 style="display:flex;align-items:center;gap:8px;">' + esc(name) + esc(alias) + roomSel + '</h3>'
       + '<div class="email">' + esc(d.email || '') + '</div>'
       + '<div class="nums">'
       + '<div class="num"><div class="v c-sales">' + sSum + '</div><div class="l">' + (period === 'week' ? '本週' : '本月') + '業績分數</div></div>'
@@ -272,6 +276,18 @@ function render(){
   if (!count) html = '<div class="empty">讀取成功，但目前 users 集合是空的（0 筆）<br>可能原因：<br>① Firestore 規則擋住讀取（上方應有紅字錯誤）<br>② 主播們還沒在新版 App 登入過（資料要登入後才會上雲）<br>③ 你登後台用的 Google 帳號跟 App 是不同專案？（apiKey 必須一致）</div>';
   cards.innerHTML = html;
 }
+// 廳房選擇變更 → 寫回 Firebase
+document.addEventListener('change', function(e){
+  var t = e.target;
+  if (!t || !t.classList || !t.classList.contains('room-select')) return;
+  var uid = t.getAttribute('data-room-uid');
+  db.collection('users').doc(uid).set({ room: t.value }, { merge: true }).then(function(){
+    t.style.borderColor = 'var(--green)';
+    setTimeout(function(){ t.style.borderColor = ''; }, 1200);
+  }).catch(function(err){
+    alert('儲存失敗：' + (err.message || err));
+  });
+});
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 </script>
 </body>
