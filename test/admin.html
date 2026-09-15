@@ -250,10 +250,11 @@ function taskScoreForDay(d, dk){
   var snap = ((d.scoreLog || {})[dk] || {});
   var prevSnap = ((d.scoreLog || {})[prevKey] || {});
   var mk = dk.slice(0, 7);
-  // 每日分數（簡/加碼）：快照差額，避免跨日累計重複計算
-  total += Math.max(0, (Number(snap.day) || 0) - (Number(prevSnap.day) || 0));
-  total += Math.max(0, (Number(snap.easy) || 0) - (Number(prevSnap.easy) || 0));
-  total += Math.max(0, (Number(snap.bonus) || 0) - (Number(prevSnap.bonus) || 0));
+  // 每日分數（普通/簡/加碼）：scoreLog 裡的值就是「當天」day-scope 任務清單算出來的完成分數，
+  // 每天各自獨立（不是跨日累計），直接加總即可，不能再減前一天的值
+  total += Math.max(0, Number(snap.day) || 0);
+  total += Math.max(0, Number(snap.easy) || 0);
+  total += Math.max(0, Number(snap.bonus) || 0);
   // 每週任務：快照差額歸到「實際達標的那一天」
   total += Math.max(0, (Number(snap.week) || 0) - (Number(prevSnap.week) || 0));
   // 每月任務：跨月時前一天的累計屬於上個月，歸零重算
