@@ -44,17 +44,66 @@
 </head>
 <body>
 <div class="wrap" id="appWrap" style="display:none;">
-  <h1>🎁 主播收禮狀況</h1>
+  <h1>🎁 主播收禮狀況・後台</h1>
   <div class="sub">聲播日曆・測試環境後台（資料即時同步自各主播的 App・業績＋任務分數）</div>
   <div id="who"></div>
-  <div class="period-tabs">
-    <button id="tabWeek" class="on">本週</button>
-    <button id="tabMonth">本月</button>
+
+  <div class="period-tabs" style="margin-bottom:18px;">
+    <button id="pageTabStats" class="on">📊 收禮統計</button>
+    <button id="pageTabTemplate">📋 任務範本</button>
   </div>
-  <select id="weekSelect" style="width:100%;margin-bottom:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px;font-size:14px;outline:none;font-family:inherit;"></select>
-  <select id="monthSelect" style="display:none;width:100%;margin-bottom:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px;font-size:14px;outline:none;font-family:inherit;"></select>
-  <div class="cards" id="cards"></div>
-  <div style="margin-top:18px;"><button class="btn" onclick="location.reload()">🔄 重新整理</button></div>
+
+  <div id="pageStats">
+    <div class="period-tabs">
+      <button id="tabWeek" class="on">本週</button>
+      <button id="tabMonth">本月</button>
+    </div>
+    <select id="weekSelect" style="width:100%;margin-bottom:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px;font-size:14px;outline:none;font-family:inherit;"></select>
+    <select id="monthSelect" style="display:none;width:100%;margin-bottom:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px;font-size:14px;outline:none;font-family:inherit;"></select>
+    <div class="cards" id="cards"></div>
+    <div style="margin-top:18px;"><button class="btn" onclick="location.reload()">🔄 重新整理</button></div>
+  </div>
+
+  <div id="pageTemplate" style="display:none;">
+    <div class="sub">在這裡新增的任務，主播在 App 裡點「☁️ 同步範本任務」就能把日／週／月任務一次帶入，不用自己輸入。不同廳房各自獨立一份範本，主播同步時只會抓自己廳房的範本。自訂任務只有在主播當下有開啟自訂區間時才會一併帶入。</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:12px;">
+      <span style="font-size:13px;color:var(--muted);white-space:nowrap;">🏠 編輯廳房</span>
+      <select id="tplRoomSelect" style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px;font-size:14px;outline:none;font-family:inherit;"></select>
+    </div>
+    <div class="period-tabs" style="margin-top:14px;">
+      <button id="tplTabDay" class="on">日任務</button>
+      <button id="tplTabWeek">週任務</button>
+      <button id="tplTabMonth">月任務</button>
+      <button id="tplTabCustom">自訂任務</button>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+      <input id="tplName" type="text" placeholder="任務項目" autocomplete="off" style="flex:2;min-width:140px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px;font-size:14px;outline:none;font-family:inherit;">
+      <input id="tplQty" type="number" min="1" value="1" placeholder="數量" style="width:76px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px;font-size:14px;outline:none;font-family:inherit;">
+      <input id="tplPts" type="number" min="0" value="10" placeholder="分數" style="width:76px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px;font-size:14px;outline:none;font-family:inherit;">
+      <select id="tplIcon" style="background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px;font-size:14px;outline:none;font-family:inherit;">
+        <option value="none">🚫 無圖示</option>
+        <option value="玫瑰">🌹 玫瑰</option>
+        <option value="火箭">🚀 火箭</option>
+        <option value="城堡">🏰 城堡</option>
+        <option value="金龍">🐉 金龍</option>
+        <option value="跑車">🏎️ 跑車</option>
+        <option value="飛機">✈️ 飛機</option>
+        <option value="遊艇">🛥️ 遊艇</option>
+        <option value="鑽戒">💍 鑽戒</option>
+        <option value="皇冠">👑 皇冠</option>
+        <option value="煙花">🎆 煙花</option>
+        <option value="愛心">❤️ 愛心</option>
+        <option value="禮物盒">🎁 禮物盒</option>
+      </select>
+      <span id="tplEasyBonusRow" style="display:flex;gap:10px;">
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;color:var(--green);cursor:pointer;user-select:none;"><input type="checkbox" id="tplEasy" style="width:16px;height:16px;accent-color:var(--green);cursor:pointer;"> ✨簡</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;color:var(--accent2);cursor:pointer;user-select:none;"><input type="checkbox" id="tplBonus" style="width:16px;height:16px;accent-color:var(--accent2);cursor:pointer;"> 🔥加</label>
+      </span>
+      <button class="btn" id="tplAddBtn" style="width:auto;padding:10px 18px;">新增</button>
+    </div>
+    <div id="tplList" style="display:flex;flex-direction:column;gap:8px;"></div>
+    <button class="btn" id="tplCopyBtn" style="margin-top:16px;background:var(--card);color:var(--text);border:1px solid var(--border);">📋 複製任務清單到剪貼簿</button>
+  </div>
 </div>
 
 <div id="taskModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center;padding:16px;">
@@ -67,7 +116,15 @@
   </div>
 </div>
 
-<div class="login-box" id="loginBox">
+<div class="login-box" id="pwdGateBox">
+  <h1 style="margin-bottom:8px;">🔒 後台通行密碼</h1>
+  <div class="sub" style="margin-bottom:16px;">請先輸入通行密碼</div>
+  <input id="pwdGateInput" type="password" placeholder="請輸入密碼" autocomplete="off" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:12px;font-size:16px;text-align:center;outline:none;margin-bottom:10px;">
+  <button class="btn" id="pwdGateBtn">確認</button>
+  <div class="err" id="pwdGateErr"></div>
+</div>
+
+<div class="login-box" id="loginBox" style="display:none;">
   <h1 style="margin-bottom:8px;">🔐 後台登入</h1>
   <div class="sub" style="margin-bottom:16px;">請用管理者 Google 帳號登入</div>
   <div style="display:flex;justify-content:center;min-height:44px;"><div id="gsiBtn"></div></div>
@@ -85,29 +142,84 @@
 var FB_CONFIG = {"apiKey":"AIzaSyClGhrZrcjfzHBhSiSUWDuZk9OqnXCPY_M","authDomain":"en-calendar-dbb36.firebaseapp.com","projectId":"en-calendar-dbb36","storageBucket":"en-calendar-dbb36.firebasestorage.app","messagingSenderId":"759675780359","appId":"1:759675780359:web:5040f38da2dd71ea4019a2"};
 firebase.initializeApp(FB_CONFIG);
 var auth = firebase.auth(), db = firebase.firestore();
+
+// 後台通行密碼關卡（純前端擋一下，不是真正的資料權限控管——真正的資料保護要靠 Firestore 規則）
+var ADMIN_GATE_PASSWORD = '860928';
+var ADMIN_GATE_KEY = 'adminGatePassed_v1';
+function gatePassed(){
+  try { return localStorage.getItem(ADMIN_GATE_KEY) === '1'; } catch (e) { return false; }
+}
+function showGateOrLogin(){
+  if (!gatePassed()) {
+    document.getElementById('pwdGateBox').style.display = 'block';
+    document.getElementById('loginBox').style.display = 'none';
+    document.getElementById('appWrap').style.display = 'none';
+    return;
+  }
+  document.getElementById('pwdGateBox').style.display = 'none';
+  // 密碼關卡剛過，如果 Firebase 本來就記得登入狀態，直接進後台，不用再登入一次
+  if (auth.currentUser) {
+    document.getElementById('loginBox').style.display = 'none';
+    document.getElementById('appWrap').style.display = 'block';
+    document.getElementById('who').textContent = '已登入：' + (auth.currentUser.email || auth.currentUser.uid);
+    startListen();
+    loadTemplate();
+  } else {
+    document.getElementById('loginBox').style.display = 'block';
+  }
+}
+document.getElementById('pwdGateBtn').onclick = function(){
+  var val = document.getElementById('pwdGateInput').value;
+  if (val === ADMIN_GATE_PASSWORD) {
+    try { localStorage.setItem(ADMIN_GATE_KEY, '1'); } catch (e) {}
+    document.getElementById('pwdGateErr').textContent = '';
+    document.getElementById('pwdGateInput').value = '';
+    showGateOrLogin();
+  } else {
+    document.getElementById('pwdGateErr').textContent = '密碼錯誤';
+  }
+};
+document.getElementById('pwdGateInput').addEventListener('keydown', function(e){
+  if (e.key === 'Enter') document.getElementById('pwdGateBtn').click();
+});
+showGateOrLogin();
+
 var period = 'week';
 var unsubscribe = null;
+var ROOM_OPTIONS = ['未知', '野蠻女友'];
+function roomOptionsHtml(selected){
+  return ROOM_OPTIONS.map(function(r){
+    return '<option value="' + r + '"' + (r === selected ? ' selected' : '') + '>' + r + '</option>';
+  }).join('');
+}
 
 // Google 一鍵登入（PWA 主畫面模式唯一可靠做法：不跳轉、不彈窗）
 function renderGISButton(){
   if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) {
     setTimeout(renderGISButton, 500); return;
   }
-  google.accounts.id.initialize({
-    client_id: '759675780359-smbje4ich9p4kga635g06lios33n9vvl.apps.googleusercontent.com',
-    callback: function(resp){
-      document.getElementById('err').textContent = '';
-      document.getElementById('loggingTip').style.display = 'block';
-      var cred = firebase.auth.GoogleAuthProvider.credential(resp.credential);
-      auth.signInWithCredential(cred).catch(function(e){
-        document.getElementById('loggingTip').style.display = 'none';
-        document.getElementById('err').textContent = (e && e.message) ? e.message : '登入失敗';
-      });
-    }
-  });
-  google.accounts.id.renderButton(document.getElementById('gsiBtn'), {
-    theme: 'filled_black', size: 'large', shape: 'pill', text: 'signin_with'
-  });
+  // GSI 的 initialize/renderButton 在某些環境（第三方 cookie 被擋、隱私模式…）內部會直接拋錯，
+  // 沒包 try/catch 的話會讓「這個 script 標籤」後面所有程式碼（週/月選單、範本管理…）整個中斷、
+  // 卻毫無錯誤提示，所以這裡要接住，最多只是 Google 一鍵登入按鈕本身出不來，不影響頁面其他功能
+  try {
+    google.accounts.id.initialize({
+      client_id: '759675780359-smbje4ich9p4kga635g06lios33n9vvl.apps.googleusercontent.com',
+      callback: function(resp){
+        document.getElementById('err').textContent = '';
+        document.getElementById('loggingTip').style.display = 'block';
+        var cred = firebase.auth.GoogleAuthProvider.credential(resp.credential);
+        auth.signInWithCredential(cred).catch(function(e){
+          document.getElementById('loggingTip').style.display = 'none';
+          document.getElementById('err').textContent = (e && e.message) ? e.message : '登入失敗';
+        });
+      }
+    });
+    google.accounts.id.renderButton(document.getElementById('gsiBtn'), {
+      theme: 'filled_black', size: 'large', shape: 'pill', text: 'signin_with'
+    });
+  } catch (e) {
+    document.getElementById('err').textContent = '⚠️ Google 一鍵登入按鈕無法顯示，請改用下方「改用傳統登入」';
+  }
 }
 renderGISButton();
 // 備用：傳統 redirect 登入（PWA 可能跳去 Safari，但 Safari 登完能跳回來）
@@ -188,10 +300,13 @@ populateMonthSelect();
 
 auth.onAuthStateChanged(function(user){
   if (!user) return;
+  if (!gatePassed()) return; // 密碼關卡沒過，先不顯示後台內容（等輸入密碼後 showGateOrLogin 會接手）
+  document.getElementById('pwdGateBox').style.display = 'none';
   document.getElementById('loginBox').style.display = 'none';
   document.getElementById('appWrap').style.display = 'block';
   document.getElementById('who').textContent = '已登入：' + (user.email || user.uid);
   startListen();
+  loadTemplate();
 });
 
 function key(d){ return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
@@ -343,10 +458,10 @@ function render(){
         + '<span class="task-click" data-uid="' + uid + '" data-dk="' + dk2 + '" title="點看當天完成的任務／禮物" style="min-width:36px;color:var(--accent);font-weight:700;cursor:pointer;">' + (hasAny ? tasksArr[i2] : '') + '</span></div>';
     }
     var roomSel = '<select data-room-uid="' + uid + '" class="room-select" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:4px 8px;font-size:12px;outline:none;margin-left:auto;">'
-      + '<option value="未知"' + ((d.room || '未知') === '未知' ? ' selected' : '') + '>未知</option>'
-      + '<option value="野蠻女友"' + (d.room === '野蠻女友' ? ' selected' : '') + '>野蠻女友</option>'
+      + roomOptionsHtml(d.room || '未知')
       + '</select>';
-    html += '<div class="host-card"><h3 style="display:flex;align-items:center;gap:8px;">' + esc(name) + esc(alias) + roomSel + '</h3>'
+    var delBtn = '<button class="host-del-btn" data-uid="' + uid + '" data-name="' + esc(name) + '" title="刪除這位主播的所有資料" style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer;padding:2px 4px;">🗑</button>';
+    html += '<div class="host-card"><h3 style="display:flex;align-items:center;gap:8px;">' + esc(name) + esc(alias) + roomSel + delBtn + '</h3>'
       + '<div class="email">' + esc(d.email || '') + '</div>'
       + '<div class="nums">'
       + '<div class="num"><div class="v c-sales">' + sSum + '</div><div class="l">' + periodLabel + '業績分數</div></div>'
@@ -423,6 +538,192 @@ document.addEventListener('change', function(e){
   });
 });
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+// 刪除主播（雙重確認，刪除後該帳號登入時 App 會視為全新使用者，本機資料也不會被拿來覆蓋回雲端）
+document.addEventListener('click', function(e){
+  var btn = e.target.closest ? e.target.closest('.host-del-btn') : null;
+  if (!btn) return;
+  var uid = btn.getAttribute('data-uid');
+  var name = btn.getAttribute('data-name') || '（未設暱稱）';
+  if (!confirm('確定要刪除「' + name + '」的所有資料嗎？\n此操作無法復原，這位主播下次登入時會被視為全新使用者，需要重新輸入資料。')) return;
+  if (!confirm('再確認一次：真的要永久刪除「' + name + '」的所有資料嗎？\n刪除後無法復原！')) return;
+  btn.disabled = true;
+  db.collection('users').doc(uid).delete().then(function(){
+    alert('已刪除「' + name + '」的資料');
+  }).catch(function(err){
+    btn.disabled = false;
+    alert('刪除失敗：' + (err.message || err));
+  });
+});
+
+// ---------- 頁面分頁：收禮統計 / 任務範本 ----------
+document.getElementById('pageTabStats').onclick = function(){
+  document.getElementById('pageTabStats').className = 'on';
+  document.getElementById('pageTabTemplate').className = '';
+  document.getElementById('pageStats').style.display = 'block';
+  document.getElementById('pageTemplate').style.display = 'none';
+};
+document.getElementById('pageTabTemplate').onclick = function(){
+  document.getElementById('pageTabStats').className = '';
+  document.getElementById('pageTabTemplate').className = 'on';
+  document.getElementById('pageStats').style.display = 'none';
+  document.getElementById('pageTemplate').style.display = 'block';
+};
+
+// ---------- 任務範本管理（依廳房分開，每個廳房各存一份，不分日期） ----------
+var tplRoom = ROOM_OPTIONS[0];
+var templateDocRef = db.collection('templates').doc(tplRoom);
+var templateData = { day: [], week: [], month: [], custom: [] };
+var tplScope = 'day';
+
+document.getElementById('tplRoomSelect').innerHTML = roomOptionsHtml(tplRoom);
+document.getElementById('tplRoomSelect').onchange = function(){
+  tplRoom = this.value;
+  templateDocRef = db.collection('templates').doc(tplRoom);
+  loadTemplate();
+};
+
+function loadTemplate(){
+  document.getElementById('tplList').innerHTML = '<div class="empty" style="padding:16px 0;">讀取中…</div>';
+  templateDocRef.get().then(function(doc){
+    var data = doc.exists ? (doc.data() || {}) : {};
+    templateData = {
+      day: Array.isArray(data.day) ? data.day : [],
+      week: Array.isArray(data.week) ? data.week : [],
+      month: Array.isArray(data.month) ? data.month : [],
+      custom: Array.isArray(data.custom) ? data.custom : []
+    };
+    renderTemplateList();
+  }).catch(function(err){
+    document.getElementById('tplList').innerHTML = '<div class="empty" style="color:var(--red);">讀取範本失敗：' + esc(err.message || String(err)) + '</div>';
+  });
+}
+
+function setTplScope(s){
+  tplScope = s;
+  document.getElementById('tplTabDay').className = s === 'day' ? 'on' : '';
+  document.getElementById('tplTabWeek').className = s === 'week' ? 'on' : '';
+  document.getElementById('tplTabMonth').className = s === 'month' ? 'on' : '';
+  document.getElementById('tplTabCustom').className = s === 'custom' ? 'on' : '';
+  // 簡／加碼只用在每日任務；週／月／自訂任務不顯示（也清掉勾選）
+  document.getElementById('tplEasyBonusRow').style.display = s === 'day' ? 'flex' : 'none';
+  if (s !== 'day') { document.getElementById('tplEasy').checked = false; document.getElementById('tplBonus').checked = false; }
+  renderTemplateList();
+}
+document.getElementById('tplTabDay').onclick = function(){ setTplScope('day'); };
+document.getElementById('tplTabWeek').onclick = function(){ setTplScope('week'); };
+document.getElementById('tplTabMonth').onclick = function(){ setTplScope('month'); };
+document.getElementById('tplTabCustom').onclick = function(){ setTplScope('custom'); };
+
+function renderTemplateList(){
+  var list = templateData[tplScope] || [];
+  var box = document.getElementById('tplList');
+  if (!list.length) { box.innerHTML = '<div class="empty" style="padding:16px 0;">這個分頁還沒有範本任務</div>'; return; }
+  box.innerHTML = list.map(function(t, i){
+    var icon = t.icon && t.icon !== 'none' ? (GIFT_EMOJI[t.icon] || '') : '';
+    var tag = t.type === 'easy' ? ' <span style="color:var(--green);font-size:11px;">✨簡</span>' : (t.type === 'bonus' ? ' <span style="color:var(--accent2);font-size:11px;">🔥加</span>' : '');
+    return '<div style="display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">'
+      + '<span style="flex:1;">' + (icon ? icon + ' ' : '') + esc(t.name) + tag + '</span>'
+      + '<span style="color:var(--muted);font-size:13px;white-space:nowrap;">' + (Number(t.target)||1) + ' 個・' + (Number(t.score)||0) + ' 分</span>'
+      + '<button class="tpl-del" data-idx="' + i + '" title="刪除" style="background:none;border:none;color:var(--red);font-size:15px;cursor:pointer;padding:2px 6px;">✕</button>'
+      + '</div>';
+  }).join('');
+}
+
+document.getElementById('tplAddBtn').onclick = function(){
+  var nameInput = document.getElementById('tplName');
+  var name = nameInput.value.trim();
+  if (!name) { nameInput.focus(); return; }
+  var qty = parseInt(document.getElementById('tplQty').value, 10); if (!qty || qty < 1) qty = 1;
+  var pts = parseInt(document.getElementById('tplPts').value, 10); if (isNaN(pts) || pts < 0) pts = 0;
+  var icon = document.getElementById('tplIcon').value;
+  var easyChk = document.getElementById('tplEasy'), bonusChk = document.getElementById('tplBonus');
+  if (easyChk.checked && bonusChk.checked) { alert('「簡」和「加」請擇一勾選'); return; }
+  var list = templateData[tplScope];
+  if (list.some(function(t){ return t.name === name; })) { alert('這個項目已存在'); return; }
+  var task = { name: name, target: qty, score: pts, icon: icon || 'none' };
+  if (tplScope === 'day') {
+    if (bonusChk.checked) task.type = 'bonus'; else if (easyChk.checked) task.type = 'easy';
+  }
+  list.push(task);
+  saveTemplate();
+  nameInput.value = '';
+  document.getElementById('tplQty').value = '1';
+  document.getElementById('tplPts').value = '10';
+  easyChk.checked = false; bonusChk.checked = false;
+  nameInput.focus();
+};
+
+document.getElementById('tplList').addEventListener('click', function(e){
+  var btn = e.target.closest ? e.target.closest('.tpl-del') : null;
+  if (!btn) return;
+  var idx = Number(btn.getAttribute('data-idx'));
+  templateData[tplScope].splice(idx, 1);
+  saveTemplate();
+});
+
+function saveTemplate(){
+  renderTemplateList();
+  templateDocRef.set({
+    day: templateData.day,
+    week: templateData.week,
+    month: templateData.month,
+    custom: templateData.custom,
+    version: firebase.firestore.FieldValue.increment(1),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge: true }).catch(function(err){
+    alert('儲存範本失敗：' + (err.message || err));
+  });
+}
+
+// 複製目前廳房的範本任務清單到剪貼簿（日／週／月，格式：任務名 * 數量）
+function buildTemplateCopyText(){
+  var now = new Date();
+  var pad = function(n){ return String(n).padStart(2, '0'); };
+  var dayLabel = pad(now.getMonth() + 1) + '/' + pad(now.getDate());
+  var weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+  var weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
+  var weekLabel = (weekStart.getMonth() + 1) + '/' + weekStart.getDate() + '~' + (weekEnd.getMonth() + 1) + '/' + weekEnd.getDate();
+  var monthLabel = (now.getMonth() + 1) + '月';
+
+  function block(title, list){
+    var lines = [title];
+    if (list && list.length) {
+      list.forEach(function(t){ lines.push(t.name + ' * ' + (Number(t.target) || 1)); });
+    } else {
+      lines.push('（無範本任務）');
+    }
+    return lines.join('\n');
+  }
+
+  return [
+    block('日任務(' + dayLabel + ')', templateData.day),
+    block('週任務(' + weekLabel + ')', templateData.week),
+    block('月任務(' + monthLabel + ')', templateData.month)
+  ].join('\n\n');
+}
+function copyTextToClipboard(text){
+  var fallback = function(){
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch (e) { alert(text); }
+    document.body.removeChild(ta);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).catch(fallback);
+  } else {
+    fallback();
+  }
+}
+document.getElementById('tplCopyBtn').onclick = function(){
+  copyTextToClipboard(buildTemplateCopyText());
+  var btn = document.getElementById('tplCopyBtn');
+  var original = btn.textContent;
+  btn.textContent = '✅ 已複製到剪貼簿';
+  setTimeout(function(){ btn.textContent = original; }, 1500);
+};
 </script>
 </body>
 </html>
