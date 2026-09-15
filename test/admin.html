@@ -51,6 +51,7 @@
     <button id="tabWeek" class="on">本週</button>
     <button id="tabMonth">本月</button>
   </div>
+  <select id="monthSelect" style="display:none;width:100%;margin-bottom:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px;font-size:14px;outline:none;font-family:inherit;"></select>
   <div class="cards" id="cards"></div>
   <div style="margin-top:18px;"><button class="btn" onclick="location.reload()">🔄 重新整理</button></div>
 </div>
@@ -125,8 +126,30 @@ function setPeriod(p){
   period = p;
   document.getElementById('tabWeek').className = p === 'week' ? 'on' : '';
   document.getElementById('tabMonth').className = p === 'month' ? 'on' : '';
+  document.getElementById('monthSelect').style.display = p === 'month' ? 'block' : 'none';
   render();
 }
+
+// 月份選單：本月＋前 3 個月
+var monthOffset = 0;
+function populateMonthSelect(){
+  var sel = document.getElementById('monthSelect');
+  sel.innerHTML = '';
+  var now = new Date();
+  for (var i = 0; i < 4; i++) {
+    var d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    var opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = (i === 0 ? '本月・' : '') + d.getFullYear() + '年' + (d.getMonth()+1) + '月';
+    sel.appendChild(opt);
+  }
+  sel.value = monthOffset;
+}
+document.getElementById('monthSelect').onchange = function(){
+  monthOffset = Number(this.value) || 0;
+  render();
+};
+populateMonthSelect();
 
 auth.onAuthStateChanged(function(user){
   if (!user) return;
@@ -142,10 +165,11 @@ function monthKey(d){ return d.getFullYear() + '-' + String(d.getMonth()+1).padS
 function rangeOf(period){
   var now = new Date();
   if (period === 'month') {
-    var days = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+    var base = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1);
+    var days = new Date(base.getFullYear(), base.getMonth()+1, 0).getDate();
     var labels = [];
     for (var i = 1; i <= days; i++) labels.push(String(i));
-    return { days: days, labels: labels };
+    return { days: days, labels: labels, base: base };
   }
   var start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
   var labels = [];
@@ -212,7 +236,7 @@ function render(){
     var salesArr = [], tasksArr = [];
     for (var i = 0; i < r.days; i++) {
       var dk;
-      if (period === 'month') { var now0 = new Date(); dk = key(new Date(now0.getFullYear(), now0.getMonth(), i+1)); }
+      if (period === 'month') { dk = key(new Date(r.base.getFullYear(), r.base.getMonth(), i+1)); }
       else { var dd = new Date(r.start); dd.setDate(r.start.getDate() + i); dk = key(dd); }
       salesArr.push(salesScoreForDay(d, dk));
       tasksArr.push(taskScoreForDay(d, dk));
@@ -227,7 +251,7 @@ function render(){
     var hoursArr = [];
     for (var hi = 0; hi < r.days; hi++) {
       var hdk;
-      if (period === 'month') { var hn0 = new Date(); hdk = key(new Date(hn0.getFullYear(), hn0.getMonth(), hi+1)); }
+      if (period === 'month') { hdk = key(new Date(r.base.getFullYear(), r.base.getMonth(), hi+1)); }
       else { var hd = new Date(r.start); hd.setDate(r.start.getDate() + hi); hdk = key(hd); }
       var daySlots = ((d.dates || {})[hdk] || {}).slots;
       var mins = 0;
@@ -241,6 +265,7 @@ function render(){
       });
       hoursArr.push(mins / 60);
     }
+    var periodLabel = period === 'week' ? '本週' : (monthOffset === 0 ? '本月' : (r.base.getMonth()+1) + '月');
     var hTotal = hoursArr.reduce(function(a,b){ return a+b; }, 0);
     var hFull = Math.floor(hTotal);
     var hLeft = Math.round((hTotal - hFull) * 60);
@@ -264,8 +289,8 @@ function render(){
     html += '<div class="host-card"><h3 style="display:flex;align-items:center;gap:8px;">' + esc(name) + esc(alias) + roomSel + '</h3>'
       + '<div class="email">' + esc(d.email || '') + '</div>'
       + '<div class="nums">'
-      + '<div class="num"><div class="v c-sales">' + sSum + '</div><div class="l">' + (period === 'week' ? '本週' : '本月') + '業績分數</div></div>'
-      + '<div class="num"><div class="v c-tasks">' + tSum + '</div><div class="l">' + (period === 'week' ? '本週' : '本月') + '任務分數</div></div>'
+      + '<div class="num"><div class="v c-sales">' + sSum + '</div><div class="l">' + periodLabel + '業績分數</div></div>'
+      + '<div class="num"><div class="v c-tasks">' + tSum + '</div><div class="l">' + periodLabel + '任務分數</div></div>'
       + '</div>'
       + '<div class="hours-line">📻 開播時數 <b class="h">' + hFull + ' 小時' + (hLeft ? ' ' + hLeft + ' 分' : '') + '</b>'
       + '　→　時數分數 <b class="p">+' + hPts + '</b><span class="muted">（每滿 1 小時 +5）</span></div>'
