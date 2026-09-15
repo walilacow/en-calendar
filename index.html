@@ -141,7 +141,7 @@
       </select>
       <button class="btn btn-primary" id="addBtn">新增</button>
     </div>
-    <div style="display:flex; gap:18px; margin:-6px 0 14px 2px;">
+    <div id="easyBonusRow" style="display:flex; gap:18px; margin:-6px 0 14px 2px;">
       <label style="display:flex; align-items:center; gap:5px; font-size:13px; color:var(--green); cursor:pointer; user-select:none;">
         <input type="checkbox" id="easyChk" style="width:17px; height:17px; accent-color:var(--green); cursor:pointer;">
         ✨ 簡
@@ -154,6 +154,7 @@
     </div>
     <div style="border-top:1px solid var(--border); margin:2px 0 14px;"></div>
     </div>
+    <button class="btn btn-ghost btn-block" id="syncTemplateBtn" style="margin:0 0 14px; border-color:var(--accent); color:var(--accent); position:relative;">☁️ 同步範本任務（日／週／月一起帶入）<span id="syncTemplateNewBadge" style="display:none; margin-left:6px; background:var(--red); color:#fff; font-size:10px; font-weight:800; padding:2px 6px; border-radius:99px; vertical-align:middle;">NEW</span></button>
     <div class="sheet-foot" style="margin:14px 0;">
       <button class="btn btn-ghost" id="copyPrevBtn">📋 複製前一天任務</button>
       <button class="btn btn-ghost" id="clearDayBtn">🗑 清空這天</button>
