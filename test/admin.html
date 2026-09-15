@@ -40,6 +40,8 @@
   .empty { text-align:center; color:var(--muted); padding:40px 0; font-size:14px; line-height:2; }
   .muted { color:var(--muted); font-size:12px; }
   .updated { color:var(--muted); font-size:11px; margin-top:4px; }
+  .tpl-task.dragging { opacity:.75; border-color:var(--accent) !important; transform:scale(1.01); }
+  .tpl-task.editing { border-color:var(--accent) !important; box-shadow:0 0 0 2px rgba(183,148,246,.35); }
 </style>
 </head>
 <body>
@@ -99,6 +101,7 @@
         <label style="display:flex;align-items:center;gap:5px;font-size:13px;color:var(--green);cursor:pointer;user-select:none;"><input type="checkbox" id="tplEasy" style="width:16px;height:16px;accent-color:var(--green);cursor:pointer;"> ✨簡</label>
         <label style="display:flex;align-items:center;gap:5px;font-size:13px;color:var(--accent2);cursor:pointer;user-select:none;"><input type="checkbox" id="tplBonus" style="width:16px;height:16px;accent-color:var(--accent2);cursor:pointer;"> 🔥加</label>
       </span>
+      <button class="btn" id="tplCancelEditBtn" style="display:none;width:auto;padding:10px 18px;background:var(--card);color:var(--text);border:1px solid var(--border);">取消編輯</button>
       <button class="btn" id="tplAddBtn" style="width:auto;padding:10px 18px;">新增</button>
     </div>
     <div id="tplList" style="display:flex;flex-direction:column;gap:8px;"></div>
@@ -612,6 +615,7 @@ function setTplScope(s){
   // 簡／加碼只用在每日任務；週／月／自訂任務不顯示（也清掉勾選）
   document.getElementById('tplEasyBonusRow').style.display = s === 'day' ? 'flex' : 'none';
   if (s !== 'day') { document.getElementById('tplEasy').checked = false; document.getElementById('tplBonus').checked = false; }
+  cancelTplEdit();
   renderTemplateList();
 }
 document.getElementById('tplTabDay').onclick = function(){ setTplScope('day'); };
@@ -626,13 +630,46 @@ function renderTemplateList(){
   box.innerHTML = list.map(function(t, i){
     var icon = t.icon && t.icon !== 'none' ? (GIFT_EMOJI[t.icon] || '') : '';
     var tag = t.type === 'easy' ? ' <span style="color:var(--green);font-size:11px;">✨簡</span>' : (t.type === 'bonus' ? ' <span style="color:var(--accent2);font-size:11px;">🔥加</span>' : '');
-    return '<div style="display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">'
-      + '<span style="flex:1;">' + (icon ? icon + ' ' : '') + esc(t.name) + tag + '</span>'
+    return '<div class="tpl-task' + (i === tplEditingIdx ? ' editing' : '') + '" data-idx="' + i + '" style="display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">'
+      + '<span class="tpl-drag" data-idx="' + i + '" title="拖曳排序" style="cursor:grab;color:var(--muted);padding:4px 6px 4px 0;font-size:15px;touch-action:none;flex-shrink:0;">☰</span>'
+      + '<span class="tpl-name" data-idx="' + i + '" title="點擊編輯" style="flex:1;cursor:pointer;">' + (icon ? icon + ' ' : '') + esc(t.name) + tag + '</span>'
       + '<span style="color:var(--muted);font-size:13px;white-space:nowrap;">' + (Number(t.target)||1) + ' 個・' + (Number(t.score)||0) + ' 分</span>'
+      + '<button class="tpl-edit" data-idx="' + i + '" title="編輯" style="background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;padding:2px 4px;opacity:.8;">✏️</button>'
       + '<button class="tpl-del" data-idx="' + i + '" title="刪除" style="background:none;border:none;color:var(--red);font-size:15px;cursor:pointer;padding:2px 6px;">✕</button>'
       + '</div>';
   }).join('');
 }
+
+// 任務編輯狀態（依廳房＋分頁，只在同一份清單內有意義）
+var tplEditingIdx = null;
+function cancelTplEdit(){
+  tplEditingIdx = null;
+  document.getElementById('tplName').value = '';
+  document.getElementById('tplQty').value = '1';
+  document.getElementById('tplPts').value = '10';
+  document.getElementById('tplIcon').value = 'none';
+  document.getElementById('tplEasy').checked = false;
+  document.getElementById('tplBonus').checked = false;
+  document.getElementById('tplAddBtn').textContent = '新增';
+  document.getElementById('tplCancelEditBtn').style.display = 'none';
+}
+function startTplEdit(idx){
+  var t = (templateData[tplScope] || [])[idx];
+  if (!t) return;
+  if (tplEditingIdx === idx) { cancelTplEdit(); renderTemplateList(); return; } // 再點同一筆＝取消編輯
+  tplEditingIdx = idx;
+  document.getElementById('tplName').value = t.name;
+  document.getElementById('tplQty').value = t.target;
+  document.getElementById('tplPts').value = t.score || 0;
+  document.getElementById('tplIcon').value = t.icon || 'none';
+  document.getElementById('tplEasy').checked = t.type === 'easy';
+  document.getElementById('tplBonus').checked = t.type === 'bonus';
+  document.getElementById('tplAddBtn').textContent = '💾 儲存';
+  document.getElementById('tplCancelEditBtn').style.display = '';
+  renderTemplateList();
+  document.getElementById('tplName').focus();
+}
+document.getElementById('tplCancelEditBtn').onclick = function(){ cancelTplEdit(); renderTemplateList(); };
 
 document.getElementById('tplAddBtn').onclick = function(){
   var nameInput = document.getElementById('tplName');
@@ -644,26 +681,95 @@ document.getElementById('tplAddBtn').onclick = function(){
   var easyChk = document.getElementById('tplEasy'), bonusChk = document.getElementById('tplBonus');
   if (easyChk.checked && bonusChk.checked) { alert('「簡」和「加」請擇一勾選'); return; }
   var list = templateData[tplScope];
-  if (list.some(function(t){ return t.name === name; })) { alert('這個項目已存在'); return; }
+  if (list.some(function(t, i){ return t.name === name && i !== tplEditingIdx; })) { alert('這個項目已存在'); return; }
   var task = { name: name, target: qty, score: pts, icon: icon || 'none' };
   if (tplScope === 'day') {
     if (bonusChk.checked) task.type = 'bonus'; else if (easyChk.checked) task.type = 'easy';
   }
-  list.push(task);
+  if (tplEditingIdx !== null) {
+    list[tplEditingIdx] = task;
+  } else {
+    list.push(task);
+  }
+  cancelTplEdit();
   saveTemplate();
-  nameInput.value = '';
-  document.getElementById('tplQty').value = '1';
-  document.getElementById('tplPts').value = '10';
-  easyChk.checked = false; bonusChk.checked = false;
   nameInput.focus();
 };
 
 document.getElementById('tplList').addEventListener('click', function(e){
-  var btn = e.target.closest ? e.target.closest('.tpl-del') : null;
-  if (!btn) return;
-  var idx = Number(btn.getAttribute('data-idx'));
-  templateData[tplScope].splice(idx, 1);
+  if (e.target.closest && e.target.closest('.tpl-drag')) return; // 拖曳把手交給拖曳邏輯處理，不觸發點擊
+  var delBtn = e.target.closest ? e.target.closest('.tpl-del') : null;
+  if (delBtn) {
+    var idx = Number(delBtn.getAttribute('data-idx'));
+    if (idx === tplEditingIdx) cancelTplEdit();
+    templateData[tplScope].splice(idx, 1);
+    saveTemplate();
+    return;
+  }
+  var editTarget = (e.target.closest ? (e.target.closest('.tpl-edit') || e.target.closest('.tpl-name')) : null);
+  if (editTarget) { startTplEdit(Number(editTarget.getAttribute('data-idx'))); return; }
+});
+
+// 拖曳排序（滑鼠＋觸控，透過 ☰ handle，同前台邏輯）
+var tplDragCtx = null;
+document.getElementById('tplList').addEventListener('pointerdown', function(e){
+  var handle = e.target.closest ? e.target.closest('.tpl-drag') : null;
+  if (!handle) return;
+  var idx = Number(handle.getAttribute('data-idx'));
+  var list = templateData[tplScope] || [];
+  if (!list[idx]) return;
+  tplDragCtx = { idx: idx, el: handle.closest('.tpl-task'), startX: e.clientX, startY: e.clientY, active: false };
+});
+document.addEventListener('pointermove', function(e){
+  if (!tplDragCtx) return;
+  if (e.pointerType === 'mouse' && !(e.buttons & 1)) {
+    tplDragCtx.el.classList.remove('dragging');
+    document.body.style.userSelect = '';
+    tplDragCtx = null;
+    renderTemplateList();
+    return;
+  }
+  if (!tplDragCtx.active) {
+    if (Math.abs(e.clientY - tplDragCtx.startY) < 8 && Math.abs(e.clientX - tplDragCtx.startX) < 8) return;
+    tplDragCtx.active = true;
+    tplDragCtx.el.classList.add('dragging');
+    document.body.style.userSelect = 'none';
+  }
+  e.preventDefault();
+  var over = document.elementFromPoint(e.clientX, e.clientY);
+  var overTask = over && over.closest ? over.closest('.tpl-task') : null;
+  var listEl = document.getElementById('tplList');
+  if (overTask && overTask !== tplDragCtx.el && overTask.parentNode === listEl) {
+    var rect = overTask.getBoundingClientRect();
+    var before = (e.clientY - rect.top) < rect.height / 2;
+    listEl.insertBefore(tplDragCtx.el, before ? overTask : overTask.nextSibling);
+  }
+});
+document.addEventListener('pointerup', function(){
+  if (!tplDragCtx) return;
+  var ctx = tplDragCtx;
+  tplDragCtx = null;
+  document.body.style.userSelect = '';
+  if (!ctx.active) return;
+  ctx.el.classList.remove('dragging');
+  var list = templateData[tplScope];
+  if (!list || !list.length) return;
+  var newOrder = Array.from(document.getElementById('tplList').children).map(function(el){
+    var h = el.querySelector('.tpl-drag');
+    return h ? list[Number(h.getAttribute('data-idx'))] : null;
+  });
+  if (newOrder.length !== list.length || newOrder.some(function(t){ return !t; })) { renderTemplateList(); return; }
+  if (newOrder.every(function(t, i){ return t === list[i]; })) return;
+  cancelTplEdit();
+  list.splice.apply(list, [0, list.length].concat(newOrder));
   saveTemplate();
+});
+document.addEventListener('pointercancel', function(){
+  if (!tplDragCtx) return;
+  tplDragCtx.el.classList.remove('dragging');
+  document.body.style.userSelect = '';
+  tplDragCtx = null;
+  renderTemplateList();
 });
 
 function saveTemplate(){
@@ -693,7 +799,7 @@ function buildTemplateCopyText(){
   function block(title, list){
     var lines = [title];
     if (list && list.length) {
-      list.forEach(function(t){ lines.push(t.name + ' * ' + (Number(t.target) || 1)); });
+      list.forEach(function(t){ lines.push(t.name + (t.type === 'bonus' ? '（加碼）' : '') + ' * ' + (Number(t.target) || 1)); });
     } else {
       lines.push('（無範本任務）');
     }
