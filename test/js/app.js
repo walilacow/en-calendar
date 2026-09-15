@@ -171,6 +171,13 @@
             lsSetRaw('avatarData_v1', avatarData);
             applyNick();
           }
+        } else {
+          // 雲端沒有這個帳號的資料：可能是全新用戶，也可能是後台把這個主播的資料刪除了
+          // 兩種情況都要確保本機是乾淨狀態，不會把舊的本機快取又傳回雲端
+          store = { dates: {}, weeks: {}, months: {}, ranges: {}, scoreLog: {}, salesLog: {}, listeners: [], settings: Object.assign({}, DEFAULT_SETTINGS) };
+          save();
+          nickname = ''; alias = ''; avatarKey = 'cat'; avatarData = ''; hostRoom = '';
+          lsSetRaw('nick_v1', ''); lsSetRaw('alias_v1', ''); lsSetRaw('avatar_v1', 'cat'); lsSetRaw('avatarData_v1', '');
         }
       } catch (err) {}
       renderCalendar();
@@ -890,6 +897,7 @@
     renderSheet();
     $('overlay').classList.add('open');
     setTimeout(() => $('nameInput').focus(), 250);
+    checkTemplateVersion();
   }
   function closeSheet() {
     openDate = null;
@@ -969,6 +977,9 @@
 
     $('weekCopyBtn').style.display = (scope === 'day' && isSaturday(openDate)) ? 'block' : 'none';
     $('hoursBox').style.display = (scope === 'day' && isSaturday(openDate)) ? 'block' : 'none';
+    // 簡／加碼只用在每日任務；切到週／月任務時隱藏並清掉勾選，避免殘留誤觸發
+    $('easyBonusRow').style.display = scope === 'day' ? 'flex' : 'none';
+    if (scope !== 'day') { $('easyChk').checked = false; $('bonusChk').checked = false; }
     const stSettings = store.settings || {};
     const showDragon = stSettings.enableDragon !== false;
     const showCastle = stSettings.enableCastle !== false;
@@ -1392,7 +1403,8 @@
     const tasks = ensureBucket(scope, openDate).tasks;
     if (tasks.some((t, i) => t.name === name && i !== editingTaskIdx)) { toast('這個項目已存在'); return; }
     const iconSel = $('iconSelect').value;
-    const isEasy = $('easyChk').checked, isBonus = $('bonusChk').checked;
+    // 簡／加碼只用在每日任務，週／月任務一律當普通任務
+    const isEasy = scope === 'day' && $('easyChk').checked, isBonus = scope === 'day' && $('bonusChk').checked;
     if (isEasy && isBonus) { toast('「簡」和「加」請擇一勾選'); return; }
     const taskType = isBonus ? 'bonus' : (isEasy ? 'easy' : '');
     // 編輯模式：更新既有任務全欄位（cur 完成數保留）
@@ -1578,6 +1590,67 @@
     save(); renderSheet();
     toast(added > 0 ? `已複製 ${added} 個目標（進度歸零）` : '目標都已存在');
   };
+
+  // 同步範本任務：把後台管理員建立的任務範本，一次帶入「今天」的日／週／月任務清單，不用自己輸入
+  // 範本依廳房分開存（不分日期），每天都能重複同步同一份；已存在的項目（同名）不會重複加入
+  function templateRoomKey() { return hostRoom || '未知'; }
+  function tplSyncedVerKey() { return 'tplSyncedVer_v1_' + templateRoomKey(); }
+  // 檢查後台範本有沒有更新過（版本號比對），有的話在同步按鈕旁顯示 NEW 角標
+  function checkTemplateVersion() {
+    if (!fbOk || !db) return;
+    db.collection('templates').doc(templateRoomKey()).get().then(snap => {
+      const remoteVer = (snap.exists && Number(snap.data().version)) || 0;
+      let localVer = 0;
+      try { localVer = Number(localStorage.getItem(tplSyncedVerKey()) || '0'); } catch (e) {}
+      const badge = $('syncTemplateNewBadge');
+      if (badge) badge.style.display = (remoteVer > localVer) ? 'inline-block' : 'none';
+    }).catch(() => {});
+  }
+  // 把範本任務清單合併進某個任務陣列：同名的直接跳過（不覆蓋、不動已收數量），回傳新增數量
+  function mergeTemplateInto(tasks, src) {
+    let added = 0;
+    (Array.isArray(src) ? src : []).forEach(t => {
+      if (!t || !t.name) return;
+      if (tasks.some(x => x.name === t.name)) return;
+      const newTask = { name: t.name, target: t.target, cur: 0, score: t.score, icon: t.icon || '' };
+      if (t.type) newTask.type = t.type;
+      tasks.push(newTask);
+      added++;
+    });
+    return added;
+  }
+  function syncTemplateTasks() {
+    if (!openDate) return;
+    if (!fbOk || !db) { toast('雲端未連線，無法同步'); return; }
+    toast('同步中…');
+    db.collection('templates').doc(templateRoomKey()).get().then(snap => {
+      const tpl = snap.exists ? (snap.data() || {}) : {};
+      const remoteVer = Number(tpl.version) || 0;
+      const ds = openDate;
+      const counts = { day: 0, week: 0, month: 0 };
+      ['day', 'week', 'month'].forEach(sc => {
+        counts[sc] = mergeTemplateInto(ensureBucket(sc, ds).tasks, tpl[sc]);
+      });
+      // 自訂區間任務：只有主播「當下正開著某個自訂區間」才一併帶入，沒有選區間就沒地方放
+      let customMsg = '';
+      if (scope === 'custom' && customId) {
+        counts.custom = mergeTemplateInto(ensureBucket('custom', ds).tasks, tpl.custom);
+        customMsg = `・自訂 ${counts.custom} 個`;
+      }
+      // 不管這次有沒有新任務被加入，都算「已經看過這個版本」，NEW 角標消掉
+      try { localStorage.setItem(tplSyncedVerKey(), String(remoteVer)); } catch (e) {}
+      const badge = $('syncTemplateNewBadge');
+      if (badge) badge.style.display = 'none';
+      const total = counts.day + counts.week + counts.month + (counts.custom || 0);
+      if (!total) { toast('沒有新任務可同步（已存在或範本是空的）'); return; }
+      save();
+      renderCalendar();
+      if (openDate) renderSheet();
+      toast(`已同步：日 ${counts.day} 個・週 ${counts.week} 個・月 ${counts.month} 個${customMsg}`);
+    }).catch(err => {
+      toast('同步失敗：' + (err && err.message ? err.message : err));
+    });
+  }
 
   // 複製完成/未完成清單：只複製「目前 scope」，每日頁就只複製每日，每週/每月同理
   $('copyListBtn').onclick = () => {
@@ -2706,6 +2779,7 @@
     $('sfxBtn').onclick = () => { ensureAudio(); renderSfx(); openOverlay('sfxOverlay'); };
     $('donateBtn').onclick = () => openOverlay('donateOverlay');
     $('fansBtn').onclick = () => { renderFans(); bindFanShots(); renderFanShotPreview(); openOverlay('fansOverlay'); };
+    $('syncTemplateBtn').onclick = syncTemplateTasks;
     $('settingsBtn').onclick = openSettingsPanel;
     // 各面板的關閉鈕：往上找到 .overlay 關掉即可
     ['closeSfx', 'closeDonate', 'closeFans', 'closeSettings'].forEach(id => {
