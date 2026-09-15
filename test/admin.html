@@ -147,7 +147,15 @@ firebase.initializeApp(FB_CONFIG);
 var auth = firebase.auth(), db = firebase.firestore();
 
 // 後台通行密碼關卡（純前端擋一下，不是真正的資料權限控管——真正的資料保護要靠 Firestore 規則）
-var ADMIN_GATE_PASSWORD = '860928';
+// 密碼不存明碼，存 SHA-256 雜湊值比對（注意：這只是墊高門檻，前端程式碼終究是公開可讀的，
+// 懂技術的人還是能暴力破解雜湊或直接繞過檢查——真正的存取控制要靠 Firestore 規則本身）
+var ADMIN_GATE_HASH = '5467c5177d1fab60af14523a07f08071f59d5ece5dbdd9b70cd767f3ca50f040';
+function sha256Hex(str){
+  var enc = new TextEncoder().encode(str);
+  return crypto.subtle.digest('SHA-256', enc).then(function(buf){
+    return Array.from(new Uint8Array(buf)).map(function(b){ return b.toString(16).padStart(2, '0'); }).join('');
+  });
+}
 var ADMIN_GATE_KEY = 'adminGatePassed_v1';
 function gatePassed(){
   try { return localStorage.getItem(ADMIN_GATE_KEY) === '1'; } catch (e) { return false; }
@@ -173,14 +181,18 @@ function showGateOrLogin(){
 }
 document.getElementById('pwdGateBtn').onclick = function(){
   var val = document.getElementById('pwdGateInput').value;
-  if (val === ADMIN_GATE_PASSWORD) {
-    try { localStorage.setItem(ADMIN_GATE_KEY, '1'); } catch (e) {}
-    document.getElementById('pwdGateErr').textContent = '';
-    document.getElementById('pwdGateInput').value = '';
-    showGateOrLogin();
-  } else {
-    document.getElementById('pwdGateErr').textContent = '密碼錯誤';
-  }
+  sha256Hex(val).then(function(hash){
+    if (hash === ADMIN_GATE_HASH) {
+      try { localStorage.setItem(ADMIN_GATE_KEY, '1'); } catch (e) {}
+      document.getElementById('pwdGateErr').textContent = '';
+      document.getElementById('pwdGateInput').value = '';
+      showGateOrLogin();
+    } else {
+      document.getElementById('pwdGateErr').textContent = '密碼錯誤';
+    }
+  }).catch(function(){
+    document.getElementById('pwdGateErr').textContent = '瀏覽器不支援密碼驗證，請改用其他瀏覽器';
+  });
 };
 document.getElementById('pwdGateInput').addEventListener('keydown', function(e){
   if (e.key === 'Enter') document.getElementById('pwdGateBtn').click();
