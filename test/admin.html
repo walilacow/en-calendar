@@ -57,6 +57,16 @@
   <div style="margin-top:18px;"><button class="btn" onclick="location.reload()">🔄 重新整理</button></div>
 </div>
 
+<div id="taskModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px;width:100%;max-width:420px;max-height:80vh;overflow:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px;">
+      <h3 id="taskModalTitle" style="font-size:16px;"></h3>
+      <button id="taskModalClose" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1;">✕</button>
+    </div>
+    <div id="taskModalBody" style="display:flex;flex-direction:column;gap:8px;"></div>
+  </div>
+</div>
+
 <div class="login-box" id="loginBox">
   <h1 style="margin-bottom:8px;">🔐 後台登入</h1>
   <div class="sub" style="margin-bottom:16px;">請用管理者 Google 帳號登入</div>
@@ -301,13 +311,16 @@ function render(){
     for (var i2 = 0; i2 < r.days; i2++) {
       var hasAny = salesArr[i2] > 0 || tasksArr[i2] > 0;
       var hVal = hoursArr[i2];
+      var dk2;
+      if (period === 'month') { dk2 = key(new Date(r.base.getFullYear(), r.base.getMonth(), i2+1)); }
+      else { var dd2 = new Date(r.start); dd2.setDate(r.start.getDate() + i2); dk2 = key(dd2); }
       bars += '<div class="bar-row"><span style="min-width:34px;">' + r.labels[i2] + '</span>'
         + '<div class="track"><div class="fill f-h" style="width:' + Math.min(100, Math.round(hVal/12*100)) + '%"></div></div>'
         + '<span style="min-width:36px;color:var(--blue);font-weight:700;">' + (hVal > 0 ? (Math.round(hVal*10)/10) + 'h' : '') + '</span>'
         + '<div class="track"><div class="fill f-s" style="width:' + Math.round(salesArr[i2]/sMax*100) + '%"></div></div>'
         + '<span style="min-width:36px;color:var(--accent2);font-weight:700;">' + (hasAny ? salesArr[i2] : '') + '</span>'
-        + '<div class="track"><div class="fill f-t" style="width:' + Math.round(tasksArr[i2]/tMax*100) + '%"></div></div>'
-        + '<span style="min-width:36px;color:var(--accent);font-weight:700;">' + (hasAny ? tasksArr[i2] : '') + '</span></div>';
+        + '<div class="track task-click" data-uid="' + uid + '" data-dk="' + dk2 + '" title="點看當天完成的任務／禮物" style="cursor:pointer;"><div class="fill f-t" style="width:' + Math.round(tasksArr[i2]/tMax*100) + '%"></div></div>'
+        + '<span class="task-click" data-uid="' + uid + '" data-dk="' + dk2 + '" title="點看當天完成的任務／禮物" style="min-width:36px;color:var(--accent);font-weight:700;cursor:pointer;">' + (hasAny ? tasksArr[i2] : '') + '</span></div>';
     }
     var roomSel = '<select data-room-uid="' + uid + '" class="room-select" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:4px 8px;font-size:12px;outline:none;margin-left:auto;">'
       + '<option value="未知"' + ((d.room || '未知') === '未知' ? ' selected' : '') + '>未知</option>'
@@ -328,6 +341,43 @@ function render(){
   if (!count) html = '<div class="empty">讀取成功，但目前 users 集合是空的（0 筆）<br>可能原因：<br>① Firestore 規則擋住讀取（上方應有紅字錯誤）<br>② 主播們還沒在新版 App 登入過（資料要登入後才會上雲）<br>③ 你登後台用的 Google 帳號跟 App 是不同專案？（apiKey 必須一致）</div>';
   cards.innerHTML = html;
 }
+
+// 當天完成任務／禮物明細（點任務分數條）
+var GIFT_EMOJI = { '玫瑰':'🌹','火箭':'🚀','城堡':'🏰','金龍':'🐉','跑車':'🏎️','飛機':'✈️','遊艇':'🛥️','鑽戒':'💍','皇冠':'👑','煙花':'🎆','愛心':'❤️','禮物盒':'🎁' };
+function showDayTasks(uid, dk){
+  var d = cache[uid] || {};
+  var name = d.nickname || '（未設暱稱）';
+  var tasks = ((d.dates || {})[dk] || {}).tasks || [];
+  document.getElementById('taskModalTitle').textContent = esc(name) + '・' + dk;
+  var body = document.getElementById('taskModalBody');
+  if (!tasks.length) {
+    body.innerHTML = '<div class="muted" style="text-align:center;padding:20px 0;">這天沒有任務紀錄</div>';
+  } else {
+    body.innerHTML = tasks.map(function(t){
+      var cur = Number(t.cur) || 0, target = Number(t.target) || 1;
+      var done = cur >= target;
+      var icon = t.icon && t.icon !== 'none' ? (GIFT_EMOJI[t.icon] || '') : '';
+      return '<div style="display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">'
+        + '<span style="font-size:16px;">' + (done ? '✅' : '⬜') + '</span>'
+        + '<span style="flex:1;">' + (icon ? icon + ' ' : '') + esc(t.name) + '</span>'
+        + '<span style="color:var(--muted);font-size:13px;white-space:nowrap;">' + cur + '/' + target + '・' + (Number(t.score) || 0) + '分</span>'
+        + '</div>';
+    }).join('');
+  }
+  document.getElementById('taskModal').style.display = 'flex';
+}
+document.getElementById('taskModalClose').onclick = function(){
+  document.getElementById('taskModal').style.display = 'none';
+};
+document.getElementById('taskModal').addEventListener('click', function(e){
+  if (e.target === this) this.style.display = 'none';
+});
+document.addEventListener('click', function(e){
+  var t = e.target.closest ? e.target.closest('.task-click') : null;
+  if (!t) return;
+  showDayTasks(t.getAttribute('data-uid'), t.getAttribute('data-dk'));
+});
+
 // 廳房選擇變更 → 寫回 Firebase
 document.addEventListener('change', function(e){
   var t = e.target;
