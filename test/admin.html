@@ -413,6 +413,8 @@ function render(){
     }
     var sSum = salesArr.reduce(function(a,b){ return a+b; }, 0);
     var tSum = tasksArr.reduce(function(a,b){ return a+b; }, 0);
+    // 主播自己在 App 設定裡關掉業績分數的話，後台也不顯示業績分數條
+    var showSales = !(d.settings && d.settings.enableSalesScore === false);
     var name = d.nickname || '（未設暱稱）';
     var alias = d.alias ? ' ' + d.alias : '';
     var sMax = Math.max.apply(null, salesArr.concat([1]));
@@ -452,8 +454,10 @@ function render(){
       bars += '<div class="bar-row"><span style="min-width:34px;">' + r.labels[i2] + '</span>'
         + '<div class="track"><div class="fill f-h" style="width:' + Math.min(100, Math.round(hVal/12*100)) + '%"></div></div>'
         + '<span style="min-width:36px;color:var(--blue);font-weight:700;">' + (hVal > 0 ? (Math.round(hVal*10)/10) + 'h' : '') + '</span>'
-        + '<div class="track"><div class="fill f-s" style="width:' + Math.round(salesArr[i2]/sMax*100) + '%"></div></div>'
-        + '<span style="min-width:36px;color:var(--accent2);font-weight:700;">' + (hasAny ? salesArr[i2] : '') + '</span>'
+        + (showSales
+            ? '<div class="track"><div class="fill f-s" style="width:' + Math.round(salesArr[i2]/sMax*100) + '%"></div></div>'
+              + '<span style="min-width:36px;color:var(--accent2);font-weight:700;">' + (hasAny ? salesArr[i2] : '') + '</span>'
+            : '')
         + '<div class="track task-click" data-uid="' + uid + '" data-dk="' + dk2 + '" title="點看當天完成的任務／禮物" style="cursor:pointer;"><div class="fill f-t" style="width:' + Math.round(tasksArr[i2]/tMax*100) + '%"></div></div>'
         + '<span class="task-click" data-uid="' + uid + '" data-dk="' + dk2 + '" title="點看當天完成的任務／禮物" style="min-width:36px;color:var(--accent);font-weight:700;cursor:pointer;">' + (hasAny ? tasksArr[i2] : '') + '</span></div>';
     }
@@ -464,13 +468,13 @@ function render(){
     html += '<div class="host-card"><h3 style="display:flex;align-items:center;gap:8px;">' + esc(name) + esc(alias) + roomSel + delBtn + '</h3>'
       + '<div class="email">' + esc(d.email || '') + '</div>'
       + '<div class="nums">'
-      + '<div class="num"><div class="v c-sales">' + sSum + '</div><div class="l">' + periodLabel + '業績分數</div></div>'
+      + (showSales ? '<div class="num"><div class="v c-sales">' + sSum + '</div><div class="l">' + periodLabel + '業績分數</div></div>' : '')
       + '<div class="num"><div class="v c-tasks">' + tSum + '</div><div class="l">' + periodLabel + '任務分數</div></div>'
       + '<div class="num"><div class="v c-total">' + (tSum + hPts) + '</div><div class="l">' + periodLabel + '任務＋時數總分</div></div>'
       + '</div>'
       + '<div class="hours-line">📻 開播時數 <b class="h">' + hFull + ' 小時' + (hLeft ? ' ' + hLeft + ' 分' : '') + '</b>'
       + '　→　時數分數 <b class="p">+' + hPts + '</b><span class="muted">（每滿 1 小時 +5）</span></div>'
-      + '<div class="muted" style="margin-top:8px;">每日：橘＝業績　紫＝任務　藍＝時數</div>'
+      + '<div class="muted" style="margin-top:8px;">每日：' + (showSales ? '橘＝業績　' : '') + '紫＝任務　藍＝時數</div>'
       + '<div class="bar-wrap">' + bars + '</div></div>';
     count++;
   }

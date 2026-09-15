@@ -10,7 +10,7 @@
 
   // 所有設定項的預設值（sanitizeStore / load 共用）
   const DEFAULT_SETTINGS = {
-    enableGiftTasks: true, enableSalesScore: true,
+    enableGiftTasks: true, enableSalesScore: false,
     enableDragon: true, enableCastle: true,
     giftCutoffHour: 0, salesCutoffHour: 8,
     salesDayTarget: 0, salesWeekTarget: 0, salesMonthTarget: 0
@@ -999,7 +999,7 @@
       const pts = fullHrs * 5;
       $('hoursAuto').textContent = '當週 ' + fullHrs + ' 小時' + (leftover ? ' ' + leftover + ' 分（不滿 1 小時不算）' : '') + ' → +' + pts + ' 分';
     }
-    const settings = store.settings || { enableGiftTasks: true, enableSalesScore: true, salesDayTarget: 0, salesWeekTarget: 0, salesMonthTarget: 0 };
+    const settings = store.settings || { enableGiftTasks: true, enableSalesScore: false, salesDayTarget: 0, salesWeekTarget: 0, salesMonthTarget: 0 };
     const tasks = settings.enableGiftTasks ? getTasks(scope, openDate) : [];
     const r = calc(tasks);
     let status;
