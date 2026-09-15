@@ -242,21 +242,32 @@ function salesScoreForDay(d, dk){
   }
   return log[dk] || 0;
 }
+function taskTypeOf(t){ if (t.type === 'bonus' || t.bonus === true) return 'bonus'; if (t.type === 'easy') return 'easy'; return 'day'; }
+function splitScores(tasks){
+  var r = { day: 0, easy: 0, bonus: 0 };
+  (tasks || []).forEach(function(t){
+    var cur = Number(t.cur), target = Number(t.target), sc = Number(t.score);
+    var s = (Number.isFinite(cur) && Number.isFinite(target) && cur >= target && Number.isFinite(sc)) ? sc : 0;
+    r[taskTypeOf(t)] += s;
+  });
+  return r;
+}
 function taskScoreBreakdown(d, dk){
+  // 每日分數（普通/簡/加碼）：直接從當天的 day-scope 任務清單即時算出，不依賴 scoreLog 快照。
+  // scoreLog 只在「今天」存檔時寫入當天那格，如果主播事後回頭補登/修改過去某天的任務
+  // （例如用「複製前一天任務」、事後補分、調整簡/加分類），那天的 scoreLog 會停留在舊狀態、
+  // 不會再更新，用它來算會跟實際任務清單兜不起來，所以改成直接算「當下」的任務清單。
+  var sp = splitScores(((d.dates || {})[dk] || {}).tasks);
+  var day = sp.day, easy = sp.easy, bonus = sp.bonus;
+  // 每週／每月任務：清單不綁在單一日期（整週／整月共用），沒辦法直接從某天的資料算出「哪天達標」，
+  // 只能繼續靠 scoreLog 的每日快照差額，把新增的分數歸屬到「實際達標的那一天」
   var dt = new Date(dk + 'T00:00:00');
   var prevD = new Date(dt); prevD.setDate(dt.getDate() - 1);
   var prevKey = key(prevD);
   var snap = ((d.scoreLog || {})[dk] || {});
   var prevSnap = ((d.scoreLog || {})[prevKey] || {});
   var mk = dk.slice(0, 7);
-  // 每日分數（普通/簡/加碼）：scoreLog 裡的值就是「當天」day-scope 任務清單算出來的完成分數，
-  // 每天各自獨立（不是跨日累計），直接加總即可，不能再減前一天的值
-  var day = Math.max(0, Number(snap.day) || 0);
-  var easy = Math.max(0, Number(snap.easy) || 0);
-  var bonus = Math.max(0, Number(snap.bonus) || 0);
-  // 每週任務：快照差額歸到「實際達標的那一天」，同一週收過一次就不會在其他天重複出現
   var week = Math.max(0, (Number(snap.week) || 0) - (Number(prevSnap.week) || 0));
-  // 每月任務：跨月時前一天的累計屬於上個月，歸零重算；同一月收過一次就不會在其他天重複出現
   var mPrev = (prevKey.slice(0,7) === mk) ? (Number(prevSnap.month) || 0) : 0;
   var month = Math.max(0, (Number(snap.month) || 0) - mPrev);
   return { day: day, easy: easy, bonus: bonus, week: week, month: month, total: day + easy + bonus + week + month };
