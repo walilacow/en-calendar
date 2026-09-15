@@ -242,8 +242,7 @@ function salesScoreForDay(d, dk){
   }
   return log[dk] || 0;
 }
-function taskScoreForDay(d, dk){
-  var total = 0;
+function taskScoreBreakdown(d, dk){
   var dt = new Date(dk + 'T00:00:00');
   var prevD = new Date(dt); prevD.setDate(dt.getDate() - 1);
   var prevKey = key(prevD);
@@ -252,16 +251,25 @@ function taskScoreForDay(d, dk){
   var mk = dk.slice(0, 7);
   // 每日分數（普通/簡/加碼）：scoreLog 裡的值就是「當天」day-scope 任務清單算出來的完成分數，
   // 每天各自獨立（不是跨日累計），直接加總即可，不能再減前一天的值
-  total += Math.max(0, Number(snap.day) || 0);
-  total += Math.max(0, Number(snap.easy) || 0);
-  total += Math.max(0, Number(snap.bonus) || 0);
-  // 每週任務：快照差額歸到「實際達標的那一天」
-  total += Math.max(0, (Number(snap.week) || 0) - (Number(prevSnap.week) || 0));
-  // 每月任務：跨月時前一天的累計屬於上個月，歸零重算
+  var day = Math.max(0, Number(snap.day) || 0);
+  var easy = Math.max(0, Number(snap.easy) || 0);
+  var bonus = Math.max(0, Number(snap.bonus) || 0);
+  // 每週任務：快照差額歸到「實際達標的那一天」，同一週收過一次就不會在其他天重複出現
+  var week = Math.max(0, (Number(snap.week) || 0) - (Number(prevSnap.week) || 0));
+  // 每月任務：跨月時前一天的累計屬於上個月，歸零重算；同一月收過一次就不會在其他天重複出現
   var mPrev = (prevKey.slice(0,7) === mk) ? (Number(prevSnap.month) || 0) : 0;
-  total += Math.max(0, (Number(snap.month) || 0) - mPrev);
-  return total;
+  var month = Math.max(0, (Number(snap.month) || 0) - mPrev);
+  return { day: day, easy: easy, bonus: bonus, week: week, month: month, total: day + easy + bonus + week + month };
 }
+function taskScoreForDay(d, dk){
+  return taskScoreBreakdown(d, dk).total;
+}
+function weekKeyOf(dk){
+  var d = new Date(dk + 'T00:00:00');
+  d.setDate(d.getDate() - d.getDay());
+  return key(d);
+}
+function monthKeyOf(dk){ return dk.slice(0, 7); }
 
 function render(){
   var r = rangeOf(period);
@@ -346,26 +354,37 @@ function render(){
 
 // 當天完成任務／禮物明細（點任務分數條）
 var GIFT_EMOJI = { '玫瑰':'🌹','火箭':'🚀','城堡':'🏰','金龍':'🐉','跑車':'🏎️','飛機':'✈️','遊艇':'🛥️','鑽戒':'💍','皇冠':'👑','煙花':'🎆','愛心':'❤️','禮物盒':'🎁' };
+function taskRowHtml(t){
+  var cur = Number(t.cur) || 0, target = Number(t.target) || 1;
+  var done = cur >= target;
+  var icon = t.icon && t.icon !== 'none' ? (GIFT_EMOJI[t.icon] || '') : '';
+  return '<div style="display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">'
+    + '<span style="font-size:16px;">' + (done ? '✅' : '⬜') + '</span>'
+    + '<span style="flex:1;">' + (icon ? icon + ' ' : '') + esc(t.name) + '</span>'
+    + '<span style="color:var(--muted);font-size:13px;white-space:nowrap;">' + cur + '/' + target + '・' + (Number(t.score) || 0) + '分</span>'
+    + '</div>';
+}
 function showDayTasks(uid, dk){
   var d = cache[uid] || {};
   var name = d.nickname || '（未設暱稱）';
-  var tasks = ((d.dates || {})[dk] || {}).tasks || [];
+  var dayTasks = ((d.dates || {})[dk] || {}).tasks || [];
+  var bd = taskScoreBreakdown(d, dk);
   document.getElementById('taskModalTitle').textContent = esc(name) + '・' + dk;
-  var body = document.getElementById('taskModalBody');
-  if (!tasks.length) {
-    body.innerHTML = '<div class="muted" style="text-align:center;padding:20px 0;">這天沒有任務紀錄</div>';
-  } else {
-    body.innerHTML = tasks.map(function(t){
-      var cur = Number(t.cur) || 0, target = Number(t.target) || 1;
-      var done = cur >= target;
-      var icon = t.icon && t.icon !== 'none' ? (GIFT_EMOJI[t.icon] || '') : '';
-      return '<div style="display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">'
-        + '<span style="font-size:16px;">' + (done ? '✅' : '⬜') + '</span>'
-        + '<span style="flex:1;">' + (icon ? icon + ' ' : '') + esc(t.name) + '</span>'
-        + '<span style="color:var(--muted);font-size:13px;white-space:nowrap;">' + cur + '/' + target + '・' + (Number(t.score) || 0) + '分</span>'
-        + '</div>';
-    }).join('');
+  var html = '';
+  html += '<div style="font-size:12px;color:var(--muted);margin-bottom:-2px;">🎁 每日任務</div>';
+  html += dayTasks.length ? dayTasks.map(taskRowHtml).join('') : '<div class="muted" style="text-align:center;padding:8px 0;">這天沒有每日任務紀錄</div>';
+  // 週／月任務只在「當週／當月新達成分數」的那一天顯示一次，避免同一份任務清單在其他天重複出現
+  if (bd.week > 0) {
+    var weekTasks = ((d.weeks || {})[weekKeyOf(dk)] || {}).tasks || [];
+    html += '<div style="font-size:12px;color:var(--muted);margin:8px 0 -2px;">📅 本週任務（本週新達成 +' + bd.week + ' 分，只在達成當天顯示一次）</div>'
+      + weekTasks.map(taskRowHtml).join('');
   }
+  if (bd.month > 0) {
+    var monthTasks = ((d.months || {})[monthKeyOf(dk)] || {}).tasks || [];
+    html += '<div style="font-size:12px;color:var(--muted);margin:8px 0 -2px;">🗓️ 本月任務（本月新達成 +' + bd.month + ' 分，只在達成當天顯示一次）</div>'
+      + monthTasks.map(taskRowHtml).join('');
+  }
+  document.getElementById('taskModalBody').innerHTML = html;
   document.getElementById('taskModal').style.display = 'flex';
 }
 document.getElementById('taskModalClose').onclick = function(){
