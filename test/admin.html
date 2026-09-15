@@ -51,6 +51,7 @@
     <button id="tabWeek" class="on">本週</button>
     <button id="tabMonth">本月</button>
   </div>
+  <select id="weekSelect" style="width:100%;margin-bottom:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px;font-size:14px;outline:none;font-family:inherit;"></select>
   <select id="monthSelect" style="display:none;width:100%;margin-bottom:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px;font-size:14px;outline:none;font-family:inherit;"></select>
   <div class="cards" id="cards"></div>
   <div style="margin-top:18px;"><button class="btn" onclick="location.reload()">🔄 重新整理</button></div>
@@ -126,9 +127,33 @@ function setPeriod(p){
   period = p;
   document.getElementById('tabWeek').className = p === 'week' ? 'on' : '';
   document.getElementById('tabMonth').className = p === 'month' ? 'on' : '';
+  document.getElementById('weekSelect').style.display = p === 'week' ? 'block' : 'none';
   document.getElementById('monthSelect').style.display = p === 'month' ? 'block' : 'none';
   render();
 }
+
+// 週選單：本週＋前 3 週
+var weekOffset = 0;
+function populateWeekSelect(){
+  var sel = document.getElementById('weekSelect');
+  sel.innerHTML = '';
+  var now = new Date();
+  var thisStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+  for (var i = 0; i < 4; i++) {
+    var s = new Date(thisStart); s.setDate(thisStart.getDate() - 7 * i);
+    var e = new Date(s); e.setDate(s.getDate() + 6);
+    var opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = (i === 0 ? '本週・' : '') + (s.getMonth()+1) + '/' + s.getDate() + '~' + (e.getMonth()+1) + '/' + e.getDate();
+    sel.appendChild(opt);
+  }
+  sel.value = weekOffset;
+}
+document.getElementById('weekSelect').onchange = function(){
+  weekOffset = Number(this.value) || 0;
+  render();
+};
+populateWeekSelect();
 
 // 月份選單：本月＋前 3 個月
 var monthOffset = 0;
@@ -171,7 +196,7 @@ function rangeOf(period){
     for (var i = 1; i <= days; i++) labels.push(String(i));
     return { days: days, labels: labels, base: base };
   }
-  var start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+  var start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay() - 7 * weekOffset);
   var labels = [];
   for (var i = 0; i < 7; i++) {
     var d = new Date(start); d.setDate(start.getDate() + i);
@@ -265,7 +290,9 @@ function render(){
       });
       hoursArr.push(mins / 60);
     }
-    var periodLabel = period === 'week' ? '本週' : (monthOffset === 0 ? '本月' : (r.base.getMonth()+1) + '月');
+    var periodLabel = period === 'week'
+      ? (weekOffset === 0 ? '本週' : (weekOffset === 1 ? '上週' : weekOffset + '週前'))
+      : (monthOffset === 0 ? '本月' : (r.base.getMonth()+1) + '月');
     var hTotal = hoursArr.reduce(function(a,b){ return a+b; }, 0);
     var hFull = Math.floor(hTotal);
     var hLeft = Math.round((hTotal - hFull) * 60);
