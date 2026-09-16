@@ -77,7 +77,6 @@
     <div style="display:flex;align-items:center;gap:8px;margin-top:12px;">
       <span style="font-size:13px;color:var(--muted);white-space:nowrap;">🏠 編輯廳房</span>
       <select id="tplRoomSelect" style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px;font-size:14px;outline:none;font-family:inherit;"></select>
-      <button class="btn" id="tplAddRoomBtn" style="width:auto;padding:10px 14px;white-space:nowrap;background:var(--card);color:var(--text);border:1px solid var(--border);">＋ 新增廳房</button>
     </div>
     <div class="period-tabs" style="margin-top:14px;">
       <button id="tplTabDay" class="on">日任務</button>
@@ -230,10 +229,6 @@ function loadRooms(){
     extra.forEach(function(r){ if (typeof r === 'string' && r && ROOM_OPTIONS.indexOf(r) === -1) ROOM_OPTIONS.push(r); });
     refreshRoomSelects();
   }).catch(function(){});
-}
-function saveRooms(){
-  var custom = ROOM_OPTIONS.filter(function(r){ return DEFAULT_ROOMS.indexOf(r) === -1; });
-  return roomsMetaRef.set({ rooms: custom }, { merge: true });
 }
 
 // Google 一鍵登入（PWA 主畫面模式唯一可靠做法：不跳轉、不彈窗）
@@ -660,29 +655,6 @@ document.getElementById('tplRoomSelect').onchange = function(){
   templateDocRef = db.collection('templates').doc(tplRoom);
   loadTemplate();
 };
-document.getElementById('tplAddRoomBtn').onclick = function(){
-  var name = prompt('請輸入新廳房名稱');
-  if (name === null) return;
-  name = name.trim();
-  if (!name) return;
-  // Firestore 文件 ID 限制：不能含「/」、不能是 . 或 ..；另外保留「_」開頭給系統文件（例如 _meta）
-  if (name.indexOf('/') !== -1 || name === '.' || name === '..' || name.charAt(0) === '_') {
-    alert('廳房名稱不能包含「/」，也不能以「_」開頭'); return;
-  }
-  if (ROOM_OPTIONS.indexOf(name) !== -1) { alert('這個廳房已經存在'); return; }
-  ROOM_OPTIONS.push(name);
-  saveRooms().then(function(){
-    // 新增成功後直接切到新廳房，方便馬上建範本
-    tplRoom = name;
-    templateDocRef = db.collection('templates').doc(tplRoom);
-    refreshRoomSelects();
-    loadTemplate();
-  }).catch(function(err){
-    ROOM_OPTIONS.splice(ROOM_OPTIONS.indexOf(name), 1);
-    alert('新增廳房失敗：' + (err.message || err));
-  });
-};
-
 function loadTemplate(){
   document.getElementById('tplList').innerHTML = '<div class="empty" style="padding:16px 0;">讀取中…</div>';
   templateDocRef.get().then(function(doc){
