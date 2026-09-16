@@ -42,6 +42,12 @@
   .updated { color:var(--muted); font-size:11px; margin-top:4px; }
   .tpl-task.dragging { opacity:.75; border-color:var(--accent) !important; transform:scale(1.01); }
   .tpl-task.editing { border-color:var(--accent) !important; box-shadow:0 0 0 2px rgba(183,148,246,.35); }
+  .host-summary { cursor:pointer; user-select:none; }
+  .host-summary:hover .host-caret { color:var(--accent); }
+  .host-caret { color:var(--muted); font-size:12px; display:inline-block; transition:transform .15s; flex-shrink:0; }
+  .host-brief { font-size:13px; margin-top:6px; line-height:1.8; }
+  .host-brief b { font-weight:800; }
+  .host-detail { margin-top:12px; padding-top:12px; border-top:1px dashed var(--border); }
 </style>
 </head>
 <body>
@@ -346,6 +352,7 @@ function rangeOf(period){
 }
 
 var cache = {};
+var expandedHosts = {}; // 哪些主播卡片目前是展開的（key: uid），render 重繪時沿用
 function startListen(){
   if (unsubscribe) unsubscribe();
   var cards = document.getElementById('cards');
@@ -480,8 +487,22 @@ function render(){
       + roomOptionsHtml(d.room || '未知')
       + '</select>';
     var delBtn = '<button class="host-del-btn" data-uid="' + uid + '" data-name="' + esc(name) + '" title="刪除這位主播的所有資料" style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer;padding:2px 4px;">🗑</button>';
-    html += '<div class="host-card"><h3 style="display:flex;align-items:center;gap:8px;">' + esc(name) + esc(alias) + roomSel + delBtn + '</h3>'
-      + '<div class="email">' + esc(d.email || '') + '</div>'
+    // 列表摘要：預設收合只顯示一行關鍵分數，點開才展開完整每日明細；展開狀態記在 expandedHosts，重新渲染不會被收回去
+    var isOpen = !!expandedHosts[uid];
+    var briefParts = [];
+    if (showSales) briefParts.push('<span style="color:var(--accent2);">業績 <b>' + sSum + '</b></span>');
+    briefParts.push('<span style="color:var(--accent);">任務 <b>' + tSum + '</b></span>');
+    briefParts.push('<span style="color:var(--green);">任務＋時數 <b>' + (tSum + hPts) + '</b></span>');
+    briefParts.push('<span style="color:var(--blue);">開播 <b>' + hFull + ' 小時' + (hLeft ? ' ' + hLeft + ' 分' : '') + '</b></span>');
+    html += '<div class="host-card">'
+      + '<div class="host-summary" data-uid="' + uid + '" title="點擊展開／收合詳細分數">'
+      + '<h3 style="display:flex;align-items:center;gap:8px;">'
+      + '<span class="host-caret"' + (isOpen ? ' style="transform:rotate(90deg);"' : '') + '>▶</span>'
+      + esc(name) + esc(alias) + roomSel + delBtn + '</h3>'
+      + '<div class="host-brief">' + briefParts.join('<span class="muted">　・　</span>') + '</div>'
+      + '<div class="email" style="margin-bottom:0;">' + esc(d.email || '') + '</div>'
+      + '</div>'
+      + '<div class="host-detail"' + (isOpen ? '' : ' style="display:none;"') + '>'
       + '<div class="nums">'
       + (showSales ? '<div class="num"><div class="v c-sales">' + sSum + '</div><div class="l">' + periodLabel + '業績分數</div></div>' : '')
       + '<div class="num"><div class="v c-tasks">' + tSum + '</div><div class="l">' + periodLabel + '任務分數</div></div>'
@@ -490,7 +511,8 @@ function render(){
       + '<div class="hours-line">📻 開播時數 <b class="h">' + hFull + ' 小時' + (hLeft ? ' ' + hLeft + ' 分' : '') + '</b>'
       + '　→　時數分數 <b class="p">+' + hPts + '</b><span class="muted">（每滿 1 小時 +5）</span></div>'
       + '<div class="muted" style="margin-top:8px;">每日：' + (showSales ? '橘＝業績　' : '') + '紫＝任務　藍＝時數</div>'
-      + '<div class="bar-wrap">' + bars + '</div></div>';
+      + '<div class="bar-wrap">' + bars + '</div>'
+      + '</div></div>';
     count++;
   }
   if (!count) html = '<div class="empty">讀取成功，但目前 users 集合是空的（0 筆）<br>可能原因：<br>① Firestore 規則擋住讀取（上方應有紅字錯誤）<br>② 主播們還沒在新版 App 登入過（資料要登入後才會上雲）<br>③ 你登後台用的 Google 帳號跟 App 是不同專案？（apiKey 必須一致）</div>';
@@ -557,6 +579,20 @@ document.addEventListener('change', function(e){
   });
 });
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+// 點主播摘要列 → 展開／收合詳細分數（廳房選單、刪除鈕不觸發）
+document.addEventListener('click', function(e){
+  var sum = e.target.closest ? e.target.closest('.host-summary') : null;
+  if (!sum) return;
+  if (e.target.closest('select, button')) return;
+  var uid = sum.getAttribute('data-uid');
+  expandedHosts[uid] = !expandedHosts[uid];
+  var card = sum.closest('.host-card');
+  var detail = card && card.querySelector('.host-detail');
+  var caret = card && card.querySelector('.host-caret');
+  if (detail) detail.style.display = expandedHosts[uid] ? '' : 'none';
+  if (caret) caret.style.transform = expandedHosts[uid] ? 'rotate(90deg)' : '';
+});
 
 // 刪除主播（雙重確認，刪除後該帳號登入時 App 會視為全新使用者，本機資料也不會被拿來覆蓋回雲端）
 document.addEventListener('click', function(e){
