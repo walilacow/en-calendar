@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#14141c">
+<title>最高管理者・帳號與角色設定</title>
+<style>
+  :root { --bg:#14141c; --card:#1e1e2a; --border:#2e2e40; --accent:#b794f6; --accent2:#f6ad55; --green:#48bb78; --blue:#63b3ed; --red:#fc8181; --text:#e8e8f0; --muted:#8b8b9e; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:"PingFang TC","Noto Sans TC",sans-serif; min-height:100vh; padding:20px 14px 60px; }
+  .wrap { max-width:820px; margin:0 auto; }
+  h1 { font-size:20px; margin-bottom:4px; }
+  .sub { color:var(--muted); font-size:13px; margin-bottom:16px; line-height:1.7; }
+  .login-box { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:24px; max-width:340px; margin:60px auto; text-align:center; }
+  .btn { border:none; border-radius:10px; padding:12px 18px; font-size:15px; cursor:pointer; font-weight:700; background:var(--accent); color:#14141c; width:100%; font-family:inherit; }
+  .btn.ghost { background:var(--card); color:var(--text); border:1px solid var(--border); }
+  .err { color:var(--red); font-size:13px; margin-top:10px; min-height:18px; }
+  #who { color:var(--green); font-size:13px; margin-bottom:14px; }
+  .empty { text-align:center; color:var(--muted); padding:30px 0; font-size:14px; line-height:2; }
+  .muted { color:var(--muted); font-size:12px; }
+  input, select { background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:10px; font-size:14px; outline:none; font-family:inherit; width:100%; }
+  label.f { display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted); }
+  .form { display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end; margin-bottom:14px; }
+  .head { display:flex; gap:10px; padding:0 12px 6px; color:var(--muted); font-size:11px; }
+  .row { display:flex; align-items:center; gap:10px; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:10px 12px; flex-wrap:wrap; }
+  .row .acc { flex:1 1 220px; min-width:0; word-break:break-all; line-height:1.5; }
+  .row .nick { color:var(--muted); font-size:12px; margin-left:6px; }
+  .chip { font-size:12px; font-weight:700; padding:3px 9px; border-radius:99px; white-space:nowrap; flex-shrink:0; }
+  .chip.admin { background:rgba(183,148,246,.18); color:var(--accent); }
+  .chip.host { background:rgba(99,179,237,.18); color:var(--blue); }
+  .room { color:var(--accent2); font-size:13px; white-space:nowrap; flex-shrink:0; }
+  .src { color:var(--muted); font-size:11px; white-space:nowrap; flex-shrink:0; }
+  .del { background:none; border:none; color:var(--red); font-size:15px; cursor:pointer; padding:2px 6px; flex-shrink:0; }
+  .del-ph { width:27px; flex-shrink:0; }
+</style>
+</head>
+<body>
+<div class="wrap" id="appWrap" style="display:none;">
+  <h1>👑 最高管理者・帳號與角色設定</h1>
+  <div class="sub">登記後台管理員與主播的 Gmail 帳號、角色（role）與所屬廳房，可登記多位。此頁只有最高管理者帳號可以使用。目前只維護名單，尚未套用任何權限限制。</div>
+  <div id="who"></div>
+
+  <div class="form">
+    <label class="f" style="flex:2;min-width:200px;">Gmail 帳號<input id="accEmail" type="email" placeholder="someone@gmail.com" autocomplete="off"></label>
+    <label class="f" style="flex:1;min-width:110px;">角色 role<select id="accRole"><option value="admin">👑 管理員</option><option value="host">🎤 主播</option></select></label>
+    <label class="f" style="flex:1;min-width:120px;">所屬廳房<select id="accRoom"></select></label>
+    <button class="btn" id="accAddBtn" style="width:auto;padding:11px 18px;">新增</button>
+  </div>
+  <div class="sub" style="margin-bottom:10px;">📱 標記＝已經用 App 登入過的主播，會自動列出（不用手動登記）。清單依角色排序：管理員在前、主播在後。</div>
+
+  <div id="accList" style="display:flex;flex-direction:column;gap:8px;"></div>
+  <div class="err" id="appErr"></div>
+  <div style="display:flex;gap:10px;margin-top:22px;flex-wrap:wrap;">
+    <button class="btn ghost" id="reloadBtn" style="width:auto;padding:12px 16px;">🔄 重新整理</button>
+    <a class="btn ghost" href="admin.html" style="display:block;text-align:center;text-decoration:none;width:auto;padding:12px 16px;">← 回後台</a>
+    <button class="btn ghost" id="logoutBtn2" style="width:auto;padding:12px 16px;margin-left:auto;">登出</button>
+  </div>
+</div>
+
+<div class="login-box" id="loginBox">
+  <h1 style="margin-bottom:8px;">🔐 最高管理者登入</h1>
+  <div class="sub" style="margin-bottom:16px;">請用最高管理者的 Google 帳號登入</div>
+  <button class="btn" id="googleLoginBtn">使用 Google 帳號登入</button>
+  <div class="err" id="err"></div>
+</div>
+
+<div class="login-box" id="deniedBox" style="display:none;">
+  <h1 style="margin-bottom:8px;">⛔ 沒有權限</h1>
+  <div class="sub" id="deniedMsg" style="margin-bottom:16px;"></div>
+  <button class="btn ghost" id="logoutBtn">登出，改用其他帳號</button>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+var FB_CONFIG = {"apiKey":"AIzaSyClGhrZrcjfzHBhSiSUWDuZk9OqnXCPY_M","authDomain":"en-calendar-dbb36.firebaseapp.com","projectId":"en-calendar-dbb36","storageBucket":"en-calendar-dbb36.firebasestorage.app","messagingSenderId":"759675780359","appId":"1:759675780359:web:5040f38da2dd71ea4019a2"};
+firebase.initializeApp(FB_CONFIG);
+var auth = firebase.auth(), db = firebase.firestore();
+
+// 只有這個帳號可以使用此頁（前端判斷；真正的資料權限要靠 Firestore 規則）
+var OWNER_EMAIL = 'walilacow.hu@gmail.com';
+var ROLE_LABEL = { admin: '👑 管理員', host: '🎤 主播' };
+
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function $(id){ return document.getElementById(id); }
+function show(which){
+  $('loginBox').style.display = which === 'login' ? 'block' : 'none';
+  $('deniedBox').style.display = which === 'denied' ? 'block' : 'none';
+  $('appWrap').style.display = which === 'app' ? 'block' : 'none';
+}
+function setErr(msg){ $('appErr').textContent = msg || ''; }
+
+// ---------- 廳房清單（與後台相同：預設兩個＋ templates/_meta.rooms）----------
+var DEFAULT_ROOMS = ['未知', '野蠻女友'];
+var ROOM_OPTIONS = DEFAULT_ROOMS.slice();
+function roomOptionsHtml(selected){
+  return ROOM_OPTIONS.map(function(r){
+    return '<option value="' + esc(r) + '"' + (r === selected ? ' selected' : '') + '>' + esc(r) + '</option>';
+  }).join('');
+}
+function loadRooms(){
+  return db.collection('templates').doc('_meta').get().then(function(doc){
+    var extra = (doc.exists && Array.isArray(doc.data().rooms)) ? doc.data().rooms : [];
+    ROOM_OPTIONS = DEFAULT_ROOMS.slice();
+    extra.forEach(function(r){ if (typeof r === 'string' && r && ROOM_OPTIONS.indexOf(r) === -1) ROOM_OPTIONS.push(r); });
+  }).catch(function(){}).then(function(){
+    var sel = $('accRoom');
+    sel.innerHTML = roomOptionsHtml(sel.value || ROOM_OPTIONS[0]);
+  });
+}
+
+// ---------- 名單資料 ----------
+// 手動登記：templates/_admins.admins = [{ email, role: 'admin'|'host', room, addedAt }]
+var adminsRef = db.collection('templates').doc('_admins');
+var MANUAL = [];
+// 已用 App 登入過的主播：users 集合（email 由 App 登入時寫入；舊資料可能還沒有）
+var APP_USERS = [];
+
+function loadManual(){
+  return adminsRef.get().then(function(doc){
+    var arr = (doc.exists && Array.isArray(doc.data().admins)) ? doc.data().admins : [];
+    MANUAL = arr.filter(function(a){ return a && a.email; }).map(function(a){
+      return { email: String(a.email).trim().toLowerCase(), role: a.role === 'host' ? 'host' : 'admin', room: a.room || '未知', addedAt: a.addedAt || '' };
+    });
+  }).catch(function(err){ setErr('讀取登記名單失敗：' + (err.message || err)); });
+}
+function saveManual(){ return adminsRef.set({ admins: MANUAL }, { merge: true }); }
+function loadAppUsers(){
+  return db.collection('users').get().then(function(qs){
+    APP_USERS = [];
+    qs.forEach(function(doc){
+      var d = doc.data() || {};
+      APP_USERS.push({
+        uid: doc.id,
+        email: String(d.email || '').trim().toLowerCase(),
+        nickname: d.nickname || d.alias || '',
+        room: (typeof d.room === 'string' && d.room) ? d.room : '未知'
+      });
+    });
+  }).catch(function(err){ setErr('讀取主播清單失敗：' + (err.message || err)); });
+}
+function reloadAll(){
+  setErr('');
+  return Promise.all([loadRooms(), loadManual(), loadAppUsers()]).then(renderList);
+}
+
+// 合併：App 主播 + 手動登記（同一個 email 合併成一列，角色以手動登記為準）
+function buildRows(){
+  var rows = [], byEmail = {};
+  APP_USERS.forEach(function(u){
+    var r = { email: u.email, nickname: u.nickname, role: 'host', room: u.room, appRoom: u.room, app: true, manualIdx: -1 };
+    rows.push(r);
+    if (u.email) byEmail[u.email] = r;
+  });
+  MANUAL.forEach(function(m, i){
+    var r = byEmail[m.email];
+    if (r) { r.role = m.role; r.room = m.room; r.manualIdx = i; }
+    else rows.push({ email: m.email, nickname: '', role: m.role, room: m.room, appRoom: '', app: false, manualIdx: i });
+  });
+  rows.sort(function(a, b){
+    if (a.role !== b.role) return a.role === 'admin' ? -1 : 1;
+    return (a.email || a.nickname).localeCompare(b.email || b.nickname);
+  });
+  return rows;
+}
+function renderList(){
+  var box = $('accList');
+  var rows = buildRows();
+  if (!rows.length) { box.innerHTML = '<div class="empty">還沒有任何管理員或主播</div>'; return; }
+  box.innerHTML = '<div class="head"><span>角色</span><span style="flex:1;">帳號／暱稱</span><span>所屬廳房</span></div>'
+    + rows.map(function(r){
+      var acc = r.email ? esc(r.email) : '<span class="muted">（尚未記錄 email，主播下次開 App 會自動補上）</span>';
+      if (r.nickname) acc += '<span class="nick">' + esc(r.nickname) + '</span>';
+      var room = '🏠 ' + esc(r.room);
+      if (r.app && r.manualIdx >= 0 && r.appRoom !== r.room) room += ' <span class="src">(App 設定：' + esc(r.appRoom) + ')</span>';
+      return '<div class="row">'
+        + '<span class="chip ' + r.role + '">' + ROLE_LABEL[r.role] + '</span>'
+        + '<span class="acc">' + acc + '</span>'
+        + '<span class="room">' + room + '</span>'
+        + (r.app ? '<span class="src" title="已經用 App 登入過">📱 App</span>' : '')
+        + (r.manualIdx >= 0
+            ? '<button class="del" data-idx="' + r.manualIdx + '" title="移除登記">✕</button>'
+            : '<span class="del-ph" title="App 主播請到後台刪除"></span>')
+        + '</div>';
+    }).join('');
+}
+
+// ---------- 新增 ----------
+$('accAddBtn').onclick = function(){
+  var emailEl = $('accEmail');
+  var email = emailEl.value.trim().toLowerCase();
+  var role = $('accRole').value === 'host' ? 'host' : 'admin';
+  var room = $('accRoom').value || '未知';
+  if (!email) { emailEl.focus(); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('請輸入正確的 Email 格式'); return; }
+  if (MANUAL.some(function(a){ return a.email === email; })) { alert('這個帳號已經登記過了，請先移除再重新新增'); return; }
+  MANUAL.push({ email: email, role: role, room: room, addedAt: new Date().toISOString() });
+  saveManual().then(function(){
+    renderList();
+    emailEl.value = '';
+    emailEl.focus();
+  }).catch(function(err){
+    MANUAL.pop();
+    alert('新增失敗：' + (err.message || err));
+  });
+};
+$('accEmail').addEventListener('keydown', function(e){ if (e.key === 'Enter') $('accAddBtn').click(); });
+
+// ---------- 移除（double confirm）----------
+$('accList').addEventListener('click', function(e){
+  var btn = e.target.closest ? e.target.closest('.del') : null;
+  if (!btn) return;
+  var idx = Number(btn.getAttribute('data-idx'));
+  var m = MANUAL[idx];
+  if (!m) return;
+  if (!confirm('確定要移除「' + m.email + '」（' + ROLE_LABEL[m.role] + '・' + m.room + '）的登記？')) return;
+  if (!confirm('再次確認：真的要移除「' + m.email + '」嗎？此動作無法復原。')) return;
+  var removed = MANUAL.splice(idx, 1)[0];
+  saveManual().then(renderList).catch(function(err){
+    MANUAL.splice(idx, 0, removed);
+    alert('移除失敗：' + (err.message || err));
+  });
+});
+$('reloadBtn').onclick = reloadAll;
+
+// ---------- 登入 ----------
+$('googleLoginBtn').onclick = function(){
+  $('err').textContent = '登入中…';
+  var provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider).catch(function(e){
+    var code = e && e.code;
+    if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+      $('err').textContent = '已取消登入';
+    } else {
+      $('err').textContent = '改用重新導向方式登入…';
+      auth.signInWithRedirect(provider);
+    }
+  });
+};
+auth.getRedirectResult().catch(function(){});
+function doLogout(){ auth.signOut().then(function(){ show('login'); }); }
+$('logoutBtn').onclick = doLogout;
+$('logoutBtn2').onclick = doLogout;
+
+auth.onAuthStateChanged(function(user){
+  if (!user) { show('login'); return; }
+  var email = (user.email || '').toLowerCase();
+  if (email !== OWNER_EMAIL) {
+    $('deniedMsg').textContent = '目前登入：' + (user.email || user.uid) + '，此頁只有最高管理者可以使用。';
+    show('denied');
+    return;
+  }
+  $('who').textContent = '已登入：' + user.email;
+  show('app');
+  reloadAll();
+});
+</script>
+</body>
+</html>

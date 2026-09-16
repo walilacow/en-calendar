@@ -90,6 +90,7 @@
         settings: store.settings || {},
         salesLog: store.salesLog || {},
         // 主播 profile 一併上雲（nickOk 之後的任何資料異動都會排程這裡）
+        email: (firebase.auth().currentUser && firebase.auth().currentUser.email) || '',
         nickname: nickname || '',
         alias: alias || '',
         avatar: avatarKey || '',
@@ -133,6 +134,8 @@
         const snap = await db.collection('users').doc(user.uid).get();
         if (snap.exists) {
           const d = snap.data();
+          // 補存 email（給最高管理者頁面列出主播用；舊資料沒有 email 會在這裡補上）
+          try { if (user.email && d.email !== user.email) db.collection('users').doc(user.uid).set({ email: user.email }, { merge: true }).catch(() => {}); } catch (e) {}
           const cloud = sanitizeStore({ dates: d.dates, weeks: d.weeks, months: d.months, ranges: d.ranges, scoreLog: d.scoreLog, salesLog: d.salesLog, listeners: d.listeners, settings: d.settings });
           // 合併保險：本機任務較多的期間保留本機版，避免空/舊雲端清掉本機資料
           try { mergeLocalIntoCloud(cloud); } catch (e) {}
