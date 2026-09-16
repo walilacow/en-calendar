@@ -286,3 +286,22 @@
   .pwd-box input:focus { border-color: var(--accent); }
   .pwd-box .btn { width: 100%; padding: 14px; font-size: 16px; }
   .pwd-err { color: var(--red); font-size: 13px; margin-top: 10px; min-height: 20px; }
+
+  /* 本週分數統計（與後台相同的每日長條；按「📊 本週分數統計」才展開） */
+  #weekStatsBox { margin-top:10px; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px 14px; }
+  .ws-period { font-size:12px; color:var(--muted); margin-bottom:10px; }
+  .ws-nums { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+  .ws-num { flex:1; min-width:90px; background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:8px 10px; }
+  .ws-num .v { font-size:18px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .ws-num .l { font-size:11px; color:var(--muted); margin-top:2px; }
+  .ws-hours { font-size:13px; padding:6px 0 10px; border-bottom:1px dashed var(--border); margin-bottom:6px; }
+  .ws-hours b { color:var(--blue); }
+  .ws-hours b.p { color:var(--green); }
+  .ws-row { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); margin-top:6px; }
+  .ws-row .d { min-width:50px; font-variant-numeric:tabular-nums; }
+  .ws-track { flex:1; min-width:24px; height:8px; background:var(--border); border-radius:99px; overflow:hidden; }
+  .ws-fill { height:100%; border-radius:99px; }
+  .ws-v { min-width:32px; font-weight:700; font-variant-numeric:tabular-nums; text-align:right; }
+  .ws-legend { display:flex; gap:12px; flex-wrap:wrap; font-size:11px; color:var(--muted); margin-top:10px; }
+  .ws-legend i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:-1px; }
+  .ws-note { font-size:11px; color:var(--muted); margin-top:8px; }

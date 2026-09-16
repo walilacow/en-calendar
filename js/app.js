@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  const APP_VERSION = '1.5.8';
+  const APP_VERSION = '1.5.9';
   const STORE_KEY = 'voiceHostCalendar_v1';
 
   const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
@@ -33,6 +33,7 @@
   let viewYear, viewMonth;
   let openDate = null;   // 目前開啟的日期面板（YYYY-MM-DD）
   let scope = 'day';     // day | week | month | custom
+  let weekStatsOpen = false; // 週面板「本週分數統計」是否展開
   let customId = null;   // 目前選擇的自訂區間 id
   let showCreateRange = false;
 
@@ -986,6 +987,8 @@
     }
 
     $('weekCopyBtn').style.display = (scope === 'day' && isSaturday(openDate)) ? 'block' : 'none';
+    $('weekStatsBtn').style.display = (scope === 'day' && isSaturday(openDate)) ? 'block' : 'none';
+    renderWeekStats(scope === 'day' && isSaturday(openDate));
     $('hoursBox').style.display = (scope === 'day' && isSaturday(openDate)) ? 'block' : 'none';
     // 簡／加碼只用在每日任務；切到週／月任務時隱藏並清掉勾選，避免殘留誤觸發
     $('easyBonusRow').style.display = scope === 'day' ? 'flex' : 'none';
@@ -2305,6 +2308,85 @@
     c.font = '28px ' + FONT;
     c.fillText('聲播日曆', W / 2, H - 105);
   }
+
+  // ---------- 本週分數統計（與後台相同：業績／任務／時數每日長條，按鈕展開才顯示） ----------
+  function dayMinutesOf(dk) {
+    const b = store.dates && store.dates[dk];
+    if (!b || !Array.isArray(b.slots)) return 0;
+    return b.slots.reduce((a, sl) => a + slotMinutes(sl), 0);
+  }
+  function renderWeekStats(visible) {
+    const box = $('weekStatsBox');
+    const btn = $('weekStatsBtn');
+    if (!box || !btn) return;
+    btn.textContent = weekStatsOpen ? '📊 收合本週分數統計' : '📊 本週分數統計';
+    if (!visible || !weekStatsOpen || !openDate) { box.style.display = 'none'; return; }
+    try { logTodayScores(); } catch (e) {}
+    const settings = store.settings || {};
+    const showSales = settings.enableSalesScore !== false;
+    const wi = weekInfo(openDate);
+    const start = wi.start, end = addDays(wi.start, 7);
+    const targetKey = key(start.getFullYear(), start.getMonth(), start.getDate());
+    const cut = getGiftCutoffHour() === 8 ? '08:00' : '00:00';
+    const log = store.scoreLog || {};
+    const WD = ['日', '一', '二', '三', '四', '五', '六'];
+    const rows = [];
+    let prevW = 0; const prevMByMonth = {};
+    let sSum = 0, tSum = 0;
+    for (let dt = new Date(start); dt < end; dt.setDate(dt.getDate() + 1)) {
+      const dk = key(dt.getFullYear(), dt.getMonth(), dt.getDate());
+      const snap = log[dk]; const b = store.dates[dk]; const mk = dk.slice(0, 7);
+      // 日／簡／加碼：依當天任務清單即時計算；週／月：依快照差額歸到實際拿到分數的那一天（與後台、複製當週分數同一套算法）
+      const sp = (b && Array.isArray(b.tasks)) ? splitScores(b.tasks) : { day: 0, easy: 0, bonus: 0 };
+      let wInc = 0, mInc = 0;
+      if (snap) {
+        const wNow = snap.week || 0; wInc = Math.max(0, wNow - prevW); prevW = wNow;
+        const prevM = prevMByMonth[mk] || 0; mInc = Math.max(0, (snap.month || 0) - prevM); prevMByMonth[mk] = snap.month || 0;
+      }
+      const t = sp.day + sp.easy + sp.bonus + wInc + mInc;
+      const s = showSales ? salesScoreForDay(dk) : 0;
+      rows.push({ label: fmtMD(dt) + ' ' + WD[dt.getDay()], t, s, mins: dayMinutesOf(dk) });
+      sSum += s; tSum += t;
+    }
+    const wResidual = Math.max(0, calc(getTasks('week', targetKey)).scoreEarned - prevW);
+    const mResidual = Math.max(0, calc(getTasks('month', targetKey)).scoreEarned - (prevMByMonth[targetKey.slice(0, 7)] || 0));
+    tSum += wResidual + mResidual;
+    const wMin = weekMinutes(targetKey);
+    const hFull = Math.floor(wMin / 60), hLeft = wMin % 60, hPts = hFull * 5;
+    const sMax = Math.max(1, ...rows.map(r => r.s));
+    const tMax = Math.max(1, ...rows.map(r => r.t));
+    const hMax = Math.max(60, ...rows.map(r => r.mins));
+    const fmtH = (m) => m > 0 ? (Math.round(m / 6) / 10) + 'h' : '';
+    let html = '<div class="ws-period">📊 本週 ' + fmtMD(start) + ' ' + cut + ' – ' + fmtMD(end) + ' ' + cut + '</div>';
+    html += '<div class="ws-nums">'
+      + (showSales ? '<div class="ws-num"><div class="v" style="color:var(--accent2);">' + sSum + '</div><div class="l">本週業績分數</div></div>' : '')
+      + '<div class="ws-num"><div class="v" style="color:var(--accent);">' + tSum + '</div><div class="l">本週任務分數</div></div>'
+      + '<div class="ws-num"><div class="v" style="color:var(--green);">' + (tSum + hPts) + '</div><div class="l">任務＋時數總分</div></div>'
+      + '</div>';
+    html += '<div class="ws-hours">📻 開播時數 <b>' + hFull + ' 小時' + (hLeft ? ' ' + hLeft + ' 分' : '') + '</b>　→　時數分數 <b class="p">+' + hPts + '</b> <span style="color:var(--muted);">（每滿 1 小時 +5）</span></div>';
+    rows.forEach(r => {
+      html += '<div class="ws-row"><span class="d">' + r.label + '</span>'
+        + '<div class="ws-track"><div class="ws-fill" style="background:var(--blue);width:' + Math.round(r.mins / hMax * 100) + '%"></div></div><span class="ws-v" style="color:var(--blue);">' + fmtH(r.mins) + '</span>'
+        + (showSales ? '<div class="ws-track"><div class="ws-fill" style="background:var(--accent2);width:' + Math.round(r.s / sMax * 100) + '%"></div></div><span class="ws-v" style="color:var(--accent2);">' + (r.s || '') + '</span>' : '')
+        + '<div class="ws-track"><div class="ws-fill" style="background:var(--accent);width:' + Math.round(r.t / tMax * 100) + '%"></div></div><span class="ws-v" style="color:var(--accent);">' + (r.t || '') + '</span>'
+        + '</div>';
+    });
+    html += '<div class="ws-legend"><span><i style="background:var(--blue);"></i>時數</span>'
+      + (showSales ? '<span><i style="background:var(--accent2);"></i>業績</span>' : '')
+      + '<span><i style="background:var(--accent);"></i>任務（含當天拿到的週／月任務）</span></div>';
+    if (wResidual || mResidual) {
+      html += '<div class="ws-note">另有未歸到特定日期的'
+        + (wResidual ? '週任務 +' + wResidual : '') + (wResidual && mResidual ? '、' : '') + (mResidual ? '月任務 +' + mResidual : '')
+        + '，已計入本週任務分數</div>';
+    }
+    box.innerHTML = html;
+    box.style.display = 'block';
+  }
+  $('weekStatsBtn').onclick = () => {
+    weekStatsOpen = !weekStatsOpen;
+    renderWeekStats(scope === 'day' && isSaturday(openDate));
+    if (weekStatsOpen) { try { $('weekStatsBox').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) {} }
+  };
 
   // ---------- 週日複製當週分數 ----------
   $('weekCopyBtn').onclick = () => {
