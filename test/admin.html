@@ -77,6 +77,7 @@
     <div style="display:flex;align-items:center;gap:8px;margin-top:12px;">
       <span style="font-size:13px;color:var(--muted);white-space:nowrap;">🏠 編輯廳房</span>
       <select id="tplRoomSelect" style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px;font-size:14px;outline:none;font-family:inherit;"></select>
+      <button class="btn" id="tplAddRoomBtn" style="width:auto;padding:10px 14px;white-space:nowrap;background:var(--card);color:var(--text);border:1px solid var(--border);">＋ 新增廳房</button>
     </div>
     <div class="period-tabs" style="margin-top:14px;">
       <button id="tplTabDay" class="on">日任務</button>
@@ -179,6 +180,7 @@ function showGateOrLogin(){
     document.getElementById('loginBox').style.display = 'none';
     document.getElementById('appWrap').style.display = 'block';
     document.getElementById('who').textContent = '已登入：' + (auth.currentUser.email || auth.currentUser.uid);
+    loadRooms();
     startListen();
     loadTemplate();
   } else {
@@ -207,11 +209,31 @@ showGateOrLogin();
 
 var period = 'week';
 var unsubscribe = null;
-var ROOM_OPTIONS = ['未知', '野蠻女友'];
+// 廳房：預設兩個寫在程式裡，自訂的存 Firestore templates/_meta.rooms（沿用 templates 規則，不用另外改規則）
+var DEFAULT_ROOMS = ['未知', '野蠻女友'];
+var ROOM_OPTIONS = DEFAULT_ROOMS.slice();
+var roomsMetaRef = db.collection('templates').doc('_meta');
 function roomOptionsHtml(selected){
   return ROOM_OPTIONS.map(function(r){
-    return '<option value="' + r + '"' + (r === selected ? ' selected' : '') + '>' + r + '</option>';
+    return '<option value="' + esc(r) + '"' + (r === selected ? ' selected' : '') + '>' + esc(r) + '</option>';
   }).join('');
+}
+function refreshRoomSelects(){
+  var sel = document.getElementById('tplRoomSelect');
+  if (sel) sel.innerHTML = roomOptionsHtml(tplRoom);
+  if (Object.keys(cache).length) render(); // 統計頁每位主播的廳房下拉也要拿到新廳房
+}
+function loadRooms(){
+  roomsMetaRef.get().then(function(doc){
+    var extra = (doc.exists && Array.isArray(doc.data().rooms)) ? doc.data().rooms : [];
+    ROOM_OPTIONS = DEFAULT_ROOMS.slice();
+    extra.forEach(function(r){ if (typeof r === 'string' && r && ROOM_OPTIONS.indexOf(r) === -1) ROOM_OPTIONS.push(r); });
+    refreshRoomSelects();
+  }).catch(function(){});
+}
+function saveRooms(){
+  var custom = ROOM_OPTIONS.filter(function(r){ return DEFAULT_ROOMS.indexOf(r) === -1; });
+  return roomsMetaRef.set({ rooms: custom }, { merge: true });
 }
 
 // Google 一鍵登入（PWA 主畫面模式唯一可靠做法：不跳轉、不彈窗）
@@ -326,6 +348,7 @@ auth.onAuthStateChanged(function(user){
   document.getElementById('loginBox').style.display = 'none';
   document.getElementById('appWrap').style.display = 'block';
   document.getElementById('who').textContent = '已登入：' + (user.email || user.uid);
+  loadRooms();
   startListen();
   loadTemplate();
 });
@@ -636,6 +659,28 @@ document.getElementById('tplRoomSelect').onchange = function(){
   tplRoom = this.value;
   templateDocRef = db.collection('templates').doc(tplRoom);
   loadTemplate();
+};
+document.getElementById('tplAddRoomBtn').onclick = function(){
+  var name = prompt('請輸入新廳房名稱');
+  if (name === null) return;
+  name = name.trim();
+  if (!name) return;
+  // Firestore 文件 ID 限制：不能含「/」、不能是 . 或 ..；另外保留「_」開頭給系統文件（例如 _meta）
+  if (name.indexOf('/') !== -1 || name === '.' || name === '..' || name.charAt(0) === '_') {
+    alert('廳房名稱不能包含「/」，也不能以「_」開頭'); return;
+  }
+  if (ROOM_OPTIONS.indexOf(name) !== -1) { alert('這個廳房已經存在'); return; }
+  ROOM_OPTIONS.push(name);
+  saveRooms().then(function(){
+    // 新增成功後直接切到新廳房，方便馬上建範本
+    tplRoom = name;
+    templateDocRef = db.collection('templates').doc(tplRoom);
+    refreshRoomSelects();
+    loadTemplate();
+  }).catch(function(err){
+    ROOM_OPTIONS.splice(ROOM_OPTIONS.indexOf(name), 1);
+    alert('新增廳房失敗：' + (err.message || err));
+  });
 };
 
 function loadTemplate(){
