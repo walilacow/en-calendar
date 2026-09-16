@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  const APP_VERSION = '1.5.7';
+  const APP_VERSION = '1.5.8';
   const STORE_KEY = 'voiceHostCalendar_v1';
 
   const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
@@ -80,7 +80,7 @@
     if (!fbOk || !currentUid) return;
     clearTimeout(cloudTimer);
     cloudTimer = setTimeout(() => {
-      db.collection('users').doc(currentUid).set({
+      const payload = {
         dates: store.dates || {},
         weeks: store.weeks || {},
         months: store.months || {},
@@ -96,7 +96,14 @@
         avatar: avatarKey || '',
         avatarData: (function(){ try { return localStorage.getItem('voiceAvatarData') || ''; } catch (e) { return ''; } })(),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true }).catch(() => {});
+      };
+      // 用 update() 把這些欄位「整個覆寫」。原本的 set(merge:true) 會把 dates 等巢狀物件深度合併，
+      // 本機刪掉的鍵（例如刪光開播時段後被移除的 slots、清掉的趣事）不會從雲端移除，
+      // 下次開 App 從雲端載入就又被還原。文件還不存在（第一次登入）才退回 set(merge:true) 建立。
+      const ref = db.collection('users').doc(currentUid);
+      ref.update(payload).catch((err) => {
+        if (err && err.code === 'not-found') return ref.set(payload, { merge: true }).catch(() => {});
+      });
     }, 1500);
   }
 
