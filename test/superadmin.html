@@ -29,25 +29,26 @@
   .chip { font-size:12px; font-weight:700; padding:3px 9px; border-radius:99px; white-space:nowrap; flex-shrink:0; }
   .chip.admin { background:rgba(183,148,246,.18); color:var(--accent); }
   .chip.host { background:rgba(99,179,237,.18); color:var(--blue); }
-  .room { color:var(--accent2); font-size:13px; white-space:nowrap; flex-shrink:0; }
+  .room { color:var(--accent2); font-size:13px; white-space:nowrap; flex-shrink:0; display:flex; align-items:center; gap:4px; }
+  .room-sel { width:auto; padding:5px 8px; font-size:13px; color:var(--accent2); }
+  .room-sel.saved { border-color:var(--green); }
   .src { color:var(--muted); font-size:11px; white-space:nowrap; flex-shrink:0; }
   .del { background:none; border:none; color:var(--red); font-size:15px; cursor:pointer; padding:2px 6px; flex-shrink:0; }
-  .del-ph { width:27px; flex-shrink:0; }
 </style>
 </head>
 <body>
 <div class="wrap" id="appWrap" style="display:none;">
   <h1>👑 最高管理者・帳號與角色設定</h1>
-  <div class="sub">登記後台管理員與主播的 Gmail 帳號、角色（role）與所屬廳房，可登記多位。此頁只有最高管理者帳號可以使用。目前只維護名單，尚未套用任何權限限制。</div>
+  <div class="sub">登記後台管理員與主播的 Google 帳號、角色（role）與所屬廳房，可登記多位。此頁只有最高管理者帳號可以使用。目前只維護名單，尚未套用任何權限限制。</div>
   <div id="who"></div>
 
   <div class="form">
-    <label class="f" style="flex:2;min-width:200px;">Gmail 帳號<input id="accEmail" type="email" placeholder="someone@gmail.com" autocomplete="off"></label>
+    <label class="f" style="flex:2;min-width:200px;">Google 帳號<input id="accEmail" type="email" placeholder="Google 帳號，例如 someone@gmail.com" autocomplete="off"></label>
     <label class="f" style="flex:1;min-width:110px;">角色 role<select id="accRole"><option value="admin">👑 管理員</option><option value="host">🎤 主播</option></select></label>
     <label class="f" style="flex:1;min-width:120px;">所屬廳房<select id="accRoom"></select></label>
     <button class="btn" id="accAddBtn" style="width:auto;padding:11px 18px;">新增</button>
   </div>
-  <div class="sub" style="margin-bottom:10px;">📱 標記＝已經用 App 登入過的主播，會自動列出（不用手動登記）。清單依角色排序：管理員在前、主播在後。</div>
+  <div class="sub" style="margin-bottom:10px;">📱 標記＝已經用 App 登入過的主播，會自動列出（不用手動登記）。清單依角色排序：管理員在前、主播在後。每列的廳房可直接下拉更改，選好即儲存。刪除 📱 主播會連同該主播的全部雲端資料一起清除。</div>
 
   <div id="accList" style="display:flex;flex-direction:column;gap:8px;"></div>
   <div class="err" id="appErr"></div>
@@ -115,7 +116,7 @@ function loadRooms(){
 // 手動登記：templates/_admins.admins = [{ email, role: 'admin'|'host', room, addedAt }]
 var adminsRef = db.collection('templates').doc('_admins');
 var MANUAL = [];
-// 已用 App 登入過的主播：users 集合（email 由 App 登入時寫入；舊資料可能還沒有）
+// 已用 App 登入過的主播：users 集合（Google 帳號 email 由 App 登入時寫入；舊資料可能還沒有）
 var APP_USERS = [];
 
 function loadManual(){
@@ -150,14 +151,14 @@ function reloadAll(){
 function buildRows(){
   var rows = [], byEmail = {};
   APP_USERS.forEach(function(u){
-    var r = { email: u.email, nickname: u.nickname, role: 'host', room: u.room, appRoom: u.room, app: true, manualIdx: -1 };
+    var r = { uid: u.uid, email: u.email, nickname: u.nickname, role: 'host', room: u.room, appRoom: u.room, app: true, manualIdx: -1 };
     rows.push(r);
     if (u.email) byEmail[u.email] = r;
   });
   MANUAL.forEach(function(m, i){
     var r = byEmail[m.email];
     if (r) { r.role = m.role; r.room = m.room; r.manualIdx = i; }
-    else rows.push({ email: m.email, nickname: '', role: m.role, room: m.room, appRoom: '', app: false, manualIdx: i });
+    else rows.push({ uid: '', email: m.email, nickname: '', role: m.role, room: m.room, appRoom: '', app: false, manualIdx: i });
   });
   rows.sort(function(a, b){
     if (a.role !== b.role) return a.role === 'admin' ? -1 : 1;
@@ -171,18 +172,15 @@ function renderList(){
   if (!rows.length) { box.innerHTML = '<div class="empty">還沒有任何管理員或主播</div>'; return; }
   box.innerHTML = '<div class="head"><span>角色</span><span style="flex:1;">帳號／暱稱</span><span>所屬廳房</span></div>'
     + rows.map(function(r){
-      var acc = r.email ? esc(r.email) : '<span class="muted">（尚未記錄 email，主播下次開 App 會自動補上）</span>';
+      var acc = r.email ? esc(r.email) : '<span class="muted">（尚未記錄 Google 帳號，主播下次開 App 會自動補上）</span>';
       if (r.nickname) acc += '<span class="nick">' + esc(r.nickname) + '</span>';
-      var room = '🏠 ' + esc(r.room);
-      if (r.app && r.manualIdx >= 0 && r.appRoom !== r.room) room += ' <span class="src">(App 設定：' + esc(r.appRoom) + ')</span>';
+      var room = '🏠 <select class="room-sel" data-idx="' + r.manualIdx + '" data-uid="' + esc(r.uid) + '" title="所屬廳房（選好即儲存）">' + roomOptionsHtml(r.room) + '</select>';
       return '<div class="row">'
         + '<span class="chip ' + r.role + '">' + ROLE_LABEL[r.role] + '</span>'
         + '<span class="acc">' + acc + '</span>'
         + '<span class="room">' + room + '</span>'
         + (r.app ? '<span class="src" title="已經用 App 登入過">📱 App</span>' : '')
-        + (r.manualIdx >= 0
-            ? '<button class="del" data-idx="' + r.manualIdx + '" title="移除登記">✕</button>'
-            : '<span class="del-ph" title="App 主播請到後台刪除"></span>')
+        + '<button class="del" data-idx="' + r.manualIdx + '" data-uid="' + esc(r.uid) + '" title="' + (r.app ? '刪除主播（含全部雲端資料）' : '移除登記') + '">✕</button>'
         + '</div>';
     }).join('');
 }
@@ -194,7 +192,7 @@ $('accAddBtn').onclick = function(){
   var role = $('accRole').value === 'host' ? 'host' : 'admin';
   var room = $('accRoom').value || '未知';
   if (!email) { emailEl.focus(); return; }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('請輸入正確的 Email 格式'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('請輸入正確的 Google 帳號格式（例如 someone@gmail.com）'); return; }
   if (MANUAL.some(function(a){ return a.email === email; })) { alert('這個帳號已經登記過了，請先移除再重新新增'); return; }
   MANUAL.push({ email: email, role: role, room: room, addedAt: new Date().toISOString() });
   saveManual().then(function(){
@@ -208,20 +206,51 @@ $('accAddBtn').onclick = function(){
 };
 $('accEmail').addEventListener('keydown', function(e){ if (e.key === 'Enter') $('accAddBtn').click(); });
 
-// ---------- 移除（double confirm）----------
+// ---------- 刪除（double confirm；App 主播會連同全部雲端資料一起刪除）----------
 $('accList').addEventListener('click', function(e){
   var btn = e.target.closest ? e.target.closest('.del') : null;
   if (!btn) return;
   var idx = Number(btn.getAttribute('data-idx'));
-  var m = MANUAL[idx];
-  if (!m) return;
-  if (!confirm('確定要移除「' + m.email + '」（' + ROLE_LABEL[m.role] + '・' + m.room + '）的登記？')) return;
-  if (!confirm('再次確認：真的要移除「' + m.email + '」嗎？此動作無法復原。')) return;
-  var removed = MANUAL.splice(idx, 1)[0];
-  saveManual().then(renderList).catch(function(err){
-    MANUAL.splice(idx, 0, removed);
-    alert('移除失敗：' + (err.message || err));
+  var uid = btn.getAttribute('data-uid') || '';
+  var m = idx >= 0 ? MANUAL[idx] : null;
+  var u = uid ? APP_USERS.filter(function(x){ return x.uid === uid; })[0] : null;
+  if (!m && !u) return;
+  var who = (m && m.email) || (u && (u.email || u.nickname)) || uid;
+  var roleLabel = ROLE_LABEL[m ? m.role : 'host'];
+  var msg1 = '確定要刪除「' + who + '」（' + roleLabel + '）？';
+  if (u) msg1 += '\n\n⚠️ 這位主播已用 App 登入，刪除會一併清除他在雲端的全部資料（任務、分數、聽眾資料卡、設定），無法復原。';
+  if (!confirm(msg1)) return;
+  if (!confirm('再次確認：真的要刪除「' + who + '」嗎？' + (u ? '該主播的所有雲端資料都會被清空，' : '') + '此動作無法復原。')) return;
+  var removed = m ? MANUAL.splice(idx, 1)[0] : null;
+  var p = m ? saveManual() : Promise.resolve();
+  p.then(function(){
+    if (!u) return;
+    return db.collection('users').doc(uid).delete().then(function(){
+      APP_USERS = APP_USERS.filter(function(x){ return x.uid !== uid; });
+    });
+  }).then(renderList).catch(function(err){
+    if (removed) MANUAL.splice(idx, 0, removed);
+    renderList();
+    alert('刪除失敗：' + (err.message || err));
   });
+});
+// ---------- 廳房下拉：選好即儲存 ----------
+$('accList').addEventListener('change', function(e){
+  var sel = e.target.closest ? e.target.closest('.room-sel') : null;
+  if (!sel) return;
+  var idx = Number(sel.getAttribute('data-idx'));
+  var uid = sel.getAttribute('data-uid') || '';
+  var room = sel.value || '未知';
+  var ops = [];
+  if (idx >= 0 && MANUAL[idx]) { MANUAL[idx].room = room; ops.push(saveManual()); }
+  if (uid) {
+    ops.push(db.collection('users').doc(uid).set({ room: room }, { merge: true }).then(function(){
+      APP_USERS.forEach(function(x){ if (x.uid === uid) x.room = room; });
+    }));
+  }
+  Promise.all(ops).then(function(){
+    sel.classList.add('saved'); setTimeout(function(){ sel.classList.remove('saved'); }, 1200);
+  }).catch(function(err){ alert('儲存廳房失敗：' + (err.message || err)); reloadAll(); });
 });
 $('reloadBtn').onclick = reloadAll;
 
