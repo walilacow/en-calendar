@@ -1,0 +1,172 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>聲播日曆後台管理手冊</title><style>
+body{background:#14141c;color:#e8e8f0;font-family:'PingFang TC','Noto Sans TC',sans-serif;max-width:960px;margin:0 auto;padding:24px 16px 80px;line-height:1.75}
+h1{color:#b794f6;font-size:26px;border-bottom:2px solid #2e2e40;padding-bottom:10px}
+h2{color:#f6ad55;font-size:20px;margin-top:40px}
+h3{color:#63b3ed;font-size:16px;margin-top:24px}
+.tip{background:#1e1e2a;border-left:4px solid #b794f6;padding:10px 14px;border-radius:8px;margin:12px 0;font-size:14px}
+.warn{background:#1e1e2a;border-left:4px solid #fc8181;padding:10px 14px;border-radius:8px;margin:12px 0;font-size:14px}
+code{background:#1e1e2a;padding:1px 6px;border-radius:6px;color:#f6ad55}
+pre{background:#1e1e2a;border:1px solid #2e2e40;border-radius:8px;padding:12px 14px;font-size:13px;line-height:1.6;white-space:pre-wrap}
+ul,ol{padding-left:22px}
+li{margin:4px 0}
+small{color:#8b8b9e}
+table{border-collapse:collapse;width:100%;font-size:14px;margin:12px 0}
+th,td{border:1px solid #2e2e40;padding:8px 10px;text-align:left;vertical-align:top}
+th{background:#1e1e2a;color:#b794f6}
+</style></head><body>
+<h1>🛠 聲播日曆 後台管理手冊 <small>2026-09 版</small></h1>
+<p>本手冊說明後台（<code>test/admin.html</code>）的登入方式、主播收禮統計、任務範本管理、廳房設定，以及最高管理者專用的帳號與角色設定頁。後台與主播 App 共用同一個 Firebase 專案，資料即時同步。</p>
+
+<h2>〇、登入後台</h2>
+<ol>
+<li>開啟後台網址（<code>…/test/admin.html</code>），先輸入<b>通行密碼</b>（由管理員提供）</li>
+<li>密碼正確後才會出現 <b>Google 登入</b> 畫面，用 Google 帳號登入</li>
+<li>登入成功即進入後台；通行密碼與 Google 登入狀態都會記住，下次開啟不用重打</li>
+</ol>
+<div class="tip">Google 一鍵登入按鈕若無法顯示（部分瀏覽器擋第三方 cookie），可改按「🔁 改用傳統登入（跳轉 Safari）」，登入完成會自動跳回。</div>
+<div class="warn">通行密碼只是「擋住路人」的門檻，並不是真正的資料權限控管——懂技術的人仍可能繞過。真正決定誰能讀寫資料的是 Firestore 安全規則，請勿把密碼當成唯一防線。</div>
+
+<h2>一、頁面結構</h2>
+<p>後台分成兩個分頁，用最上方的兩個按鈕切換：</p>
+<table>
+<tr><th>分頁</th><th>用途</th></tr>
+<tr><td>📊 收禮統計</td><td>看每位主播的業績、任務、開播時數與每日明細；指派廳房；刪除主播</td></tr>
+<tr><td>📋 任務範本</td><td>依廳房建立日／週／月／自訂任務範本，主播在 App 一鍵同步</td></tr>
+</table>
+
+<h2>二、收禮統計</h2>
+<h3>期間切換</h3>
+<ul>
+<li>上方「本週／本月」切換統計期間</li>
+<li>下方選單可回看<b>本週＋前 3 週</b>或<b>本月＋前 3 個月</b>，切換後所有數字與每日明細都會重算</li>
+</ul>
+<h3>主播列表（收合摘要）</h3>
+<ul>
+<li>每位主播預設只顯示<b>一行摘要</b>：暱稱、廳房、業績分數、任務分數、任務＋時數總分、開播時數</li>
+<li>點摘要列展開完整明細；再點一次收合。展開狀態在資料即時更新時會保留</li>
+<li>摘要列右側的<b>廳房下拉</b>與<b>🗑 刪除鈕</b>點了不會展開／收合</li>
+</ul>
+<h3>展開後的明細</h3>
+<ul>
+<li>三個統計框：業績分數、任務分數、任務＋時數總分</li>
+<li>📻 開播時數 → 時數分數（每滿 1 小時 +5 分，只計「完成開播」有打勾的時段）</li>
+<li>每日三條：<b>橘＝業績</b>、<b>紫＝任務</b>、<b>藍＝時數</b></li>
+<li><b>點紫色任務分數條或旁邊的數字</b>，會跳出當天完成的任務／禮物明細（✅ 已完成、⬜ 未完成、完成數／目標、分數）</li>
+</ul>
+<div class="tip">明細裡的<b>週任務、月任務</b>只會出現在「該週／該月新達成分數」的那一天，同一份週／月任務不會在其他天重複出現，避免重複計算。</div>
+<div class="tip">主播若在 App 設定裡<b>關閉「啟用業績分數」</b>，後台該主播的業績統計框、橘色業績條與圖例會一併隱藏。</div>
+<h3>分數怎麼算</h3>
+<ul>
+<li><b>每日任務</b>（普通／簡／加碼）：直接依當天任務清單即時計算，主播事後回頭補登或修改過去某天的任務，後台數字會跟著更新</li>
+<li><b>週／月任務</b>：依每日快照差額，把新增的分數歸到「實際達標的那一天」</li>
+<li><b>業績分數</b>：依主播自己的「每日分界」設定（00:00 或 08:00）歸日</li>
+</ul>
+
+<h3>指派廳房</h3>
+<ul>
+<li>摘要列右側的廳房下拉，選好即自動存檔（框線閃綠色表示已儲存）</li>
+<li>廳房決定主播在 App 按「同步範本任務」時<b>抓哪一份範本</b></li>
+<li>未指派的主播視為「未知」廳</li>
+</ul>
+
+<h3>刪除主播</h3>
+<ol>
+<li>點摘要列右側的 <b>🗑</b></li>
+<li>會<b>連續確認兩次</b>，兩次都按確定才會真的刪除</li>
+</ol>
+<div class="warn">刪除會清掉該主播在雲端的<b>全部資料</b>（任務、分數、聽眾資料卡、設定），<b>無法復原</b>。該主播下次登入 App 會被視為全新使用者，需要重新輸入暱稱等資料，本機殘留的舊資料也不會被拿來覆蓋回雲端。</div>
+
+<h2>三、任務範本</h2>
+<p>在這裡建立的任務，主播在 App 日面板點「☁️ 同步範本任務」就能一次帶入，不用自己手動輸入。</p>
+<h3>選擇廳房</h3>
+<ul>
+<li>「🏠 編輯廳房」下拉選擇要編輯哪個廳房的範本——<b>每個廳房各存一份範本，互不影響</b></li>
+<li>主播同步時只會抓自己被指派廳房的範本</li>
+</ul>
+<div class="tip">新增廳房請到最高管理者頁面（見第七節）；新增後，後台重新整理即可在廳房下拉看到新廳房。</div>
+<h3>日／週／月／自訂 分頁</h3>
+<ul>
+<li>四個分頁各自獨立一份清單</li>
+<li><b>自訂</b>分頁的任務，只有主播在 App 當下開著某個自訂區間時才會一併帶入</li>
+</ul>
+<h3>新增任務</h3>
+<ul>
+<li>輸入任務項目、數量（目標個數）、分數、選圖示 →「新增」</li>
+<li>✨簡（5 分）／🔥加碼（100 分）勾選<b>只在「日任務」分頁出現</b>；週／月／自訂任務一律是普通任務</li>
+<li>同名任務不能重複新增</li>
+</ul>
+<h3>編輯任務</h3>
+<ol>
+<li>點任務<b>名稱</b>或右側 <b>✏️</b>，該筆會亮紫框，資料載入上方表單</li>
+<li>修改後按「💾 儲存」；按「取消編輯」或再點同一筆可取消</li>
+</ol>
+<h3>拖曳排序與刪除</h3>
+<ul>
+<li>按住每筆左側的 <b>☰</b> 上下拖曳可調整順序（手機觸控也可以）</li>
+<li>點右側 <b>✕</b> 刪除該筆範本任務</li>
+</ul>
+<h3>複製任務清單到剪貼簿</h3>
+<p>清單最下方的「📋 複製任務清單到剪貼簿」會把目前廳房的日／週／月範本整理成文字，方便貼到群組公告，格式如下：</p>
+<pre>日任務(09/16)
+任務A * 80
+任務B（加碼） * 5
+
+週任務(9/13~9/19)
+任務C * 2
+
+月任務(9月)
+任務D * 3</pre>
+<ul>
+<li>加碼任務名稱後會自動標註「（加碼）」</li>
+<li>週的日期範圍與月份會依「今天」自動帶入</li>
+</ul>
+
+<h2>四、範本與主播 App 的對應</h2>
+<ul>
+<li>主播在 App 打開任一天的日面板，「複製前一天任務」上方有「☁️ 同步範本任務」按鈕</li>
+<li>同步會把該廳房範本的日／週／月（有開自訂區間時含自訂）任務帶入主播<b>當下開啟的那一天</b></li>
+<li><b>同名任務不會重複加入，也不會蓋掉主播已收的進度</b>；主播刪掉後再同步會補回來</li>
+<li>後台每次儲存範本都會更新版本號；主播 App 偵測到有新版本時，同步按鈕旁會出現紅色 <b>NEW</b>，同步一次後消失</li>
+</ul>
+<div class="tip">主播反映「按了同步沒反應」時，通常是①該任務名稱已經在他的清單裡（不會重複新增），或②他被指派的廳房還沒建範本。先確認他的廳房，再看該廳房範本是否為空。</div>
+
+<h2>五、資料與權限</h2>
+<ul>
+<li>後台與 App 共用同一個 Firebase 專案；主播資料在 Firestore <code>users</code> 集合，範本在 <code>templates</code> 集合（每個廳房一份文件，自訂廳房清單存在 <code>templates/_meta</code>，管理員／主播登記名單存在 <code>templates/_admins</code>）</li>
+<li>誰能讀寫哪些資料由 <b>Firestore 安全規則</b>決定（Firebase Console → Firestore → 規則），修改規則需到 Firebase Console 操作</li>
+<li>Firebase 的 apiKey 等設定寫在前端程式碼裡是正常設計，並非機密；不要依賴隱藏原始碼來保護資料</li>
+</ul>
+
+<h2>六、部署更新</h2>
+<ol>
+<li>程式碼推上 GitHub <code>main</code> 分支後，GitHub Actions 會自動部署到 Firebase Hosting</li>
+<li>若只改到 <code>test/</code> 資料夾的檔案，需到 GitHub → Actions → 該 workflow → 「Run workflow」手動觸發</li>
+<li>部署完成後若畫面還是舊的，請<b>強制重新整理</b>（清快取）</li>
+</ol>
+
+<h2>七、最高管理者頁面（帳號與角色設定）</h2>
+<p>另有一個獨立頁面 <code>test/superadmin.html</code>，用來登記管理員與主播的 Google 帳號、角色與所屬廳房，以及新增廳房。此頁<b>不需要後台通行密碼</b>，但只有最高管理者的 Google 帳號登入後才會顯示內容，其他帳號登入會看到「沒有權限」。</p>
+<h3>清單內容</h3>
+<ul>
+<li>每一列顯示：角色（👑 管理員／🎤 主播）、Google 帳號與暱稱、所屬廳房（下拉選單，選好即儲存；App 主播的廳房會直接寫回主播資料，與後台指派同步）</li>
+<li>已經用 App 登入過的主播會<b>自動列出</b>（標示 📱 App，角色為主播、廳房為後台指派的廳房），不用手動登記</li>
+<li>手動登記的帳號可指定角色與所屬廳房；若同一個帳號之後也用 App 登入，兩筆會合併成一列，角色與廳房以手動登記為準</li>
+<li>舊版 App 沒有記錄帳號的主播，會顯示「尚未記錄 Google 帳號」，該主播下次打開 App 就會自動補上</li>
+</ul>
+<h3>新增／移除</h3>
+<ol>
+<li>輸入 Google 帳號、選角色、選所屬廳房 →「新增」（同一個帳號不能重複登記）</li>
+<li>每一列尾的 <b>✕</b> 都可以刪除，會<b>連續確認兩次</b></li>
+<li>刪除的是 📱 App 主播時，會<b>連同該主播在雲端的全部資料一起清除</b>（任務、分數、聽眾資料卡、設定），無法復原，效果與後台「收禮統計」的 🗑 刪除主播相同</li>
+</ol>
+<h3>廳房</h3>
+<ul>
+<li>頁面下方「🏠 廳房」區塊列出所有廳房（預設的「未知」「野蠻女友」加上自訂廳房）</li>
+<li>輸入名稱按「＋ 新增廳房」即可新增；名稱不能包含「/」、不能以「_」開頭，也不能與既有廳房重複。目前尚未提供刪除廳房</li>
+<li>新廳房會立刻出現在此頁的「所屬廳房」下拉，後台重新整理後也會看到</li>
+</ul>
+<div class="tip">目前這份名單只是「登記」，尚未套用任何權限限制——後台仍是通行密碼＋Google 登入。之後要依名單限制誰能進後台、誰能改哪個廳房的範本，再另行調整。</div>
+
+<hr style="border-color:#2e2e40">
+<small>後台管理手冊 2026-09 版・錯誤回報：walilacow.hu@gmail.com</small>
+</body></html>
