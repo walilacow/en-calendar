@@ -165,9 +165,16 @@ function loadManual(){
     MANUAL = arr.filter(function(a){ return a && a.email; }).map(function(a){
       return { email: String(a.email).trim().toLowerCase(), role: a.role === 'host' ? 'host' : 'admin', room: a.room || '未知', addedAt: a.addedAt || '' };
     });
+    // 舊資料沒有 byEmail 對照表 → 補寫一次
+    if (MANUAL.length && !(doc.exists && doc.data().byEmail)) return saveManual();
   }).catch(function(err){ setErr('讀取登記名單失敗：' + (err.message || err)); });
 }
-function saveManual(){ return adminsRef.set({ admins: MANUAL }, { merge: true }); }
+// 同時寫一份 byEmail 對照表（{ email: { role, room } }），給 Firestore 規則查權限用；整份覆寫，移除的帳號才不會殘留
+function saveManual(){
+  var byEmail = {};
+  MANUAL.forEach(function(a){ byEmail[a.email] = { role: a.role, room: a.room }; });
+  return adminsRef.set({ admins: MANUAL, byEmail: byEmail, updatedAt: new Date().toISOString() });
+}
 function loadAppUsers(){
   return db.collection('users').get().then(function(qs){
     APP_USERS = [];
