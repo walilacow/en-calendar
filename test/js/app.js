@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  const APP_VERSION = '1.5.9';
+  const APP_VERSION = '1.6.0';
   const STORE_KEY = 'voiceHostCalendar_v1';
 
   const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
@@ -2812,6 +2812,7 @@
 
   function openSettingsPanel() {
     populateSettingsPanel();
+    renderPushStatus();
     openOverlay('settingsOverlay');
   }
 
@@ -2840,6 +2841,104 @@
   }
   bindSettings();
 
+
+  // ---------- 開播／下播打卡 Web Push（iPhone 需 iOS 16.4 以上並「加入主畫面」） ----------
+  // 訂閱存在 users/{uid}.pushSubs，實際發送由 Cloud Functions 每 5 分鐘排程（見 functions/）。
+  const VAPID_PUBLIC_KEY = 'BEuMNVSP0yeWn5OOoQ4KFVnW6BAPk3Snb765vlQNfCEzZXdyRB2nCaftxTYfJUlDyJjljwx1NCqys0EzoH6fr_g';
+  const SW_URL = 'sw.js';
+  const PUSH_FLAG_KEY = 'pushEnabled_v1';
+  function pushSupported() { return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
+  function isIOSDevice() { return /iP(hone|od|ad)/.test(navigator.userAgent || ''); }
+  function isStandalone() { try { return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; } catch (e) { return false; } }
+  function urlB64ToUint8(s) {
+    const pad = '='.repeat((4 - s.length % 4) % 4);
+    const raw = atob((s + pad).replace(/-/g, '+').replace(/_/g, '/'));
+    const out = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+    return out;
+  }
+  function endpointId(endpoint) { let h = 0; for (let i = 0; i < endpoint.length; i++) h = (h * 31 + endpoint.charCodeAt(i)) | 0; return 'e' + (h >>> 0).toString(36); }
+  async function currentPushSub() {
+    if (!pushSupported()) return null;
+    const reg = await navigator.serviceWorker.getRegistration(SW_URL);
+    return reg ? reg.pushManager.getSubscription() : null;
+  }
+  async function enablePush() {
+    if (!pushSupported()) { toast(isIOSDevice() ? '請先用 Safari「加入主畫面」，從桌面圖示開啟後再開推播' : '這個瀏覽器不支援推播'); return; }
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') { toast('沒有允許通知，無法推播'); renderPushStatus(); return; }
+    const reg = await navigator.serviceWorker.register(SW_URL);
+    await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToUint8(VAPID_PUBLIC_KEY) });
+    const j = sub.toJSON();
+    const id = endpointId(j.endpoint);
+    const entry = { endpoint: j.endpoint, keys: j.keys, ua: String(navigator.userAgent || '').slice(0, 120), addedAt: new Date().toISOString() };
+    if (fbOk && currentUid) {
+      const ref = db.collection('users').doc(currentUid);
+      const patch = {}; patch['pushSubs.' + id] = entry;
+      await ref.update(patch).catch(() => ref.set({ pushSubs: { [id]: entry } }, { merge: true }));
+    }
+    try { localStorage.setItem(PUSH_FLAG_KEY, '1'); } catch (e) {}
+    toast('已開啟開播打卡推播');
+    renderPushStatus();
+  }
+  async function disablePush() {
+    const sub = await currentPushSub().catch(() => null);
+    if (sub) {
+      const id = endpointId(sub.endpoint);
+      await sub.unsubscribe().catch(() => {});
+      if (fbOk && currentUid) {
+        const patch = {}; patch['pushSubs.' + id] = firebase.firestore.FieldValue.delete();
+        await db.collection('users').doc(currentUid).update(patch).catch(() => {});
+      }
+    }
+    try { localStorage.removeItem(PUSH_FLAG_KEY); } catch (e) {}
+    toast('已關閉推播');
+    renderPushStatus();
+  }
+  async function renderPushStatus() {
+    const btn = $('pushToggleBtn'), st = $('pushStatus');
+    if (!btn || !st) return;
+    const base = '開播時與下播前 5 分鐘各推播一次，App 沒開著也會收到。';
+    if (!pushSupported()) {
+      btn.style.display = 'none';
+      st.textContent = isIOSDevice()
+        ? 'iPhone 需要 iOS 16.4 以上，並用 Safari「加入主畫面」後從桌面圖示開啟，這裡才會出現開啟按鈕。'
+        : '這個瀏覽器不支援推播。';
+      return;
+    }
+    btn.style.display = '';
+    if (Notification.permission === 'denied') {
+      btn.textContent = '通知已被封鎖'; btn.disabled = true; btn.dataset.on = '';
+      st.textContent = '這個 App 的通知被封鎖了，請到 iPhone 設定 → 通知 重新允許後再試。';
+      return;
+    }
+    btn.disabled = false;
+    const sub = await currentPushSub().catch(() => null);
+    if (sub && Notification.permission === 'granted') {
+      btn.textContent = '關閉推播'; btn.dataset.on = '1';
+      st.textContent = '✅ 已開啟。' + base;
+    } else {
+      btn.textContent = '開啟推播'; btn.dataset.on = '';
+      st.textContent = base + (isIOSDevice() && !isStandalone() ? ' iPhone 請先「加入主畫面」並從桌面開啟。' : '');
+    }
+  }
+  function bindPush() {
+    const btn = $('pushToggleBtn');
+    if (!btn) return;
+    btn.onclick = () => {
+      (btn.dataset.on ? disablePush() : enablePush()).catch((e) => {
+        toast('推播設定失敗：' + (e && e.message ? e.message : e));
+        renderPushStatus();
+      });
+    };
+    // 開啟過推播的裝置：每次開 App 確認 Service Worker 還在（iOS 偶爾會清掉）
+    try {
+      if (pushSupported() && localStorage.getItem(PUSH_FLAG_KEY) === '1') navigator.serviceWorker.register(SW_URL).catch(() => {});
+    } catch (e) {}
+  }
+  bindPush();
 
   // ---------- Safari 建議 ----------
   function isSafariBrowser() {

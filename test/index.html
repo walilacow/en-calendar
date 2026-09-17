@@ -363,6 +363,14 @@
       <label class="settings-row"><input id="enableDragon" type="checkbox"> 啟用金龍統計</label>
       <label class="settings-row"><input id="enableCastle" type="checkbox"> 啟用城堡統計</label>
     </div>
+    <div class="settings-block">
+      <div class="settings-title">提醒</div>
+      <div class="settings-row" style="justify-content:space-between;">
+        <span>🔔 開播／下播打卡推播</span>
+        <button type="button" class="btn btn-ghost" id="pushToggleBtn" style="padding:8px 14px;font-size:13px;white-space:nowrap;">開啟推播</button>
+      </div>
+      <div id="pushStatus" style="font-size:11px;color:var(--muted);line-height:1.6;">開播時與下播前 5 分鐘各推播一次，App 沒開著也會收到。</div>
+    </div>
     <button class="btn btn-primary btn-block" id="settingsSave">儲存設定</button>
   </div>
 </div>
