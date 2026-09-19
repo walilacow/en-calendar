@@ -11,13 +11,26 @@
 <meta name="app-version" content="1.5.7">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
-<title>恩恩聲播日曆</title>
+<title>🎂 恩恩生日快樂｜聲播日曆</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+
+<!-- 🎂 生日裝飾：彩帶與氣球（純 CSS 動畫，不擋點擊） -->
+<div class="bday-confetti" aria-hidden="true"><i style="left:1.9%;background:#ff7eb6;animation-duration:9.7s;animation-delay:-7.5s"></i><i style="left:7.4%;background:#ffd166;animation-duration:8.0s;animation-delay:-12.7s"></i><i style="left:10.7%;background:#9ae6b4;animation-duration:7.8s;animation-delay:-5.5s"></i><i style="left:16.7%;background:#63b3ed;animation-duration:12.9s;animation-delay:-3.6s"></i><i style="left:18.8%;background:#c4a7ff;animation-duration:12.8s;animation-delay:-13.1s"></i><i style="left:22.8%;background:#fff1a8;animation-duration:9.3s;animation-delay:-13.2s"></i><i style="left:29.3%;background:#ff7eb6;animation-duration:9.2s;animation-delay:-13.6s"></i><i style="left:33.8%;background:#ffd166;animation-duration:8.8s;animation-delay:-12.2s"></i><i style="left:38.4%;background:#9ae6b4;animation-duration:8.2s;animation-delay:-11.1s"></i><i style="left:41.7%;background:#63b3ed;animation-duration:13.6s;animation-delay:-5.1s"></i><i style="left:45.7%;background:#c4a7ff;animation-duration:9.2s;animation-delay:-11.3s"></i><i style="left:49.9%;background:#fff1a8;animation-duration:13.3s;animation-delay:-12.6s"></i><i style="left:53.4%;background:#ff7eb6;animation-duration:10.1s;animation-delay:-12.7s"></i><i style="left:57.8%;background:#ffd166;animation-duration:11.9s;animation-delay:-1.4s"></i><i style="left:62.5%;background:#9ae6b4;animation-duration:9.8s;animation-delay:-12.9s"></i><i style="left:67.5%;background:#63b3ed;animation-duration:10.6s;animation-delay:-13.0s"></i><i style="left:73.7%;background:#c4a7ff;animation-duration:10.4s;animation-delay:-7.3s"></i><i style="left:76.8%;background:#fff1a8;animation-duration:13.5s;animation-delay:-2.0s"></i><i style="left:80.8%;background:#ff7eb6;animation-duration:12.1s;animation-delay:-2.1s"></i><i style="left:84.1%;background:#ffd166;animation-duration:11.4s;animation-delay:-2.6s"></i><i style="left:89.9%;background:#9ae6b4;animation-duration:9.0s;animation-delay:-3.3s"></i><i style="left:95.1%;background:#63b3ed;animation-duration:9.2s;animation-delay:-2.5s"></i></div>
+<div class="bday-balloon" style="left:6%;background:#ff7eb6;animation-duration:20s;animation-delay:-3s"></div>
+<div class="bday-balloon" style="left:22%;background:#ffd166;animation-duration:26s;animation-delay:-11s"></div>
+<div class="bday-balloon" style="left:48%;background:#9ae6b4;animation-duration:23s;animation-delay:-17s"></div>
+<div class="bday-balloon" style="left:72%;background:#63b3ed;animation-duration:28s;animation-delay:-7s"></div>
+<div class="bday-balloon" style="left:90%;background:#c4a7ff;animation-duration:24s;animation-delay:-20s"></div>
 <!-- 登入 -->
 <div class="pwd-overlay" id="loginOverlay">
   <div class="pwd-box">
+    <div class="bday-banner">
+      <span class="cake">🎂</span>
+      <span class="msg">恩恩生日快樂</span>
+      <div class="sub2">🎈 今天的每一份禮物，都是為你點的蠟燭</div>
+    </div>
     <h2 id="loginTitle">🔐 聲播日曆</h2>
     <p>登入後資料自動同步雲端，換手機也看得到</p>
     <button class="btn btn-primary" id="googleLoginBtn" style="background:#fff; color:#333; display:flex; align-items:center; justify-content:center; gap:10px;">
@@ -39,6 +52,11 @@
 
 <div class="container" id="mainContent" style="display:none;">
   <header>
+    <div class="bday-banner">
+      <span class="cake">🎂</span>
+      <span class="msg">恩恩生日快樂</span>
+      <div class="sub2">🎈 今天的每一份禮物，都是為你點的蠟燭</div>
+    </div>
     <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
       <div style="display:flex; align-items:center; gap:10px; min-width:0;">
         <img id="titleAvatar" src="avatars/cat.png" alt="頭像" style="width:38px; height:38px; border-radius:50%; border:2px solid var(--accent); object-fit:cover;">
