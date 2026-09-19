@@ -8,3 +8,5 @@ https://github.com/jonjonsson/SoundMonster
 
 若為 CC BY 類檔案，發布時請依原授權標示作者/來源。
 本專案僅作個人直播音效庫按鈕播放使用。
+
+onair.m4a（廣播開始）、offair.m4a（廣播結束）：本專案自行以程式合成的鐘聲音效，無第三方授權限制。

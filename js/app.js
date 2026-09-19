@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  const APP_VERSION = '1.6.0';
+  const APP_VERSION = '1.6.1';
   const STORE_KEY = 'voiceHostCalendar_v1';
 
   const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
@@ -1882,6 +1882,8 @@
   let audioCtx = null, masterGain = null;
   let sfxVolume = Math.max(0, Math.min(100, parseInt(localStorage.getItem('sfxVolume') || '80', 10) || 80));
   const SFX = [
+    { id: 'onair', label: '📻 廣播開始', file: 'sfx/onair.m4a', fallback: 'fanfare' },
+    { id: 'offair', label: '📴 廣播結束', file: 'sfx/offair.m4a', fallback: 'ding' },
     { id: 'applause', label: '👏 掌聲', file: 'sfx/applause.mp3', fallback: 'applause' },
     { id: 'celebrate', label: '🎉 歡呼慶祝', file: 'sfx/celebrate.mp3', fallback: 'fanfare' },
     { id: 'airhorn', label: '📣 氣氛喇叭', file: 'sfx/airhorn.mp3', fallback: 'airhorn' },
