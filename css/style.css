@@ -305,3 +305,94 @@
   .ws-legend { display:flex; gap:12px; flex-wrap:wrap; font-size:11px; color:var(--muted); margin-top:10px; }
   .ws-legend i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:-1px; }
   .ws-note { font-size:11px; color:var(--muted); margin-top:8px; }
+
+  /* ===================== 🎂 生日風格（恩恩生日快樂） ===================== */
+  /* 這一段放在檔案最後，覆蓋上面的主題變數；要還原生日版只要刪掉整段即可 */
+  :root {
+    --bg: #1a1022;
+    --card: #271a33;
+    --card-hover: #332242;
+    --accent: #ff7eb6;
+    --accent2: #ffd166;
+    --border: #3d2b4d;
+    --text: #f4ecf7;
+    --muted: #a493b4;
+  }
+  body {
+    background:
+      radial-gradient(900px 420px at 50% -120px, rgba(255,126,182,.22), transparent 70%),
+      radial-gradient(700px 380px at 105% 12%, rgba(255,209,102,.14), transparent 70%),
+      radial-gradient(700px 380px at -5% 22%, rgba(154,230,180,.10), transparent 70%),
+      var(--bg);
+    background-attachment: fixed;
+  }
+  .container { position: relative; z-index: 1; }
+  .pwd-overlay { background: transparent; }  /* 讓彩帶透出來 */
+  .pwd-box { position: relative; z-index: 1; }
+
+  /* 生日橫幅 */
+  .bday-banner {
+    max-width: 520px; margin: 0 auto 14px; padding: 14px 16px 12px;
+    text-align: center; border-radius: 18px;
+    border: 1px solid rgba(255,209,102,.35);
+    background: linear-gradient(135deg, rgba(255,126,182,.16), rgba(255,209,102,.13));
+    box-shadow: 0 10px 30px rgba(255,126,182,.14);
+  }
+  .bday-banner .cake {
+    display: block; font-size: 28px; line-height: 1; margin-bottom: 6px;
+    animation: bdayPop 2.6s ease-in-out infinite;
+  }
+  .bday-banner .msg {
+    display: block; font-size: 26px; font-weight: 900; letter-spacing: 4px;
+    background: linear-gradient(90deg, #ff7eb6, #ffd166, #9ae6b4, #63b3ed, #ff7eb6);
+    background-size: 300% 100%;
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent; -webkit-text-fill-color: transparent;
+    animation: bdayShine 7s linear infinite;
+  }
+  .bday-banner .sub2 { font-size: 12px; color: var(--muted); margin-top: 7px; letter-spacing: 1px; }
+  .pwd-box .bday-banner { margin-bottom: 18px; }
+  .pwd-box .bday-banner .msg { font-size: 22px; letter-spacing: 3px; }
+
+  @keyframes bdayShine { to { background-position: 300% 0; } }
+  @keyframes bdayPop {
+    0%, 100% { transform: translateY(0) rotate(-6deg); }
+    50%      { transform: translateY(-5px) rotate(6deg); }
+  }
+
+  /* 彩帶 */
+  .bday-confetti { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+  .bday-confetti i {
+    position: absolute; top: -14vh; width: 8px; height: 14px; border-radius: 2px;
+    opacity: .7; animation-name: bdayFall; animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+  .bday-confetti i:nth-child(3n)   { width: 7px; height: 7px; border-radius: 50%; }
+  .bday-confetti i:nth-child(4n+1) { width: 10px; height: 4px; border-radius: 99px; }
+  @keyframes bdayFall {
+    0%   { transform: translate3d(0, -14vh, 0) rotate(0deg); }
+    100% { transform: translate3d(14px, 114vh, 0) rotate(720deg); }
+  }
+
+  /* 氣球 */
+  .bday-balloon {
+    position: fixed; bottom: -22vh; width: 34px; height: 44px; border-radius: 50% 50% 48% 48%;
+    pointer-events: none; z-index: 0; opacity: .55;
+    animation: bdayRise linear infinite;
+  }
+  .bday-balloon::after {
+    content: ""; position: absolute; left: 50%; top: 100%;
+    width: 1px; height: 42px; background: rgba(255,255,255,.22);
+  }
+  @keyframes bdayRise {
+    0%   { transform: translate3d(0, 0, 0); }
+    100% { transform: translate3d(26px, -135vh, 0); }
+  }
+
+  @media (max-width: 480px) {
+    .bday-banner .msg { font-size: 22px; letter-spacing: 2px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bday-banner .cake, .bday-banner .msg { animation: none; }
+    .bday-confetti, .bday-balloon { display: none; }
+  }
