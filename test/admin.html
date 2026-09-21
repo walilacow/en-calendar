@@ -241,7 +241,8 @@ document.getElementById('pwdGateBtn').onclick = function(){
 document.getElementById('pwdGateInput').addEventListener('keydown', function(e){
   if (e.key === 'Enter') document.getElementById('pwdGateBtn').click();
 });
-showGateOrLogin();
+// 注意：初次的 showGateOrLogin() 移到本 script 最後才呼叫（見檔尾），
+// 因為它在已登入狀態會直接進後台並呼叫 loadTemplate()/startListen()，那些依賴的變數要先宣告完。
 
 var period = 'week';
 var unsubscribe = null;
@@ -1030,6 +1031,9 @@ document.getElementById('tplCopyBtn').onclick = function(){
   btn.textContent = '✅ 已複製到剪貼簿';
   setTimeout(function(){ btn.textContent = original; }, 1500);
 };
+
+// 所有變數與函式都宣告完了，這時才決定要顯示密碼關卡、登入畫面或直接進後台
+showGateOrLogin();
 </script>
 </body>
 </html>
