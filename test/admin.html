@@ -48,6 +48,26 @@
   .host-brief { font-size:13px; margin-top:6px; line-height:1.8; }
   .host-brief b { font-weight:800; }
   .host-detail { margin-top:12px; padding-top:12px; border-top:1px dashed var(--border); }
+  /* 開播班表 */
+  .sch-nav { width:auto; padding:8px 12px; background:var(--card); color:var(--text); border:1px solid var(--border); font-size:16px; line-height:1; }
+  .sch-legend { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+  .sch-legend .chip { display:inline-flex; align-items:center; gap:6px; background:var(--card); border:1px solid var(--border); border-radius:99px; padding:5px 10px; font-size:12px; }
+  .sch-legend .dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  .sch-legend .hrs { color:var(--muted); }
+  .sch-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .sch-grid { display:grid; grid-template-columns:repeat(7,minmax(94px,1fr)); gap:4px; min-width:680px; }
+  .sch-dow { text-align:center; font-size:11px; color:var(--muted); padding:4px 0; }
+  .sch-cell { background:var(--card); border:1px solid var(--border); border-radius:10px; min-height:74px; padding:6px; display:flex; flex-direction:column; gap:3px; }
+  .sch-cell.empty { background:transparent; border-color:transparent; }
+  .sch-cell.today { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
+  .sch-cell.past { opacity:.78; }
+  .sch-num { font-size:12px; font-weight:800; color:var(--muted); }
+  .sch-cell.today .sch-num { color:var(--accent); }
+  .sch-item { font-size:11px; line-height:1.35; border-left:3px solid; padding:2px 5px; border-radius:4px; background:rgba(255,255,255,.04); }
+  .sch-item .n { font-weight:700; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sch-item .t { color:var(--text); white-space:nowrap; }
+  .sch-item .ok { color:var(--green); font-weight:800; margin-left:4px; }
+  .sch-empty { grid-column:1 / -1; text-align:center; color:var(--muted); padding:30px 0; font-size:13px; }
 </style>
 </head>
 <body>
@@ -59,6 +79,7 @@
   <div class="period-tabs" style="margin-bottom:18px;">
     <button id="pageTabStats" class="on">📊 收禮統計</button>
     <button id="pageTabTemplate">📋 任務範本</button>
+    <button id="pageTabSchedule">📆 開播班表</button>
   </div>
 
   <div id="pageStats">
@@ -70,6 +91,22 @@
     <select id="monthSelect" style="display:none;width:100%;margin-bottom:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px;font-size:14px;outline:none;font-family:inherit;"></select>
     <div class="cards" id="cards"></div>
     <div style="margin-top:18px;"><button class="btn" onclick="location.reload()">🔄 重新整理</button></div>
+  </div>
+
+  <div id="pageSchedule" style="display:none;">
+    <div class="sub">依廳房顯示每位主播在 App 日面板設定的開播時段（打卡與推播都以此為準）。✓ 表示該時段已勾選「完成開播」。</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0;">
+      <span style="font-size:13px;color:var(--muted);white-space:nowrap;">🏠 廳房</span>
+      <select id="schRoom" style="flex:1;min-width:140px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px;font-size:14px;outline:none;font-family:inherit;"></select>
+      <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
+        <button class="btn sch-nav" id="schPrev" title="上個月">‹</button>
+        <span id="schMonthLabel" style="font-weight:800;font-size:15px;min-width:110px;text-align:center;"></span>
+        <button class="btn sch-nav" id="schNext" title="下個月">›</button>
+        <button class="btn sch-nav" id="schToday" style="font-size:12px;padding:8px 10px;">本月</button>
+      </div>
+    </div>
+    <div class="sch-legend" id="schLegend"></div>
+    <div class="sch-wrap"><div class="sch-grid" id="schCal"></div></div>
   </div>
 
   <div id="pageTemplate" style="display:none;">
@@ -220,6 +257,7 @@ function roomOptionsHtml(selected){
 function refreshRoomSelects(){
   var sel = document.getElementById('tplRoomSelect');
   if (sel) sel.innerHTML = roomOptionsHtml(tplRoom);
+  refreshSchRoomSelect();
   if (Object.keys(cache).length) render(); // 統計頁每位主播的廳房下拉也要拿到新廳房
 }
 function loadRooms(){
@@ -379,6 +417,7 @@ function startListen(){
     cache = {};
     snap.forEach(function(doc){ cache[doc.id] = doc.data() || {}; });
     render();
+    renderSchedule();
   }, function(err){
     var msg = (err && err.message) ? err.message : String(err);
     document.getElementById('err').textContent = '讀取失敗：' + msg;
@@ -629,19 +668,111 @@ document.addEventListener('click', function(e){
   });
 });
 
-// ---------- 頁面分頁：收禮統計 / 任務範本 ----------
-document.getElementById('pageTabStats').onclick = function(){
-  document.getElementById('pageTabStats').className = 'on';
-  document.getElementById('pageTabTemplate').className = '';
-  document.getElementById('pageStats').style.display = 'block';
-  document.getElementById('pageTemplate').style.display = 'none';
-};
-document.getElementById('pageTabTemplate').onclick = function(){
-  document.getElementById('pageTabStats').className = '';
-  document.getElementById('pageTabTemplate').className = 'on';
-  document.getElementById('pageStats').style.display = 'none';
-  document.getElementById('pageTemplate').style.display = 'block';
-};
+// ---------- 頁面分頁：收禮統計 / 任務範本 / 開播班表 ----------
+var PAGES = { stats: ['pageTabStats', 'pageStats'], template: ['pageTabTemplate', 'pageTemplate'], schedule: ['pageTabSchedule', 'pageSchedule'] };
+function showPage(name){
+  Object.keys(PAGES).forEach(function(k){
+    document.getElementById(PAGES[k][0]).className = k === name ? 'on' : '';
+    document.getElementById(PAGES[k][1]).style.display = k === name ? 'block' : 'none';
+  });
+  if (name === 'schedule') renderSchedule();
+}
+Object.keys(PAGES).forEach(function(k){ document.getElementById(PAGES[k][0]).onclick = function(){ showPage(k); }; });
+
+// ---------- 開播班表（依廳房、逐月，資料來自各主播 dates[YYYY-MM-DD].slots） ----------
+var SCH_ALL = '__all__';
+var SCH_COLORS = ['#b794f6', '#f6ad55', '#63b3ed', '#48bb78', '#fc8181', '#f687b3', '#4fd1c5', '#ecc94b', '#a0aec0', '#fbd38d'];
+var schRoom = SCH_ALL;
+var schNow = new Date();
+var schY = schNow.getFullYear(), schM = schNow.getMonth(); // 0-based
+function refreshSchRoomSelect(){
+  var sel = document.getElementById('schRoom');
+  if (!sel) return;
+  var html = '<option value="' + SCH_ALL + '"' + (schRoom === SCH_ALL ? ' selected' : '') + '>全部廳房</option>';
+  ROOM_OPTIONS.forEach(function(r){ html += '<option value="' + esc(r) + '"' + (r === schRoom ? ' selected' : '') + '>' + esc(r) + '</option>'; });
+  sel.innerHTML = html;
+}
+function schSlotMinutes(sl){
+  if (!sl || !sl.start || !sl.end) return 0;
+  var a = String(sl.start).split(':').map(Number), b = String(sl.end).split(':').map(Number);
+  if (!isFinite(a[0]) || !isFinite(b[0])) return 0;
+  var m = (b[0] * 60 + (b[1] || 0)) - (a[0] * 60 + (a[1] || 0));
+  return m > 0 ? m : 0;
+}
+function schFmtHours(min){
+  var h = Math.floor(min / 60), m = min % 60;
+  return h + ' 小時' + (m ? ' ' + m + ' 分' : '');
+}
+function renderSchedule(){
+  var cal = document.getElementById('schCal');
+  var legend = document.getElementById('schLegend');
+  if (!cal || document.getElementById('pageSchedule').style.display === 'none') return;
+  document.getElementById('schMonthLabel').textContent = schY + ' 年 ' + (schM + 1) + ' 月';
+  // 這個廳房的主播（依暱稱排序，顏色依序指派）
+  var hosts = [];
+  Object.keys(cache).forEach(function(uid){
+    var d = cache[uid] || {};
+    var room = d.room || '未知';
+    if (schRoom !== SCH_ALL && room !== schRoom) return;
+    hosts.push({ uid: uid, name: d.nickname || d.alias || '（未設暱稱）', room: room, dates: d.dates || {}, minutes: 0, doneMinutes: 0 });
+  });
+  hosts.sort(function(a, b){ return a.name.localeCompare(b.name, 'zh-Hant'); });
+  hosts.forEach(function(h, i){ h.color = SCH_COLORS[i % SCH_COLORS.length]; });
+
+  var daysInMonth = new Date(schY, schM + 1, 0).getDate();
+  var firstDow = new Date(schY, schM, 1).getDay();
+  var todayKey = key(new Date());
+  var byDay = {}; // dk -> [{host, start, end, done}]
+  hosts.forEach(function(h){
+    for (var d = 1; d <= daysInMonth; d++) {
+      var dk = key(new Date(schY, schM, d));
+      var b = h.dates[dk];
+      if (!b || !Array.isArray(b.slots)) continue;
+      b.slots.forEach(function(sl){
+        if (!sl || !sl.start) return;
+        var mins = schSlotMinutes(sl);
+        h.minutes += mins;
+        if (sl.done) h.doneMinutes += mins;
+        (byDay[dk] = byDay[dk] || []).push({ host: h, start: sl.start, end: sl.end || '', done: !!sl.done });
+      });
+    }
+  });
+  Object.keys(byDay).forEach(function(dk){ byDay[dk].sort(function(a, b){ return (a.start > b.start ? 1 : a.start < b.start ? -1 : 0) || a.host.name.localeCompare(b.host.name, 'zh-Hant'); }); });
+
+  legend.innerHTML = hosts.length
+    ? hosts.map(function(h){
+        return '<span class="chip"><span class="dot" style="background:' + h.color + ';"></span>' + esc(h.name)
+          + (schRoom === SCH_ALL ? ' <span class="hrs">・' + esc(h.room) + '</span>' : '')
+          + ' <span class="hrs">' + schFmtHours(h.minutes) + (h.doneMinutes ? '（✓ ' + schFmtHours(h.doneMinutes) + '）' : '') + '</span></span>';
+      }).join('')
+    : '';
+
+  var html = ['日', '一', '二', '三', '四', '五', '六'].map(function(w){ return '<div class="sch-dow">' + w + '</div>'; }).join('');
+  if (!hosts.length) {
+    html += '<div class="sch-empty">這個廳房目前沒有主播</div>';
+    cal.innerHTML = html; return;
+  }
+  for (var e = 0; e < firstDow; e++) html += '<div class="sch-cell empty"></div>';
+  for (var day = 1; day <= daysInMonth; day++) {
+    var dk2 = key(new Date(schY, schM, day));
+    var items = byDay[dk2] || [];
+    var cls = 'sch-cell' + (dk2 === todayKey ? ' today' : '') + (dk2 < todayKey ? ' past' : '');
+    html += '<div class="' + cls + '"><div class="sch-num">' + day + '</div>'
+      + items.map(function(it){
+          return '<div class="sch-item" style="border-color:' + it.host.color + ';" title="' + esc(it.host.name) + ' ' + esc(it.start) + (it.end ? '–' + esc(it.end) : '') + '">'
+            + '<span class="n" style="color:' + it.host.color + ';">' + esc(it.host.name) + (it.done ? '<span class="ok">✓</span>' : '') + '</span>'
+            + '<span class="t">' + esc(it.start) + (it.end ? '–' + esc(it.end) : '') + '</span>'
+            + '</div>';
+        }).join('')
+      + '</div>';
+  }
+  cal.innerHTML = html;
+}
+document.getElementById('schRoom').onchange = function(){ schRoom = this.value; renderSchedule(); };
+document.getElementById('schPrev').onclick = function(){ schM--; if (schM < 0) { schM = 11; schY--; } renderSchedule(); };
+document.getElementById('schNext').onclick = function(){ schM++; if (schM > 11) { schM = 0; schY++; } renderSchedule(); };
+document.getElementById('schToday').onclick = function(){ var n = new Date(); schY = n.getFullYear(); schM = n.getMonth(); renderSchedule(); };
+refreshSchRoomSelect();
 
 // ---------- 任務範本管理（依廳房分開，每個廳房各存一份，不分日期） ----------
 var tplRoom = ROOM_OPTIONS[0];
